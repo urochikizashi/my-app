@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Minecraft Web (Three.js MVP)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #78a7ff;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* レティクル（クロスヘア） */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    }
+    #crosshair::before {
+      top: 9px;
+      left: 0;
+      width: 20px;
+      height: 2px;
+    }
+    #crosshair::after {
+      top: 0;
+      left: 9px;
+      width: 2px;
+      height: 20px;
+    }
+
+    /* ホットバー */
+    #hotbar {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px;
+      border-radius: 8px;
+      border: 2px solid #555;
+      z-index: 10;
+    }
+    .slot {
+      width: 54px;
+      height: 54px;
+      background: rgba(50, 50, 50, 0.7);
+      border: 3px solid #888;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+    .slot.active {
+      border-color: #ffffff;
+      background: rgba(100, 100, 100, 0.85);
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    }
+    .slot-key {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 11px;
+      color: #aaa;
+      font-weight: bold;
+    }
+    .slot-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 3px;
+      box-shadow: inset 1px 1px 0 rgba(255,255,255,0.4), inset -1px -1px 0 rgba(0,0,0,0.4);
+    }
+    .slot-name {
+      position: absolute;
+      bottom: -22px;
+      font-size: 11px;
+      color: #fff;
+      white-space: nowrap;
+      background: rgba(0,0,0,0.7);
+      padding: 1px 4px;
+      border-radius: 3px;
+      display: none;
+    }
+    .slot.active .slot-name {
+      display: block;
+    }
+
+    /* 情報オーバーレイ */
+    #info-panel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      color: white;
+      text-shadow: 1px 1px 2px #000;
+      font-size: 14px;
+      line-height: 1.5;
+      z-index: 10;
+      background: rgba(0,0,0,0.4);
+      padding: 10px 14px;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+
+    /* タイトル・開始画面 */
+    #instructions {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 20;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+    }
+    #instructions h1 {
+      font-size: 44px;
+      margin-bottom: 12px;
+      letter-spacing: 2px;
+      text-shadow: 2px 2px 0 #333;
+      color: #55ff55;
+    }
+    #instructions .subtitle {
+      font-size: 20px;
+      color: #eee;
+      margin-bottom: 28px;
+    }
+    #instructions .keys {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px 30px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: 480px;
+      text-align: left;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+    #instructions .keys b {
+      color: #ffdd55;
+    }
+    #instructions .start-btn {
+      margin-top: 30px;
+      padding: 12px 36px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #111;
+      background: #55ff55;
+      border: none;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(85, 255, 85, 0.4);
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+    }
+    #instructions .start-btn:hover {
+      background: #66ff66;
+      transform: scale(1.05);
+    }
+  </style>
+
+  <!-- Three.js Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="crosshair"></div>
+
+  <div id="info-panel">
+    <div><strong>3D Minecraft MVP</strong></div>
+    <div id="pos-display">XYZ: 0.0, 0.0, 0.0</div>
+    <div id="block-count">Blocks: 0</div>
+    <div id="fps-display">FPS: 60</div>
+  </div>
+
+  <div id="hotbar">
+    <div class="slot active" data-index="0">
+      <span class="slot-key">1</span>
+      <div class="slot-icon" style="background:#5c8e32;"></div>
+      <span class="slot-name">草ブロック (Grass)</span>
+    </div>
+    <div class="slot" data-index="1">
+      <span class="slot-key">2</span>
+      <div class="slot-icon" style="background:#866043;"></div>
+      <span class="slot-name">土 (Dirt)</span>
+    </div>
+    <div class="slot" data-index="2">
+      <span class="slot-key">3</span>
+      <div class="slot-icon" style="background:#777777;"></div>
+      <span class="slot-name">石 (Stone)</span>
+    </div>
+    <div class="slot" data-index="3">
+      <span class="slot-key">4</span>
+      <div class="slot-icon" style="background:#a07449;"></div>
+      <span class="slot-name">木材 (Wood)</span>
+    </div>
+    <div class="slot" data-index="4">
+      <span class="slot-key">5</span>
+      <div class="slot-icon" style="background:#377e22;"></div>
+      <span class="slot-name">葉 (Leaves)</span>
+    </div>
+    <div class="slot" data-index="5">
+      <span class="slot-key">6</span>
+      <div class="slot-icon" style="background:#9c4233;"></div>
+      <span class="slot-name">レンガ (Bricks)</span>
+    </div>
+    <div class="slot" data-index="6">
+      <span class="slot-key">7</span>
+      <div class="slot-icon" style="background:#5aa0cd; opacity:0.8;"></div>
+      <span class="slot-name">水 / ガラス (Glass)</span>
+    </div>
+  </div>
+
+  <div id="instructions">
+    <h1>MINECRAFT 3D</h1>
+    <div class="subtitle">Three.js Web Edition (MVP)</div>
+    <div class="keys">
+      <div><b>W, A, S, D</b> : 前後左右に移動</div>
+      <div><b>SPACE</b> : ジャンプ</div>
+      <div><b>マウス移動</b> : 視点回転</div>
+      <div><b>左クリック</b> : ブロック破壊</div>
+      <div><b>右クリック</b> : ブロック設置</div>
+      <div><b>数字キー 1〜7 / ホイール</b> : ブロック選択</div>
+      <div><b>ESC</b> : マウスロック解除</div>
+    </div>
+    <button class="start-btn">クリックしてスタート！</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+    /* --- Audio Synthesizer (Web Audio API) --- */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+
+      if (type === 'break') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'place') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.08);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } else if (type === 'jump') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+    }
+
+    /* --- Procedural Textures Generation (16x16 pixel art) --- */
+    function createPixelTexture(drawFn) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 16;
+      canvas.height = 16;
+      const ctx = canvas.getContext('2d');
+      drawFn(ctx);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      return texture;
+    }
+
+    function rand(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // テクスチャ生成
+    const textures = {
+      grassTop: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#5c8e32';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let i = 0; i < 60; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#679e37' : '#4f7b2a';
+          ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+        }
+      }),
+      grassSide: createPixelTexture((ctx) => {
+        // 土
+        ctx.fillStyle = '#866043';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let i = 0; i < 40; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#77543a' : '#966c4c';
+          ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+        }
+        // 草の上部
+        ctx.fillStyle = '#5c8e32';
+        ctx.fillRect(0, 0, 16, 3);
+        for (let x = 0; x < 16; x++) {
+          const h = rand(2, 5);
+          ctx.fillStyle = Math.random() > 0.5 ? '#5c8e32' : '#679e37';
+          ctx.fillRect(x, 0, 1, h);
+        }
+      }),
+      dirt: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#866043';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let i = 0; i < 50; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#77543a' : '#966c4c';
+          ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+        }
+      }),
+      stone: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#777777';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let i = 0; i < 60; i++) {
+          const c = rand(95, 135);
+          ctx.fillStyle = `rgb(${c},${c},${c})`;
+          ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+        }
+      }),
+      woodSide: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#8f683d';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let x = 0; x < 16; x += 4) {
+          ctx.fillStyle = '#6b4e2d';
+          ctx.fillRect(x, 0, 1, 16);
+        }
+        for (let i = 0; i < 30; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#7b5934' : '#a27645';
+          ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+        }
+      }),
+      woodTop: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#9f7847';
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.strokeStyle = '#6b4e2d';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(2.5, 2.5, 11, 11);
+        ctx.strokeRect(5.5, 5.5, 5, 5);
+      }),
+      leaves: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#2d6d1b';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let i = 0; i < 60; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#377e22' : '#225514';
+          ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+        }
+      }),
+      brick: createPixelTexture((ctx) => {
+        ctx.fillStyle = '#d0d0d0'; // 目地
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = '#9c4233'; // レンガ赤
+        ctx.fillRect(0, 1, 7, 2);
+        ctx.fillRect(8, 1, 8, 2);
+        ctx.fillRect(0, 5, 3, 2);
+        ctx.fillRect(4, 5, 7, 2);
+        ctx.fillRect(12, 5, 4, 2);
+        ctx.fillRect(0, 9, 7, 2);
+        ctx.fillRect(8, 9, 8, 2);
+        ctx.fillRect(0, 13, 3, 2);
+        ctx.fillRect(4, 13, 7, 2);
+        ctx.fillRect(12, 13, 4, 2);
+      }),
+      glass: createPixelTexture((ctx) => {
+        ctx.fillStyle = 'rgba(90, 160, 205, 0.4)';
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0.5, 0.5, 15, 15);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillRect(2, 2, 2, 2);
+        ctx.fillRect(3, 4, 1, 1);
+      })
+    };
+
+    // ブロック定義
+    const BLOCK_TYPES = [
+      {
+        id: 0,
+        name: 'Grass',
+        materials: [
+          new THREE.MeshLambertMaterial({ map: textures.grassSide }),
+          new THREE.MeshLambertMaterial({ map: textures.grassSide }),
+          new THREE.MeshLambertMaterial({ map: textures.grassTop }),
+          new THREE.MeshLambertMaterial({ map: textures.dirt }),
+          new THREE.MeshLambertMaterial({ map: textures.grassSide }),
+          new THREE.MeshLambertMaterial({ map: textures.grassSide })
+        ]
+      },
+      {
+        id: 1,
+        name: 'Dirt',
+        materials: new THREE.MeshLambertMaterial({ map: textures.dirt })
+      },
+      {
+        id: 2,
+        name: 'Stone',
+        materials: new THREE.MeshLambertMaterial({ map: textures.stone })
+      },
+      {
+        id: 3,
+        name: 'Wood',
+        materials: [
+          new THREE.MeshLambertMaterial({ map: textures.woodSide }),
+          new THREE.MeshLambertMaterial({ map: textures.woodSide }),
+          new THREE.MeshLambertMaterial({ map: textures.woodTop }),
+          new THREE.MeshLambertMaterial({ map: textures.woodTop }),
+          new THREE.MeshLambertMaterial({ map: textures.woodSide }),
+          new THREE.MeshLambertMaterial({ map: textures.woodSide })
+        ]
+      },
+      {
+        id: 4,
+        name: 'Leaves',
+        materials: new THREE.MeshLambertMaterial({ map: textures.leaves, transparent: true })
+      },
+      {
+        id: 5,
+        name: 'Bricks',
+        materials: new THREE.MeshLambertMaterial({ map: textures.brick })
+      },
+      {
+        id: 6,
+        name: 'Glass',
+        materials: new THREE.MeshLambertMaterial({ map: textures.glass, transparent: true, opacity: 0.75 })
+      }
+    ];
+
+    /* --- Scene, Camera, Renderer --- */
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x78a7ff);
+    scene.fog = new THREE.Fog(0x78a7ff, 25, 60);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    /* --- Lights --- */
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    sunLight.position.set(40, 70, 30);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
+    sunLight.shadow.camera.near = 10;
+    sunLight.shadow.camera.far = 150;
+    const d = 35;
+    sunLight.shadow.camera.left = -d;
+    sunLight.shadow.camera.right = d;
+    sunLight.shadow.camera.top = d;
+    sunLight.shadow.camera.bottom = -d;
+    scene.add(sunLight);
+
+    /* --- Controls & Pointer Lock --- */
+    const controls = new PointerLockControls(camera, document.body);
+    const instructions = document.getElementById('instructions');
+
+    instructions.addEventListener('click', () => {
+      controls.lock();
+    });
+
+    controls.addEventListener('lock', () => {
+      instructions.style.display = 'none';
+    });
+
+    controls.addEventListener('unlock', () => {
+      instructions.style.display = 'flex';
+    });
+
+    /* --- World & Block Management --- */
+    const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const blocksMap = new Map();
+    const blocksGroup = new THREE.Group();
+    scene.add(blocksGroup);
+
+    function getBlockKey(x, y, z) {
+      return `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+    }
+
+    function addBlock(x, y, z, blockTypeId, playSoundFlag = false) {
+      const key = getBlockKey(x, y, z);
+      if (blocksMap.has(key)) return null;
+
+      const type = BLOCK_TYPES[blockTypeId] || BLOCK_TYPES[0];
+      const mesh = new THREE.Mesh(boxGeometry, type.materials);
+      mesh.position.set(Math.round(x), Math.round(y), Math.round(z));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { key, blockTypeId };
+
+      blocksGroup.add(mesh);
+      blocksMap.set(key, mesh);
+
+      if (playSoundFlag) {
+        playSound('place');
+      }
+      return mesh;
+    }
+
+    function removeBlock(mesh, playSoundFlag = true) {
+      if (!mesh) return;
+      const key = mesh.userData.key;
+      blocksGroup.remove(mesh);
+      blocksMap.delete(key);
+      if (playSoundFlag) {
+        playSound('break');
+      }
+    }
+
+    /* --- Procedural Terrain Generation --- */
+    const WORLD_SIZE = 28;
+    const HALF_SIZE = Math.floor(WORLD_SIZE / 2);
+
+    function generateWorld() {
+      function pseudoNoise(x, z) {
+        const v = Math.sin(x * 0.18) * Math.cos(z * 0.18) +
+                  Math.sin(x * 0.35 + z * 0.2) * 0.5 +
+                  Math.cos(x * 0.08 - z * 0.12) * 0.8;
+        return Math.floor(v * 2.2) + 3;
+      }
+
+      for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
+        for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) {
+          const surfaceY = pseudoNoise(x, z);
+
+          for (let y = 0; y < surfaceY - 2; y++) {
+            addBlock(x, y, z, 2); // Stone
+          }
+          for (let y = Math.max(0, surfaceY - 2); y < surfaceY; y++) {
+            addBlock(x, y, z, 1); // Dirt
+          }
+          addBlock(x, surfaceY, z, 0); // Grass
+
+          // ランダムに木を植える
+          if (x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
+            if (Math.random() < 0.025 && surfaceY >= 2) {
+              const trunkHeight = rand(3, 4);
+              for (let ty = 1; ty <= trunkHeight; ty++) {
+                addBlock(x, surfaceY + ty, z, 3);
+              }
+              const topY = surfaceY + trunkHeight;
+              for (let lx = -2; lx <= 2; lx++) {
+                for (let lz = -2; lz <= 2; lz++) {
+                  for (let ly = 0; ly <= 1; ly++) {
+                    if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.4) continue;
+                    addBlock(x + lx, topY + ly, z + lz, 4);
+                  }
+                }
+              }
+              for (let lx = -1; lx <= 1; lx++) {
+                for (let lz = -1; lz <= 1; lz++) {
+                  addBlock(x + lx, topY + 2, z + lz, 4);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    generateWorld();
+
+    /* --- Block Highlight / Wireframe Box --- */
+    const highlightGeo = new THREE.BoxGeometry(1.005, 1.005, 1.005);
+    const highlightMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.5
+    });
+    const highlightMesh = new THREE.Mesh(highlightGeo, highlightMat);
+    highlightMesh.visible = false;
+    scene.add(highlightMesh);
+
+    /* --- Player Physics & Input State --- */
+    const player = {
+      height: 1.6,
+      radius: 0.35,
+      speed: 7.0,
+      jumpVelocity: 8.5,
+      velocity: new THREE.Vector3(),
+      onGround: false
+    };
+
+    camera.position.set(0, 10, 0);
+
+    const keys = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      jump: false
+    };
+
+    let selectedBlockType = 0;
+
+    window.addEventListener('keydown', (e) => {
+      switch (e.code) {
+        case 'KeyW':
+        case 'ArrowUp':
+          keys.forward = true;
+          break;
+        case 'KeyS':
+        case 'ArrowDown':
+          keys.backward = true;
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          keys.left = true;
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          keys.right = true;
+          break;
+        case 'Space':
+          if (player.onGround) {
+            player.velocity.y = player.jumpVelocity;
+            player.onGround = false;
+            playSound('jump');
+          }
+          keys.jump = true;
+          break;
+        case 'Digit1': selectSlot(0); break;
+        case 'Digit2': selectSlot(1); break;
+        case 'Digit3': selectSlot(2); break;
+        case 'Digit4': selectSlot(3); break;
+        case 'Digit5': selectSlot(4); break;
+        case 'Digit6': selectSlot(5); break;
+        case 'Digit7': selectSlot(6); break;
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      switch (e.code) {
+        case 'KeyW':
+        case 'ArrowUp':
+          keys.forward = false;
+          break;
+        case 'KeyS':
+        case 'ArrowDown':
+          keys.backward = false;
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          keys.left = false;
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          keys.right = false;
+          break;
+        case 'Space':
+          keys.jump = false;
+          break;
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (!controls.isLocked) return;
+      if (e.deltaY > 0) {
+        selectSlot((selectedBlockType + 1) % 7);
+      } else if (e.deltaY < 0) {
+        selectSlot((selectedBlockType + 6) % 7);
+      }
+    });
+
+    const slots = document.querySelectorAll('.slot');
+    function selectSlot(idx) {
+      selectedBlockType = idx;
+      slots.forEach((s, i) => {
+        if (i === idx) s.classList.add('active');
+        else s.classList.remove('active');
+      });
+    }
+
+    slots.forEach(slot => {
+      slot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectSlot(parseInt(slot.dataset.index));
+      });
+    });
+
+    /* --- Raycasting for Target Block --- */
+    const raycaster = new THREE.Raycaster();
+    raycaster.far = 6.5;
+    let targetIntersection = null;
+
+    function updateRaycast() {
+      if (!controls.isLocked) {
+        highlightMesh.visible = false;
+        targetIntersection = null;
+        return;
+      }
+
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      const intersects = raycaster.intersectObjects(blocksGroup.children);
+
+      if (intersects.length > 0) {
+        targetIntersection = intersects[0];
+        highlightMesh.position.copy(targetIntersection.object.position);
+        highlightMesh.visible = true;
+      } else {
+        targetIntersection = null;
+        highlightMesh.visible = false;
+      }
+    }
+
+    window.addEventListener('mousedown', (e) => {
+      if (!controls.isLocked) return;
+
+      if (e.button === 0) {
+        // 左クリック: 破壊
+        if (targetIntersection) {
+          removeBlock(targetIntersection.object, true);
+          updateRaycast();
+        }
+      } else if (e.button === 2) {
+        // 右クリック: 設置
+        if (targetIntersection) {
+          const normal = targetIntersection.face.normal;
+          const targetPos = targetIntersection.object.position.clone().add(normal);
+
+          const pBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(camera.position.x, camera.position.y - player.height / 2, camera.position.z),
+            new THREE.Vector3(player.radius * 2, player.height, player.radius * 2)
+          );
+          const bBox = new THREE.Box3().setFromCenterAndSize(
+            targetPos,
+            new THREE.Vector3(0.95, 0.95, 0.95)
+          );
+
+          if (!pBox.intersectsBox(bBox)) {
+            addBlock(targetPos.x, targetPos.y, targetPos.z, selectedBlockType, true);
+            updateRaycast();
+          }
+        }
+      }
+    });
+
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    /* --- Collision and Physics Update --- */
+    const GRAVITY = 22.0;
+
+    function checkVoxelCollision(pos) {
+      const minX = Math.floor(pos.x - player.radius);
+      const maxX = Math.floor(pos.x + player.radius);
+      const minY = Math.floor(pos.y);
+      const maxY = Math.floor(pos.y + player.height);
+      const minZ = Math.floor(pos.z - player.radius);
+      const maxZ = Math.floor(pos.z + player.radius);
+
+      for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+          for (let z = minZ; z <= maxZ; z++) {
+            if (blocksMap.has(getBlockKey(x, y, z))) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function updatePhysics(delta) {
+      const moveDir = new THREE.Vector3();
+      if (keys.forward) moveDir.z -= 1;
+      if (keys.backward) moveDir.z += 1;
+      if (keys.left) moveDir.x -= 1;
+      if (keys.right) moveDir.x += 1;
+      moveDir.normalize();
+
+      const camEuler = new THREE.Euler(0, camera.rotation.y, 0, 'YXZ');
+      moveDir.applyEuler(camEuler);
+
+      const speed = player.speed * delta;
+      const horizontalMovement = moveDir.clone().multiplyScalar(speed);
+
+      const oldX = camera.position.x;
+      camera.position.x += horizontalMovement.x;
+      if (checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z))) {
+        camera.position.x = oldX;
+      }
+
+      const oldZ = camera.position.z;
+      camera.position.z += horizontalMovement.z;
+      if (checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z))) {
+        camera.position.z = oldZ;
+      }
+
+      player.velocity.y -= GRAVITY * delta;
+      const verticalMovement = player.velocity.y * delta;
+      camera.position.y += verticalMovement;
+
+      const feetPos = new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z);
+      if (checkVoxelCollision(feetPos)) {
+        if (player.velocity.y < 0) {
+          camera.position.y = Math.floor(feetPos.y) + 1 + player.height;
+          player.velocity.y = 0;
+          player.onGround = true;
+        } else if (player.velocity.y > 0) {
+          camera.position.y = Math.floor(camera.position.y) - 0.05;
+          player.velocity.y = 0;
+        }
+      } else {
+        player.onGround = false;
+      }
+
+      if (camera.position.y < -15) {
+        camera.position.set(0, 15, 0);
+        player.velocity.set(0, 0, 0);
+      }
+    }
+
+    /* --- Animation Loop --- */
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let lastFpsUpdate = lastTime;
+    const posDisplay = document.getElementById('pos-display');
+    const blockCountDisplay = document.getElementById('block-count');
+    const fpsDisplay = document.getElementById('fps-display');
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const time = performance.now();
+      const delta = Math.min((time - lastTime) / 1000, 0.1);
+      lastTime = time;
+
+      frameCount++;
+      if (time - lastFpsUpdate > 500) {
+        const fps = Math.round((frameCount * 1000) / (time - lastFpsUpdate));
+        fpsDisplay.textContent = `FPS: ${fps}`;
+        frameCount = 0;
+        lastFpsUpdate = time;
+      }
+
+      if (controls.isLocked) {
+        updatePhysics(delta);
+        updateRaycast();
+
+        posDisplay.textContent = `XYZ: ${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)}`;
+        blockCountDisplay.textContent = `Blocks: ${blocksMap.size}`;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    /* --- Window Resize --- */
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
