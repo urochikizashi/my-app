@@ -1,0 +1,28 @@
+{
+  "name": "my-app",
+
+  // image を指定しない = Codespaces の既定イメージ(Node / Python / Java などが入ったもの)を使う。
+  // ここに "image" を書くと最小構成になり、ローカルプレビュー用の python3 などが消えるので書かない。
+
+  "features": {
+    // Claude Code を自動でインストールする。
+    // 末尾の :1.0 は Claude Code のバージョンではなく、インストール手順のバージョン。
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+
+  // ログイン情報と会話履歴を、コンテナとは別のボリュームに逃がす。
+  // これが無いと Rebuild のたびにログインし直しになる。
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/codespace/.claude,type=volume"
+  ],
+
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/codespace/.claude"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  }
+}
