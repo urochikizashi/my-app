@@ -211,6 +211,9 @@
       z-index: 20;
       cursor: pointer;
       backdrop-filter: blur(4px);
+      justify-content: safe center; /* 画面が低くても上が切れずにスクロールできるように */
+      overflow-y: auto;
+      padding-block: 20px;
     }
     #game-over-screen {
       display: none;
@@ -306,6 +309,51 @@
       z-index: 30;
       pointer-events: none;
     }
+    .slot-count {
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 1px 1px 0 #000;
+    }
+    .slot-icon.empty {
+      box-shadow: none;
+    }
+    #craft-panel {
+      margin-top: 16px;
+      padding: 10px 14px;
+      width: 100%;
+      max-width: 520px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      cursor: default;
+    }
+    #craft-panel h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: #ffdd55;
+    }
+    #craft-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .craft-btn {
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #fff;
+      background: rgba(85, 255, 85, 0.25);
+      border: 1px solid rgba(85, 255, 85, 0.6);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .craft-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
   </style>
 
   <!-- Three.js Import Map -->
@@ -323,13 +371,14 @@
   <div id="crosshair"></div>
   <div id="damage-flash"></div>
   <div id="save-toast" hidden></div>
-  <div id="player-hand">🗡️</div>
+  <div id="player-hand">✊</div>
 
   <div id="health-bar"></div>
 
   <div id="info-panel">
     <div><strong>3D Minecraft - Creeper & Zombie Edition</strong></div>
     <div id="pos-display">XYZ: 0.0, 0.0, 0.0</div>
+    <div id="time-display">☀️ 昼</div>
     <div id="depth-display">深さ: 0m (最深記録: 0m)</div>
     <div id="mob-count">Enemies: 0</div>
     <div id="kill-count">Kills: 0</div>
@@ -338,48 +387,8 @@
     <div id="fps-display">FPS: 60</div>
   </div>
 
-  <div id="hotbar">
-    <div class="slot active" data-index="0">
-      <span class="slot-key">1</span>
-      <div class="slot-icon">🗡️</div>
-      <span class="slot-name">鉄の剣 (Sword)</span>
-    </div>
-    <div class="slot" data-index="1">
-      <span class="slot-key">2</span>
-      <div class="slot-icon" style="background:#5c8e32;"></div>
-      <span class="slot-name">草 (Grass)</span>
-    </div>
-    <div class="slot" data-index="2">
-      <span class="slot-key">3</span>
-      <div class="slot-icon" style="background:#866043;"></div>
-      <span class="slot-name">土 (Dirt)</span>
-    </div>
-    <div class="slot" data-index="3">
-      <span class="slot-key">4</span>
-      <div class="slot-icon" style="background:#777777;"></div>
-      <span class="slot-name">石 (Stone)</span>
-    </div>
-    <div class="slot" data-index="4">
-      <span class="slot-key">5</span>
-      <div class="slot-icon" style="background:#a07449;"></div>
-      <span class="slot-name">木材 (Wood)</span>
-    </div>
-    <div class="slot" data-index="5">
-      <span class="slot-key">6</span>
-      <div class="slot-icon" style="background:#377e22;"></div>
-      <span class="slot-name">葉 (Leaves)</span>
-    </div>
-    <div class="slot" data-index="6">
-      <span class="slot-key">7</span>
-      <div class="slot-icon" style="background:#9c4233;"></div>
-      <span class="slot-name">レンガ (Bricks)</span>
-    </div>
-    <div class="slot" data-index="7">
-      <span class="slot-key">8</span>
-      <div class="slot-icon" style="background:#5aa0cd; opacity:0.8;"></div>
-      <span class="slot-name">ガラス (Glass)</span>
-    </div>
-  </div>
+  <!-- 持ち物（ホットバー）。中身は JavaScript の renderHotbar() で描く -->
+  <div id="hotbar"></div>
 
   <!-- 開始案内画面 -->
   <div id="instructions">
@@ -388,14 +397,18 @@
     <div class="keys">
       <div><b>W, A, S, D</b> : 移動 ／ <b>SPACE</b> : ジャンプ</div>
       <div><b>マウス移動</b> : 視点回転</div>
-      <div><b>左クリック</b> : 敵を攻撃！ (またはブロック破壊)</div>
-      <div><b>右クリック</b> : ブロック設置</div>
-      <div><b>数字キー 1〜8 / ホイール</b> : 剣 / ブロック切り替え</div>
+      <div><b>左クリック</b> : 敵を攻撃！ (またはブロックを掘って持ち物に入れる)</div>
+      <div><b>右クリック</b> : 持っているブロックを置く</div>
+      <div><b>数字キー 1〜8 / ホイール</b> : 持ち物の切り替え</div>
+      <div><b>E</b> : クラフト（剣やブロックを作る）</div>
       <div><b>ESC</b> : 一時停止（自動でセーブされます。30秒ごとにも自動セーブ）</div>
       <div class="mob-info">
         ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！離れるか剣で仕留めよう！<br>
         ⚠️ <b>ゾンビ (Zombie)</b>: 両手を伸ばして追いかけてきてパンチします！<br>
-        🔁 敵は倒しても次々と湧いてきます。倒すほど数が増えるぞ！
+        🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！
+      </div>
+      <div class="mob-info">
+        🎒 <b>持ち物</b>: 最初は空っぽ（素手）。ブロックを掘ると持ち物に入り、それを置けます。木材4個で<b>作業台</b>を作って置くと、その近くで剣が作れる！（木材・石・鉄・ダイヤを3個ずつ）
       </div>
       <div class="mob-info">
         ⛏️ <b>地下探検</b>: 地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。
@@ -407,6 +420,11 @@
       <button class="btn-sub" id="new-world-btn">🆕 新しいワールド</button>
     </div>
     <div id="save-status"></div>
+    <div id="craft-panel">
+      <h2>🛠️ クラフト（E キー、または作業台を右クリックで開けます）</h2>
+      <div id="craft-hint" style="font-size: 13px; margin-bottom: 8px; color: #ddd;"></div>
+      <div id="craft-list"></div>
+    </div>
   </div>
 
   <!-- ゲームオーバー画面 -->
@@ -704,6 +722,37 @@
       ironOre: oreTexture('#c9a27e', '#e8c9ad'),
       goldOre: oreTexture('#e6c229', '#fff27a'),
       diamondOre: oreTexture('#2ed3c6', '#aaf7f0'),
+      // 作業台（上面は格子、側面は道具の絵）
+      craftingTableTop: createPixelTexture(ctx => {
+        ctx.fillStyle = '#a57c4a';
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = '#6b4e2d';
+        ctx.fillRect(0, 0, 16, 1);
+        ctx.fillRect(0, 15, 16, 1);
+        ctx.fillRect(0, 0, 1, 16);
+        ctx.fillRect(15, 0, 1, 16);
+        ctx.fillRect(5, 1, 1, 14);
+        ctx.fillRect(10, 1, 1, 14);
+        ctx.fillRect(1, 5, 14, 1);
+        ctx.fillRect(1, 10, 14, 1);
+      }),
+      craftingTableSide: createPixelTexture(ctx => {
+        ctx.fillStyle = '#8f683d';
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = '#6b4e2d';
+        ctx.fillRect(0, 0, 16, 3);
+        ctx.fillRect(0, 15, 16, 1);
+        // のこぎり
+        ctx.fillStyle = '#c8c8c8';
+        ctx.fillRect(3, 6, 5, 2);
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(2, 6, 1, 3);
+        // ハンマー
+        ctx.fillStyle = '#9a9a9a';
+        ctx.fillRect(9, 5, 5, 2);
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(11, 7, 1, 6);
+      }),
       // クリーパー顔
       creeperFace: createPixelTexture(ctx => {
         ctx.fillStyle = '#2fb034';
@@ -781,13 +830,27 @@
       { id: 8, name: 'Coal Ore', materials: new THREE.MeshLambertMaterial({ map: textures.coalOre }) },
       { id: 9, name: 'Iron Ore', materials: new THREE.MeshLambertMaterial({ map: textures.ironOre }) },
       { id: 10, name: 'Gold Ore', materials: new THREE.MeshLambertMaterial({ map: textures.goldOre }) },
-      { id: 11, name: 'Diamond Ore', materials: new THREE.MeshLambertMaterial({ map: textures.diamondOre }) }
+      { id: 11, name: 'Diamond Ore', materials: new THREE.MeshLambertMaterial({ map: textures.diamondOre }) },
+      // クラフトで作って置く
+      {
+        id: 12,
+        name: 'Crafting Table',
+        materials: [
+          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide }),
+          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide }),
+          new THREE.MeshLambertMaterial({ map: textures.craftingTableTop }),
+          new THREE.MeshLambertMaterial({ map: textures.woodTop }),
+          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide }),
+          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide })
+        ]
+      }
     ];
     const BEDROCK = 8;
     const COAL_ORE = 9;
     const IRON_ORE = 10;
     const GOLD_ORE = 11;
     const DIAMOND_ORE = 12;
+    const CRAFTING_TABLE = 13;
 
     // 採掘した鉱石の数
     const ORES = {
@@ -1181,7 +1244,7 @@
     placePlayerOnGround(0, 0);
 
     const keys = { forward: false, backward: false, left: false, right: false, jump: false };
-    let selectedSlot = 0; // 0: 剣, 1: 草, 2: 土...
+    let selectedSlot = 0; // 選んでいる持ち物の枠 (0〜7)
 
     // 体力ハートUI更新
     const healthBar = document.getElementById('health-bar');
@@ -1396,41 +1459,101 @@
       return 3;
     }
 
-    /* --- Mob Respawn --- */
-    const MAX_MOBS = 8;
+    /* --- Mob Strength (深いほど強い) --- */
+    const HIT_RED = new THREE.Color(1.5, 0.3, 0.3);
+    const FUSE_WHITE = new THREE.Color(2, 2, 2);
+
+    function setMobColor(mob, color) {
+      mob.group.traverse(child => {
+        if (!child.isMesh || !child.material) return;
+        (Array.isArray(child.material) ? child.material : [child.material]).forEach(m => m.color.copy(color));
+      });
+    }
+
+    // 出てきた場所が深いほど、体力・攻撃力・速さが上がり、大きく赤っぽくなる
+    function applyMobStrength(mob) {
+      const p = mob.group.position;
+      const depth = Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
+      const t = Math.min(depth / 40, 1); // 0: 地上 〜 1: 最深部
+      mob.health = Math.round(mob.health * (1 + t * 2)); // 体力は最大3倍
+      mob.power = 1 + t;                                 // 攻撃力は最大2倍
+      mob.speed *= 1 + t * 0.4;
+      mob.baseScale = 1 + t * 0.35;
+      mob.group.scale.setScalar(mob.baseScale);
+      mob.tint = new THREE.Color(1, 1 - t * 0.45, 1 - t * 0.45);
+      setMobColor(mob, mob.tint);
+    }
+
+    /* --- Mob Spawning (夜と暗い地下で湧く) --- */
     const pendingSpawns = []; // 各スポーン予約の残り秒数
     let killCount = 0;
     const killCountDisplay = document.getElementById('kill-count');
+    let currentDepth = 0; // プレイヤーの今の深さ（updateAtmosphere で更新）
 
-    // 最初は3体。4体倒すごとに同時出現数が1体増える
-    function desiredMobCount() {
-      return Math.min(MAX_MOBS, 3 + Math.floor(killCount / 4));
+    // 暗いかどうか（夜、または地面から5m以上もぐった場所）
+    function isDarkAt(x, y, z) {
+      return daylight < 0.3 || y < surfaceHeight(Math.round(x), Math.round(z)) - 4;
     }
 
-    // プレイヤーから離れた地表のランダムな位置に出現させる
-    function spawnRandomMob() {
+    // 同時に出てくる敵の数。昼の地上は0、夜の地上は倒した数で増え、地下は深いほど増える
+    function desiredMobCount() {
+      if (currentDepth >= 5) return Math.min(6, 2 + Math.floor(currentDepth / 10));
+      if (daylight < 0.3) return Math.min(8, 3 + Math.floor(killCount / 4));
+      return 0;
+    }
+
+    function spawnMobAt(x, y, z) {
+      const mob = Math.random() < 0.5 ? createCreeper(x, y, z) : createZombie(x, y, z);
+      applyMobStrength(mob);
+      spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0x9933ff, 16, 3);
+    }
+
+    // 夜の地上: プレイヤーから少し離れた地表に出す
+    function spawnSurfaceMob() {
       for (let attempt = 0; attempt < 20; attempt++) {
         const x = rand(-HALF_SIZE + 1, HALF_SIZE - 1);
         const z = rand(-HALF_SIZE + 1, HALF_SIZE - 1);
-        if (Math.hypot(x - camera.position.x, z - camera.position.z) < 12) continue;
-
-        const groundY = findGroundY(x, z);
-        const mob = Math.random() < 0.5 ? createCreeper(x, groundY, z) : createZombie(x, groundY, z);
-        spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0x9933ff, 16, 3);
+        const d = Math.hypot(x - camera.position.x, z - camera.position.z);
+        if (d < 12 || d > 24) continue;
+        spawnMobAt(x, findGroundY(x, z) + 0.5, z);
         return true;
+      }
+      return false;
+    }
+
+    // 地下: プレイヤーの近くで、足場があって上に2マス空いている暗い場所に出す
+    function spawnUndergroundMob() {
+      const px = camera.position.x;
+      const pz = camera.position.z;
+      const feetY = Math.floor(camera.position.y - player.height + 1e-6);
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const x = Math.round(px + rand(-14, 14));
+        const z = Math.round(pz + rand(-14, 14));
+        if (!isInsideWorld(x, z) || Math.hypot(x - px, z - pz) < 6) continue;
+        for (let y = feetY + 6; y >= feetY - 8; y--) {
+          if (hasBlock(x, y - 1, z) && !hasBlock(x, y, z) && !hasBlock(x, y + 1, z)) {
+            if (y < surfaceHeight(x, z) - 4) {
+              spawnMobAt(x, y, z);
+              return true;
+            }
+            break;
+          }
+        }
       }
       return false;
     }
 
     function updateSpawning(delta) {
       while (mobs.length + pendingSpawns.length < desiredMobCount()) {
-        pendingSpawns.push(8 + Math.random() * 7); // 8〜15秒後に出現
+        pendingSpawns.push(5 + Math.random() * 7); // 5〜12秒後に出現
       }
       for (let i = pendingSpawns.length - 1; i >= 0; i--) {
         pendingSpawns[i] -= delta;
         if (pendingSpawns[i] <= 0) {
           pendingSpawns.splice(i, 1);
-          spawnRandomMob(); // 失敗しても次フレームで再予約される
+          if (mobs.length >= desiredMobCount()) continue; // 朝になった等で、もう要らない
+          if (currentDepth >= 5) spawnUndergroundMob();
+          else spawnSurfaceMob(); // 失敗しても次フレームで再予約される
         }
       }
     }
@@ -1469,7 +1592,8 @@
       // プレイヤーへの爆風ダメージ & ノックバック
       const distToPlayer = camera.position.distanceTo(center);
       if (distToPlayer < 5.0) {
-        const damage = Math.round((1.0 - distToPlayer / 5.0) * 12) + 2; // 最大14ダメージ（至近距離でも即死はしない）
+        // 最大14ダメージ。深い場所のクリーパーは強いが、18で頭打ち（満タンからは即死しない）
+        const damage = Math.min(18, Math.round(((1.0 - distToPlayer / 5.0) * 12 + 2) * mob.power));
         const knockback = camera.position.clone().sub(center).normalize();
         damagePlayer(damage, knockback);
       }
@@ -1509,19 +1633,27 @@
         const dir = new THREE.Vector3().subVectors(playerPos, mobPos);
         dir.y = 0; // 水平追従
 
+        // 明るい場所（朝の地上）にいる敵は、少しずつ燃えて消える
+        if (!isDarkAt(mobPos.x, mobPos.y, mobPos.z) && Math.random() < delta * 0.3) {
+          const center = mobPos.clone().add(new THREE.Vector3(0, 0.8, 0));
+          spawnParticles(center, 0xff8800, 16, 3);
+          spawnParticles(center, 0x333333, 10, 2);
+          removeMob(mob);
+          return;
+        }
+
+        // 遠く離れた敵や、洞窟に落ちるなどして長いあいだ近づけない敵は消す（その分また湧く）
+        mob.farTimer = dist > 12 ? (mob.farTimer || 0) + delta : 0;
+        if (dist > 28 || mob.farTimer > 45) {
+          removeMob(mob);
+          return;
+        }
+
         // 被弾赤フラッシュの戻し
         if (mob.hitFlashTimer > 0) {
           mob.hitFlashTimer -= delta;
           if (mob.hitFlashTimer <= 0) {
-            mob.group.traverse(child => {
-              if (child.isMesh && child.material) {
-                if (Array.isArray(child.material)) {
-                  child.material.forEach(m => m.color.setRGB(1, 1, 1));
-                } else {
-                  child.material.color.setRGB(1, 1, 1);
-                }
-              }
-            });
+            setMobColor(mob, mob.tint);
           }
         }
 
@@ -1552,20 +1684,8 @@
             mob.flashTimer += delta * 15;
 
             // 白く点滅＆膨張
-            const scale = 1.0 + (mob.fuseTimer / mob.fuseDuration) * 0.3;
-            mob.group.scale.set(scale, scale, scale);
-
-            const isWhite = Math.sin(mob.flashTimer) > 0;
-            mob.group.traverse(child => {
-              if (child.isMesh && child.material) {
-                const col = isWhite ? 2.0 : 1.0;
-                if (Array.isArray(child.material)) {
-                  child.material.forEach(m => m.color.setRGB(col, col, col));
-                } else {
-                  child.material.color.setRGB(col, col, col);
-                }
-              }
-            });
+            mob.group.scale.setScalar(mob.baseScale * (1.0 + (mob.fuseTimer / mob.fuseDuration) * 0.3));
+            setMobColor(mob, Math.sin(mob.flashTimer) > 0 ? FUSE_WHITE : mob.tint);
 
             if (mob.fuseTimer >= mob.fuseDuration) {
               triggerCreeperExplosion(mob);
@@ -1575,7 +1695,8 @@
             if (mob.exploding) {
               mob.exploding = false;
               mob.fuseTimer = 0;
-              mob.group.scale.set(1, 1, 1);
+              mob.group.scale.setScalar(mob.baseScale);
+              setMobColor(mob, mob.tint);
             }
             // 接近移動 (16ブロック以内)
             if (dist < 16.0 && dist >= 2.6) {
@@ -1608,7 +1729,7 @@
               if (mob.attackCooldown <= 0) {
                 mob.attackCooldown = 1.3;
                 const knockDir = dir.clone().normalize();
-                damagePlayer(3, knockDir); // ハート1.5個分
+                damagePlayer(Math.round(3 * mob.power), knockDir); // 地上ではハート1.5個分、深いほど強い
               }
             }
           }
@@ -1683,21 +1804,14 @@
         if (hit) {
           // モブに攻撃命中！
           const mob = hit.mob;
-          const damage = selectedSlot === 0 ? 8 : 4; // 剣なら8ダメージ（約2〜3撃で倒せる）
+          const weapon = inventory[selectedSlot];
+          const damage = weapon && weapon.sword ? SWORDS[weapon.sword].damage : FIST_DAMAGE;
           mob.health -= damage;
           mob.hitFlashTimer = 0.2;
           playSound('hit');
 
           // 赤く点滅
-          mob.group.traverse(child => {
-            if (child.isMesh && child.material) {
-              if (Array.isArray(child.material)) {
-                child.material.forEach(m => m.color.setRGB(1.5, 0.3, 0.3));
-              } else {
-                child.material.color.setRGB(1.5, 0.3, 0.3);
-              }
-            }
-          });
+          setMobColor(mob, HIT_RED);
 
           // ノックバック
           const knockDir = mob.group.position.clone().sub(camera.position).normalize();
@@ -1729,12 +1843,19 @@
             spawnParticles(pos, ore.color, 14, 3);
             playSound('ore');
             updateOreUI();
+          } else if (BLOCK_ITEMS[removed] && !addBlockItem(removed)) {
+            showToast('⚠️ 持ち物がいっぱいです');
           }
           updateRaycast();
         }
       } else if (e.button === 2) {
-        // 右クリック: ブロック設置
-        if (selectedSlot === 0) return; // 剣のときは設置不可
+        // 右クリック: 作業台ならクラフト画面を開く。それ以外は持っているブロックを置く
+        if (targetBlockIntersection && targetBlockIntersection.object.userData.blockIndex === CRAFTING_TABLE) {
+          controls.unlock();
+          return;
+        }
+        const held = inventory[selectedSlot];
+        if (!held || !held.block) return; // 素手や剣のときは置けない
 
         if (targetBlockIntersection) {
           const normal = targetBlockIntersection.face.normal;
@@ -1751,8 +1872,10 @@
             new THREE.Vector3(0.95, 0.95, 0.95)
           );
 
-          if (!pBox.intersectsBox(bBox)) {
-            addBlock(targetPos.x, targetPos.y, targetPos.z, selectedSlot, true);
+          if (!pBox.intersectsBox(bBox) && addBlock(targetPos.x, targetPos.y, targetPos.z, held.block, true)) {
+            held.count--;
+            if (held.count <= 0) inventory[selectedSlot] = null;
+            renderHotbar();
             updateRaycast();
           }
         }
@@ -1796,6 +1919,10 @@
         case 'Digit6': selectSlot(5); break;
         case 'Digit7': selectSlot(6); break;
         case 'Digit8': selectSlot(7); break;
+        case 'KeyE':
+          // 一時停止画面（クラフトがある）を開く
+          if (controls.isLocked) controls.unlock();
+          break;
       }
     });
 
@@ -1833,23 +1960,198 @@
       }
     });
 
-    const slots = document.querySelectorAll('.slot');
-    const slotIcons = ['🗡️', '🌿', '🟫', '🪨', '🪵', '🍃', '🧱', '🧊'];
-    function selectSlot(idx) {
-      selectedSlot = idx;
-      slots.forEach((s, i) => {
-        if (i === idx) s.classList.add('active');
-        else s.classList.remove('active');
-      });
-      playerHand.textContent = slotIcons[idx] || '🗡️';
+    /* --- Inventory (持ち物) & Crafting (クラフト) --- */
+    const HOTBAR_SIZE = 8;
+    const MAX_STACK = 99;
+    const FIST_DAMAGE = 3;
+    const BLOCK_ITEMS = {
+      1: { name: '草', color: '#5c8e32', emoji: '🌿' },
+      2: { name: '土', color: '#866043', emoji: '🟫' },
+      3: { name: '石', color: '#777777', emoji: '🪨' },
+      4: { name: '木材', color: '#a07449', emoji: '🪵' },
+      5: { name: '葉', color: '#377e22', emoji: '🍃' },
+      6: { name: 'レンガ', color: '#9c4233', emoji: '🧱' },
+      7: { name: 'ガラス', color: '#5aa0cd', emoji: '🧊' },
+      13: { name: '作業台', color: '#a57c4a', emoji: '🛠️' }
+    };
+    const SWORDS = {
+      wood: { name: '木の剣', damage: 5, color: '#a07449' },
+      stone: { name: '石の剣', damage: 7, color: '#8a8a8a' },
+      iron: { name: '鉄の剣', damage: 10, color: '#d8d8d8' },
+      diamond: { name: 'ダイヤの剣', damage: 14, color: '#44eedd' }
+    };
+    // 材料は { block: ブロック番号 } か { ore: 鉱石番号 }。table: true は作業台の近くでしか作れない
+    const RECIPES = [
+      { name: '作業台', needs: [{ block: 4, count: 4 }], result: { block: CRAFTING_TABLE, count: 1 } },
+      { name: '木の剣', table: true, needs: [{ block: 4, count: 3 }], result: { sword: 'wood' } },
+      { name: '石の剣', table: true, needs: [{ block: 3, count: 3 }], result: { sword: 'stone' } },
+      { name: '鉄の剣', table: true, needs: [{ ore: IRON_ORE, count: 3 }], result: { sword: 'iron' } },
+      { name: 'ダイヤの剣', table: true, needs: [{ ore: DIAMOND_ORE, count: 3 }], result: { sword: 'diamond' } },
+      { name: 'レンガ×4', table: true, needs: [{ block: 2, count: 2 }, { ore: COAL_ORE, count: 1 }], result: { block: 6, count: 4 } },
+      { name: 'ガラス×4', table: true, needs: [{ block: 3, count: 2 }, { ore: COAL_ORE, count: 1 }], result: { block: 7, count: 4 } }
+    ];
+
+    // 枠の中身: null（空）/ { block: ブロック番号, count: 個数 } / { sword: 'wood' など }
+    let inventory = new Array(HOTBAR_SIZE).fill(null);
+
+    function countBlockItems(blockIndex) {
+      return inventory.reduce((n, item) => n + (item && item.block === blockIndex ? item.count : 0), 0);
     }
 
-    slots.forEach(slot => {
+    function hasRoomFor(blockIndex, amount) {
+      const room = inventory.reduce((n, item) => {
+        if (!item) return n + MAX_STACK;
+        return n + (item.block === blockIndex ? MAX_STACK - item.count : 0);
+      }, 0);
+      return room >= amount;
+    }
+
+    // ブロックを持ち物に入れる（入りきらなければ false）
+    function addBlockItem(blockIndex, amount = 1) {
+      if (!hasRoomFor(blockIndex, amount)) return false;
+      for (let i = 0; i < amount; i++) {
+        const stack = inventory.find(item => item && item.block === blockIndex && item.count < MAX_STACK);
+        if (stack) stack.count++;
+        else inventory[inventory.indexOf(null)] = { block: blockIndex, count: 1 };
+      }
+      renderHotbar();
+      return true;
+    }
+
+    function removeBlockItems(blockIndex, amount) {
+      for (let i = inventory.length - 1; i >= 0 && amount > 0; i--) {
+        const item = inventory[i];
+        if (!item || item.block !== blockIndex) continue;
+        const take = Math.min(item.count, amount);
+        item.count -= take;
+        amount -= take;
+        if (item.count === 0) inventory[i] = null;
+      }
+      renderHotbar();
+    }
+
+    function materialCount(need) {
+      return need.block ? countBlockItems(need.block) : ORES[need.ore].count;
+    }
+
+    function materialName(need) {
+      return need.block ? BLOCK_ITEMS[need.block].name : ORES[need.ore].name;
+    }
+
+    // 近く（横4マス・上下3マス以内）に作業台が置いてあるか
+    function isNearCraftingTable() {
+      const px = Math.round(camera.position.x);
+      const py = Math.round(camera.position.y - player.height / 2);
+      const pz = Math.round(camera.position.z);
+      for (let x = px - 4; x <= px + 4; x++) {
+        for (let y = py - 3; y <= py + 3; y++) {
+          for (let z = pz - 4; z <= pz + 4; z++) {
+            if (worldData.get(getBlockKey(x, y, z)) === CRAFTING_TABLE) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function canCraft(recipe, nearTable = isNearCraftingTable()) {
+      return recipe.needs.every(need => materialCount(need) >= need.count) && (!recipe.table || nearTable);
+    }
+
+    function craft(recipe) {
+      if (!canCraft(recipe)) return;
+      const fits = recipe.result.sword ? inventory.includes(null) : hasRoomFor(recipe.result.block, recipe.result.count);
+      if (!fits) {
+        showToast('⚠️ 持ち物がいっぱいです');
+        return;
+      }
+      recipe.needs.forEach(need => {
+        if (need.block) removeBlockItems(need.block, need.count);
+        else ORES[need.ore].count -= need.count;
+      });
+      if (recipe.result.sword) inventory[inventory.indexOf(null)] = { sword: recipe.result.sword };
+      else addBlockItem(recipe.result.block, recipe.result.count);
+
+      updateOreUI();
+      renderHotbar();
+      renderCraftPanel();
+      playSound('ore');
+      showToast(`🛠️ ${recipe.name} を作った！`);
+    }
+
+    const craftList = document.getElementById('craft-list');
+    // 押せないボタンのクリックで冒険が始まってしまわないように、パネル全体でクリックを止める
+    document.getElementById('craft-panel').addEventListener('click', e => e.stopPropagation());
+
+    const craftHint = document.getElementById('craft-hint');
+
+    function renderCraftPanel() {
+      const nearTable = isNearCraftingTable();
+      craftHint.textContent = nearTable
+        ? '🛠️ 作業台の近くにいるので、なんでも作れます'
+        : '💡 🛠️ マークのものは、作業台の近く（4マス以内）でないと作れません。まずは木材4個で作業台を作って置こう！';
+      craftList.innerHTML = '';
+      RECIPES.forEach(recipe => {
+        const btn = document.createElement('button');
+        btn.className = 'craft-btn';
+        btn.disabled = !canCraft(recipe, nearTable);
+        const needs = recipe.needs.map(need => `${materialName(need)} ${materialCount(need)}/${need.count}`).join(' + ');
+        btn.textContent = `${recipe.table ? '🛠️ ' : ''}${recipe.name}（${needs}）`;
+        btn.addEventListener('click', () => craft(recipe));
+        craftList.appendChild(btn);
+      });
+    }
+
+    const hotbar = document.getElementById('hotbar');
+    const slotElements = [];
+    for (let i = 0; i < HOTBAR_SIZE; i++) {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.innerHTML = `<span class="slot-key">${i + 1}</span><div class="slot-icon"></div><span class="slot-count"></span><span class="slot-name"></span>`;
       slot.addEventListener('click', (e) => {
         e.stopPropagation();
-        selectSlot(parseInt(slot.dataset.index));
+        selectSlot(i);
       });
-    });
+      hotbar.appendChild(slot);
+      slotElements.push(slot);
+    }
+
+    function renderHotbar() {
+      inventory.forEach((item, i) => {
+        const el = slotElements[i];
+        const icon = el.querySelector('.slot-icon');
+        el.classList.toggle('active', i === selectedSlot);
+        icon.classList.toggle('empty', !item);
+        if (!item) {
+          icon.style.background = 'transparent';
+          icon.textContent = '';
+          el.querySelector('.slot-count').textContent = '';
+          el.querySelector('.slot-name').textContent = '素手';
+        } else if (item.sword) {
+          const sword = SWORDS[item.sword];
+          icon.style.background = sword.color;
+          icon.textContent = '🗡️';
+          el.querySelector('.slot-count').textContent = '';
+          el.querySelector('.slot-name').textContent = `${sword.name}（攻撃 ${sword.damage}）`;
+        } else {
+          const block = BLOCK_ITEMS[item.block];
+          icon.style.background = block.color;
+          icon.textContent = '';
+          el.querySelector('.slot-count').textContent = item.count;
+          el.querySelector('.slot-name').textContent = block.name;
+        }
+      });
+
+      const held = inventory[selectedSlot];
+      playerHand.textContent = !held ? '✊' : held.sword ? '🗡️' : BLOCK_ITEMS[held.block].emoji;
+    }
+
+    function selectSlot(idx) {
+      selectedSlot = idx;
+      renderHotbar();
+    }
+
+    renderHotbar();
+    renderCraftPanel();
 
     /* --- Player Physics & Collision --- */
     const GRAVITY = 22.0;
@@ -1982,24 +2284,54 @@
       oreDisplay.textContent = '⛏️ ' + Object.values(ORES).map(o => `${o.name} ${o.count}`).join(' / ');
     }
 
-    // 地下に潜るほど暗くなり、たいまつ光が強くなる
-    const SURFACE_SKY = new THREE.Color(0x78a7ff);
+    // 地上は昼と夜をくり返し、地下に潜るほど暗くなる（暗いときはたいまつ光が強くなる）
+    const DAY_SKY = new THREE.Color(0x78a7ff);
+    const NIGHT_SKY = new THREE.Color(0x0a0f2a);
     const CAVE_DARK = new THREE.Color(0x07070c);
+    const skyColor = new THREE.Color();
+    const DAY_CYCLE_SECONDS = 300; // 1日 = 5分（昼 約3分 + 夜 約2分）
+    const NIGHT_START = 0.6;       // 1日のうち、ここから夜
+    let timeOfDay = 0.1;           // 0〜1。0 が夜明け
+    let daylight = 1;              // 0: 夜 〜 1: 昼
     let deepestDepth = 0;
+    const timeDisplay = document.getElementById('time-display');
 
-    function updateDepthAtmosphere() {
+    function daylightAt(t) {
+      if (t < 0.05) return t / 0.05;                                  // 夜明け
+      if (t < NIGHT_START - 0.05) return 1;                            // 昼
+      if (t < NIGHT_START) return (NIGHT_START - t) / 0.05;            // 夕方
+      return 0;                                                        // 夜
+    }
+
+    function formatSeconds(seconds) {
+      const s = Math.floor(seconds);
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    function updateAtmosphere(delta) {
+      timeOfDay = (timeOfDay + delta / DAY_CYCLE_SECONDS) % 1;
+      daylight = daylightAt(timeOfDay);
+
       const feetY = camera.position.y - player.height;
       const surfaceY = surfaceHeight(Math.round(camera.position.x), Math.round(camera.position.z));
       const depth = Math.max(0, Math.floor(surfaceY + 1 - feetY));
+      currentDepth = depth;
       deepestDepth = Math.max(deepestDepth, depth);
 
-      const t = THREE.MathUtils.clamp((depth - 3) / 10, 0, 1);
-      ambientLight.intensity = THREE.MathUtils.lerp(0.7, 0.12, t);
-      torchLight.intensity = THREE.MathUtils.lerp(0, 4, t);
-      scene.background.lerpColors(SURFACE_SKY, CAVE_DARK, t);
+      const underground = THREE.MathUtils.clamp((depth - 3) / 10, 0, 1);
+      ambientLight.intensity = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.2, 0.7, daylight), 0.12, underground);
+      sunLight.intensity = THREE.MathUtils.lerp(0.05, 0.9, daylight);
+      torchLight.intensity = Math.max(THREE.MathUtils.lerp(0, 4, underground), THREE.MathUtils.lerp(2, 0, daylight));
+      skyColor.lerpColors(NIGHT_SKY, DAY_SKY, daylight);
+      scene.background.lerpColors(skyColor, CAVE_DARK, underground);
       scene.fog.color.copy(scene.background);
 
       depthDisplay.textContent = `深さ: ${depth}m (最深記録: ${deepestDepth}m)`;
+      const isDay = timeOfDay < NIGHT_START;
+      const secondsLeft = ((isDay ? NIGHT_START : 1) - timeOfDay) * DAY_CYCLE_SECONDS;
+      timeDisplay.textContent = isDay
+        ? `☀️ 昼（夜まで ${formatSeconds(secondsLeft)}）`
+        : `🌙 夜（朝まで ${formatSeconds(secondsLeft)}）`;
     }
 
     function animate() {
@@ -2022,7 +2354,7 @@
         updateMobs(delta);
         updateParticles(delta);
         updateRaycast();
-        updateDepthAtmosphere();
+        updateAtmosphere(delta);
 
         if (time - lastAutoSave > 30000) {
           lastAutoSave = time;
@@ -2074,6 +2406,8 @@
         ores: Object.fromEntries(Object.entries(ORES).map(([id, ore]) => [id, ore.count])),
         killCount,
         deepestDepth,
+        inventory,
+        timeOfDay,
         savedAt: Date.now()
       };
       try {
@@ -2096,13 +2430,15 @@
       killCount = data.killCount;
       killCountDisplay.textContent = `Kills: ${killCount}`;
       deepestDepth = data.deepestDepth;
+      // 持ち物と時間は後から増えた項目なので、古いセーブに無ければ初期値のまま
+      if (Array.isArray(data.inventory) && data.inventory.length === HOTBAR_SIZE) inventory = data.inventory;
+      if (typeof data.timeOfDay === 'number') timeOfDay = data.timeOfDay;
+      renderHotbar();
+      renderCraftPanel();
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
     }
 
     if (savedGame) restoreSave(savedGame);
-
-    // 最初の敵は2体だけ（残りは時間差で湧いてくる）
-    for (let i = 0; i < 2; i++) spawnRandomMob();
 
     document.getElementById('save-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2121,7 +2457,29 @@
       location.reload();
     });
 
-    controls.addEventListener('unlock', () => saveGame());
+    controls.addEventListener('unlock', () => {
+      saveGame();
+      renderCraftPanel(); // 一時停止画面を開いたときに、今の材料で作れるものを表示
+    });
+
+    // テスト用: URL に ?debug を付けたときだけ、コンソールからゲームの中身を触れるようにする
+    if (new URLSearchParams(location.search).has('debug')) {
+      window.game = {
+        mobs,
+        player,
+        camera,
+        ORES,
+        addBlockItem,
+        hasBlock,
+        removeBlock,
+        surfaceHeight,
+        get inventory() { return inventory; },
+        get timeOfDay() { return timeOfDay; },
+        set timeOfDay(value) { timeOfDay = value; },
+        get daylight() { return daylight; },
+        get currentDepth() { return currentDepth; }
+      };
+    }
     window.addEventListener('beforeunload', () => saveGame());
 
     animate();
