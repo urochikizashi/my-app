@@ -432,6 +432,164 @@
       width: 100%;
       background: #e33;
     }
+    #inventory-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: safe center;
+      justify-content: center;
+      padding: 16px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      z-index: 25;
+    }
+    #inventory-screen[hidden], #furnace-ui[hidden] {
+      display: none;
+    }
+    .inv-window {
+      width: 100%;
+      max-width: 900px;
+      padding: 12px 16px;
+      background: rgba(40, 40, 40, 0.95);
+      border: 2px solid #888;
+      border-radius: 10px;
+    }
+    .inv-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .inv-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .inv-left, .inv-right {
+      flex: 1 1 300px;
+    }
+    .inv-window h3 {
+      margin: 10px 0 6px;
+      font-size: 14px;
+      color: #ffdd55;
+    }
+    .inv-window .slot-name {
+      display: none !important;
+    }
+    .craft-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #craft-grid, #container-grid {
+      display: grid;
+      gap: 6px;
+    }
+    #container-grid {
+      grid-template-columns: repeat(8, 50px);
+    }
+    .craft-arrow {
+      font-size: 28px;
+    }
+    #craft-result {
+      background: rgba(60, 120, 60, 0.7);
+    }
+    #craft-hint {
+      min-height: 1.2em;
+      margin: 6px 0;
+      font-size: 12px;
+      color: #ddd;
+    }
+    #recipe-book {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .recipe-card {
+      min-width: 84px;
+      padding: 4px 6px;
+      font-size: 11px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .recipe-card:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .recipe-card.locked {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .recipe-card .pattern {
+      display: grid;
+      grid-template-columns: repeat(3, 18px);
+      gap: 1px;
+      justify-content: center;
+      margin: 3px auto;
+    }
+    .recipe-card .pattern span {
+      width: 18px;
+      height: 18px;
+      font-size: 12px;
+      line-height: 18px;
+      background: rgba(0, 0, 0, 0.35);
+    }
+    .bag-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #ddd;
+    }
+    #trash-slot {
+      font-size: 22px;
+      background: rgba(120, 40, 40, 0.7);
+    }
+    #cursor-item {
+      position: fixed;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 6px;
+      box-shadow: 0 0 8px #000;
+      pointer-events: none;
+      z-index: 30;
+    }
+    #cursor-item[hidden] {
+      display: none;
+    }
+    .furnace-ui {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .furnace-label {
+      margin: 4px 0 2px;
+      font-size: 11px;
+      color: #ddd;
+    }
+    #furnace-progress {
+      width: 60px;
+      height: 10px;
+      background: #333;
+      border: 1px solid #aaa;
+    }
+    #furnace-progress-fill {
+      width: 0;
+      height: 100%;
+      background: #e87a2c;
+    }
   </style>
 
   <!-- Three.js Import Map -->
@@ -487,10 +645,11 @@
       <div><b>W, A, S, D</b> : 移動 ／ <b>SPACE</b> : ジャンプ</div>
       <div><b>マウス移動</b> : 視点回転</div>
       <div><b>左クリック</b> : 敵を攻撃！ (またはブロックを掘って持ち物に入れる)</div>
-      <div><b>右クリック</b> : ブロックや松明を置く ／ 食べ物を食べる ／ 作業台を開く</div>
+      <div><b>右クリック</b> : ブロックを置く ／ 食べる ／ 道具を使う ／ 作業台・チェスト・かまど・ドア・ベッドを使う</div>
       <div><b>数字キー 1〜8 / ホイール</b> : 持ち物の切り替え</div>
-      <div><b>E</b> : クラフトとカバン（持ち物の整理）</div>
-      <div><b>M</b> : マップを開く／閉じる</div>
+      <div><b>E</b> : 持ち物とクラフト（2×2。作業台の近くでは 3×3）</div>
+      <div><b>Q</b> : 手に持っているアイテムを1つ捨てる（Shift+Q で全部）</div>
+      <div><b>M</b> : マップを開く／閉じる（行った場所だけ見える）</div>
       <div><b>ESC</b> : 一時停止（自動でセーブされます。30秒ごとにも自動セーブ）</div>
       <div class="mob-info">
         ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！離れるか剣で仕留めよう！<br>
@@ -501,12 +660,13 @@
         🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！
       </div>
       <div class="mob-info">
-        🎒 <b>持ち物</b>: 最初は空っぽ（素手）。木を掘って木材を集め、<b>作業台</b>（木材4個）を置いて、<b>ツルハシ</b>と<b>剣</b>を作ろう！石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます。<b>松明</b>を置くと明るくなって近くに敵が出なくなり、<b>防具</b>を持つと受けるダメージが減ります。りんごや肉を右クリックで食べると回復！
+        🎒 <b>持ち物とクラフト</b>: 最初は空っぽ（素手）。木を掘って<b>原木</b>を集め、E キーの画面で<b>木の板</b>→<b>作業台</b>を作ろう。材料をマスに並べる形で、できるものが変わります。作り方は<b>レシピ本</b>に載り、クリックすると材料を並べてくれます。石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます。<br>
+        🏠 <b>くらし</b>: チェストにしまう、かまどで焼く、ベッドで夜を飛ばす、畑で小麦を育てる、弓矢や盾で戦う、TNT で爆破…いろいろ作ってみよう！
       </div>
       <div class="mob-info">
         ⛏️ <b>地下探検</b>: ワールドは161×161ブロックの広さ。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。<br>
         🌍 <b>いろいろな地形</b>: 草原・森・砂漠（サボテンに注意）・雪原・山と湖。砂漠にはハスク、雪原にはストレイが出ます。<br>
-        🗿 <b>ボス</b>: 地下深くのダンジョンに巨大なゴーレムがいます。M キーのマップで 💀 の場所を探そう！地面をたたく衝撃波はジャンプでよけられる。倒すと宝箱が開きます。<br>
+        🗿 <b>ボス</b>: 地下深くのダンジョンに巨大なゴーレムがいます。ワールドを探検して、石レンガの入口を見つけよう（見つけるとマップに 💀 が出ます）。地面をたたく衝撃波はジャンプでよけられる。倒すと宝箱が開きます。<br>
         🕸️ <b>糸</b>はクモを倒すか、洞窟のクモの巣を掘ると手に入ります。
       </div>
     </div>
@@ -516,15 +676,58 @@
       <button class="btn-sub" id="new-world-btn">🆕 新しいワールド</button>
     </div>
     <div id="save-status"></div>
-    <div id="bag-panel">
-      <h2>🎒 カバン（2回クリックで入れかえ。黄色い段が画面下のホットバー）</h2>
+  </div>
+
+  <!-- 持ち物・クラフト画面（E キー / 作業台・チェスト・かまどを右クリック） -->
+  <div id="inventory-screen" hidden>
+    <div class="inv-window">
+      <div class="inv-header">
+        <span id="inv-title">🎒 持ち物とクラフト</span>
+        <button class="btn-sub" id="inv-close">✖ 閉じる（E）</button>
+      </div>
+      <div class="inv-body">
+        <div class="inv-left">
+          <div id="craft-area">
+            <h3 id="craft-title">🛠️ クラフト</h3>
+            <div class="craft-row">
+              <div id="craft-grid"></div>
+              <div class="craft-arrow">➡</div>
+              <div id="craft-result" class="slot"></div>
+            </div>
+            <div id="craft-hint"></div>
+            <button class="btn-sub" id="craft-clear">↩ 材料を持ち物にもどす</button>
+          </div>
+          <div id="container-area" hidden>
+            <h3 id="container-title"></h3>
+            <div id="container-grid"></div>
+            <div id="furnace-ui" class="furnace-ui" hidden>
+              <div>
+                <div class="furnace-label">焼くもの</div>
+                <div id="furnace-input" class="slot"></div>
+                <div class="furnace-label">燃料</div>
+                <div id="furnace-fuel" class="slot"></div>
+              </div>
+              <div id="furnace-progress"><div id="furnace-progress-fill"></div></div>
+              <div>
+                <div class="furnace-label">できたもの</div>
+                <div id="furnace-output" class="slot"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="inv-right" id="recipe-area">
+          <h3>📖 レシピ本（クリックすると材料を並べます）</h3>
+          <div id="recipe-book"></div>
+        </div>
+      </div>
+      <h3 id="bag-title">🎒 カバン（クリックでつかむ → クリックで置く。黄色い段が画面下のホットバー）</h3>
       <div id="bag-grid"></div>
+      <div class="bag-footer">
+        <div id="trash-slot" class="slot">🗑️</div>
+        <span>ゴミ箱（つかんだアイテムをここに置くと消えます）</span>
+      </div>
     </div>
-    <div id="craft-panel">
-      <h2>🛠️ クラフト（E キー、または作業台を右クリックで開けます）</h2>
-      <div id="craft-hint" style="font-size: 13px; margin-bottom: 8px; color: #ddd;"></div>
-      <div id="craft-list"></div>
-    </div>
+    <div id="cursor-item" hidden></div>
   </div>
 
   <!-- ゲームオーバー画面 -->
@@ -1131,6 +1334,175 @@
       ctx.fillRect(4, 12, 8, 1);
     });
 
+    // 建物・道具・生活・農業のブロック
+    textures.planks = createPixelTexture(ctx => {
+      speckle(ctx, '#b8894f', ['#a87a44', '#c4965c'], 40);
+      ctx.fillStyle = '#8a6236';
+      [3, 7, 11, 15].forEach(y => ctx.fillRect(0, y, 16, 1));
+      ctx.fillRect(5, 0, 1, 3);
+      ctx.fillRect(11, 4, 1, 3);
+      ctx.fillRect(3, 8, 1, 3);
+      ctx.fillRect(9, 12, 1, 3);
+    });
+
+    function colorTexture(base, light, dark) {
+      return createPixelTexture(ctx => {
+        speckle(ctx, base, [light, dark], 50);
+        ctx.strokeStyle = dark;
+        ctx.strokeRect(0.5, 0.5, 15, 15);
+      });
+    }
+    textures.colorRed = colorTexture('#c8342c', '#d8544c', '#a8241c');
+    textures.colorYellow = colorTexture('#e8c82c', '#f4dc5c', '#c8a81c');
+    textures.colorBlue = colorTexture('#2c5cc8', '#4c7ce0', '#1c44a0');
+    textures.colorGreen = colorTexture('#3c9a3c', '#5cb45c', '#2c7a2c');
+    textures.colorWhite = colorTexture('#e8e8e8', '#ffffff', '#c8c8c8');
+    textures.colorBlack = colorTexture('#2a2a2a', '#3a3a3a', '#1a1a1a');
+
+    textures.ladder = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      ctx.fillStyle = '#8a6236';
+      ctx.fillRect(2, 0, 2, 16);
+      ctx.fillRect(12, 0, 2, 16);
+      ctx.fillStyle = '#a87a46';
+      [2, 6, 10, 14].forEach(y => ctx.fillRect(2, y, 12, 1));
+    });
+    textures.door = createPixelTexture(ctx => {
+      speckle(ctx, '#9a6a36', ['#8a5c2c', '#aa7a44'], 30);
+      ctx.strokeStyle = '#5a3a14';
+      ctx.strokeRect(0.5, 0.5, 15, 15);
+      ctx.fillStyle = '#6a4a26';
+      ctx.fillRect(3, 2, 4, 4);
+      ctx.fillRect(9, 2, 4, 4);
+      ctx.fillStyle = '#d8c040';
+      ctx.fillRect(12, 8, 2, 2);
+    });
+    textures.doorOpen = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      ctx.fillStyle = '#9a6a36';
+      ctx.fillRect(0, 0, 16, 2);
+      ctx.fillRect(0, 0, 2, 16);
+      ctx.fillRect(14, 0, 2, 16);
+    });
+    textures.lamp = createPixelTexture(ctx => {
+      speckle(ctx, '#f8e0a0', ['#fff4c8', '#f0d080'], 40);
+      ctx.fillStyle = '#c8a050';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 15, 16, 1);
+      ctx.fillRect(0, 0, 1, 16);
+      ctx.fillRect(15, 0, 1, 16);
+      ctx.fillRect(7, 0, 1, 16);
+      ctx.fillRect(0, 7, 16, 1);
+    });
+    textures.tntSide = createPixelTexture(ctx => {
+      ctx.fillStyle = '#c8342c';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#e8e8e8';
+      ctx.fillRect(0, 5, 16, 6);
+      ctx.fillStyle = '#222';
+      [[2, 6], [3, 6], [2, 7], [2, 8], [2, 9], [6, 6], [6, 7], [6, 8], [6, 9], [7, 7], [8, 8], [9, 6], [9, 7], [9, 8], [9, 9],
+       [12, 6], [13, 6], [12, 7], [12, 8], [12, 9]].forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+    });
+    textures.tntTop = createPixelTexture(ctx => {
+      speckle(ctx, '#c8342c', ['#b82c24'], 20);
+      ctx.fillStyle = '#333';
+      ctx.fillRect(7, 7, 2, 2);
+    });
+    textures.bedTop = createPixelTexture(ctx => {
+      ctx.fillStyle = '#c8342c';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(2, 1, 12, 4);
+      ctx.fillStyle = '#a8241c';
+      ctx.fillRect(0, 6, 16, 1);
+    });
+    textures.bedSide = createPixelTexture(ctx => {
+      ctx.fillStyle = '#c8342c';
+      ctx.fillRect(0, 0, 16, 8);
+      speckle(ctx, '#b8894f', ['#a87a44'], 0);
+      ctx.fillStyle = '#c8342c';
+      ctx.fillRect(0, 0, 16, 8);
+      ctx.fillStyle = '#8a6236';
+      ctx.fillRect(0, 8, 16, 8);
+      ctx.fillRect(0, 14, 2, 2);
+    });
+    textures.furnaceFront = createPixelTexture(ctx => {
+      speckle(ctx, '#7a7a7a', ['#6a6a6a', '#8a8a8a'], 50);
+      ctx.fillStyle = '#444';
+      ctx.fillRect(3, 2, 10, 3);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(4, 8, 8, 6);
+      ctx.fillStyle = '#e87a2c';
+      ctx.fillRect(5, 12, 6, 2);
+    });
+    textures.furnaceSide = createPixelTexture(ctx => {
+      speckle(ctx, '#7a7a7a', ['#6a6a6a', '#8a8a8a'], 50);
+      ctx.strokeStyle = '#5a5a5a';
+      ctx.strokeRect(0.5, 0.5, 15, 15);
+    });
+    textures.farmland = createPixelTexture(ctx => {
+      speckle(ctx, '#5a3a22', ['#4a2e1a', '#6a4a2e'], 40);
+      ctx.fillStyle = '#3e2614';
+      [1, 5, 9, 13].forEach(y => ctx.fillRect(0, y, 16, 1));
+    });
+
+    // 小麦の成長（0: 芽 〜 3: 実った）
+    function wheatTexture(stage) {
+      return createPixelTexture(ctx => {
+        ctx.clearRect(0, 0, 16, 16);
+        const height = [4, 7, 11, 14][stage];
+        const stem = stage === 3 ? '#b89a30' : '#4a9a2a';
+        for (let x = 1; x < 16; x += 3) {
+          ctx.fillStyle = stem;
+          ctx.fillRect(x, 16 - height, 1, height);
+          if (stage >= 2) {
+            ctx.fillStyle = stage === 3 ? '#e8c84a' : '#7ab04a';
+            ctx.fillRect(x - 1, 16 - height, 3, 3);
+          }
+        }
+      });
+    }
+    textures.wheat0 = wheatTexture(0);
+    textures.wheat1 = wheatTexture(1);
+    textures.wheat2 = wheatTexture(2);
+    textures.wheat3 = wheatTexture(3);
+
+    textures.sapling = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      ctx.fillStyle = '#6a4a2a';
+      ctx.fillRect(7, 8, 2, 8);
+      ctx.fillStyle = '#3c8a2c';
+      ctx.fillRect(4, 3, 8, 6);
+      ctx.fillRect(6, 1, 4, 2);
+      ctx.fillStyle = '#2c6a1c';
+      ctx.fillRect(5, 5, 2, 2);
+    });
+    textures.tallGrass = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      [[1, 8], [3, 11], [5, 6], [7, 12], [9, 9], [11, 13], [13, 7], [14, 10]].forEach(([x, h], i) => {
+        ctx.fillStyle = i % 2 ? '#5c9a32' : '#4a8a2a';
+        ctx.fillRect(x, 16 - h, 1, h);
+      });
+    });
+    function flowerTexture(petal, center) {
+      return createPixelTexture(ctx => {
+        ctx.clearRect(0, 0, 16, 16);
+        ctx.fillStyle = '#3c8a2c';
+        ctx.fillRect(7, 7, 2, 9);
+        ctx.fillRect(9, 11, 2, 1);
+        ctx.fillStyle = petal;
+        ctx.fillRect(6, 2, 4, 2);
+        ctx.fillRect(4, 4, 2, 3);
+        ctx.fillRect(10, 4, 2, 3);
+        ctx.fillRect(6, 7, 4, 1);
+        ctx.fillStyle = center;
+        ctx.fillRect(6, 4, 4, 3);
+      });
+    }
+    textures.flowerRed = flowerTexture('#d8342c', '#f8d84a');
+    textures.flowerYellow = flowerTexture('#f4d42c', '#c88a1c');
+    textures.flowerBlue = flowerTexture('#3c7ce8', '#f8f8f8');
+
     /* --- Block Definitions & Texture Atlas --- */
     // 地形はチャンク（16×16列）ごとに「見えている面」だけをまとめて描く。
     // そのために全ブロックの絵を1枚の画像（アトラス）に並べ、面ごとにどの絵を使うかを決める
@@ -1138,9 +1510,12 @@
       'grassTop', 'grassSide', 'dirt', 'stone', 'woodSide', 'woodTop', 'leaves', 'brick',
       'glass', 'bedrock', 'coalOre', 'ironOre', 'goldOre', 'diamondOre', 'craftingTableTop', 'craftingTableSide',
       'sand', 'snow', 'snowGrassSide', 'ice', 'cactusSide', 'cactusTop', 'spruceSide', 'spruceLeaves',
-      'water', 'stoneBrick', 'chestFront', 'chestTop', 'cobweb'
+      'water', 'stoneBrick', 'chestFront', 'chestTop', 'cobweb', 'planks', 'colorRed', 'colorYellow',
+      'colorBlue', 'colorGreen', 'colorWhite', 'colorBlack', 'ladder', 'door', 'doorOpen', 'lamp',
+      'tntSide', 'tntTop', 'bedTop', 'bedSide', 'furnaceFront', 'furnaceSide', 'farmland', 'wheat0',
+      'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue'
     ];
-    const ATLAS_COLS = 4;
+    const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
     const atlasCanvas = document.createElement('canvas');
     atlasCanvas.width = 16 * ATLAS_COLS;
@@ -1161,13 +1536,15 @@
     // tier: 掘るのに必要なツルハシ（0: 素手でOK, 1: 木, 2: 石, 3: 鉄, 99: 壊せない）
     // drop: 掘ったときに持ち物に入るアイテム
     // seeThrough: 向こうが透けて見える（隣のブロックの面を隠さない）
-    // solid: false なら通り抜けられる / render: 'glass' か 'water' は半透明で描く
+    // solid: false なら通り抜けられる
+    // render: 'glass'（半透明）/ 'water' / 'cross'（草花のように×の形の板で描く）/ 'torch'（別に描く）
+    // replaceable: ブロックを置くと上書きされる（草むらなど）
     // map: マップに表示する色
     const BLOCKS = {
       1: { name: '草', tiles: [tile('grassTop'), tile('dirt'), tile('grassSide')], tier: 0, drop: 'grass', map: '#5c8e32' },
       2: { name: '土', tiles: same('dirt'), tier: 0, drop: 'dirt', map: '#866043' },
       3: { name: '石', tiles: same('stone'), tier: 1, drop: 'stone', map: '#808080' },
-      4: { name: '木材', tiles: [tile('woodTop'), tile('woodTop'), tile('woodSide')], tier: 0, drop: 'wood', map: '#8f683d' },
+      4: { name: '原木', tiles: [tile('woodTop'), tile('woodTop'), tile('woodSide')], tier: 0, drop: 'wood', map: '#8f683d' },
       5: { name: '葉', tiles: same('leaves'), tier: 0, drop: 'leaves', seeThrough: true, map: '#2d6d1b' },
       6: { name: 'レンガ', tiles: same('brick'), tier: 1, drop: 'brick', map: '#9c4233' },
       7: { name: 'ガラス', tiles: same('glass'), tier: 0, drop: 'glass', seeThrough: true, render: 'glass', map: '#a8d0e8' },
@@ -1177,7 +1554,7 @@
       11: { name: '金の鉱石', tiles: same('goldOre'), tier: 3, drop: 'gold', map: '#c8a830' },
       12: { name: 'ダイヤの鉱石', tiles: same('diamondOre'), tier: 3, drop: 'diamond', map: '#44cccc' },
       13: { name: '作業台', tiles: [tile('craftingTableTop'), tile('woodTop'), tile('craftingTableSide')], tier: 0, drop: 'table', map: '#a57c4a' },
-      14: { name: '松明', torch: true, seeThrough: true, solid: false, tier: 0, drop: 'torch', map: '#ffcc33' },
+      14: { name: '松明', render: 'torch', torch: true, seeThrough: true, solid: false, light: true, tier: 0, drop: 'torch', map: '#ffcc33' },
       15: { name: '砂', tiles: same('sand'), tier: 0, drop: 'sand', map: '#dbcf8e' },
       16: { name: '雪', tiles: same('snow'), tier: 0, drop: 'snow', map: '#f4f8fb' },
       17: { name: '雪の草', tiles: [tile('snow'), tile('dirt'), tile('snowGrassSide')], tier: 0, drop: 'dirt', map: '#e8eef2' },
@@ -1185,10 +1562,38 @@
       19: { name: 'サボテン', tiles: [tile('cactusTop'), tile('cactusTop'), tile('cactusSide')], tier: 0, drop: 'cactus', hurts: true, map: '#3f8a3a' },
       20: { name: 'トウヒの木', tiles: [tile('woodTop'), tile('woodTop'), tile('spruceSide')], tier: 0, drop: 'wood', map: '#5a3e24' },
       21: { name: 'トウヒの葉', tiles: same('spruceLeaves'), tier: 0, drop: 'leaves', seeThrough: true, map: '#2f4f36' },
-      22: { name: '水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, render: 'water', map: '#2f6fd6' },
+      22: { name: '水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, render: 'water', replaceable: true, map: '#2f6fd6' },
       23: { name: '石レンガ', tiles: same('stoneBrick'), tier: 1, drop: 'stone_bricks', map: '#6a6a6a' },
-      24: { name: '宝箱', tiles: [tile('chestTop'), tile('chestTop'), tile('chestFront')], tier: 99, chest: true, map: '#9a6a2e' },
-      25: { name: 'クモの巣', tiles: same('cobweb'), tier: 0, drop: 'string', seeThrough: true, solid: false, web: true, render: 'glass', map: '#dddddd' }
+      24: { name: 'ダンジョンの宝箱', tiles: [tile('chestTop'), tile('chestTop'), tile('chestFront')], tier: 99, dungeonChest: true, map: '#9a6a2e' },
+      25: { name: 'クモの巣', tiles: same('cobweb'), tier: 0, drop: 'string', seeThrough: true, solid: false, web: true, render: 'glass', map: '#dddddd' },
+      // 建物のブロック
+      26: { name: '木の板', tiles: same('planks'), tier: 0, drop: 'planks', map: '#b8894f' },
+      27: { name: '赤いブロック', tiles: same('colorRed'), tier: 0, drop: 'red_block', map: '#c8342c' },
+      28: { name: '黄色いブロック', tiles: same('colorYellow'), tier: 0, drop: 'yellow_block', map: '#e8c82c' },
+      29: { name: '青いブロック', tiles: same('colorBlue'), tier: 0, drop: 'blue_block', map: '#2c5cc8' },
+      30: { name: '緑のブロック', tiles: same('colorGreen'), tier: 0, drop: 'green_block', map: '#3c9a3c' },
+      31: { name: '白いブロック', tiles: same('colorWhite'), tier: 0, drop: 'white_block', map: '#e8e8e8' },
+      32: { name: '黒いブロック', tiles: same('colorBlack'), tier: 0, drop: 'black_block', map: '#2a2a2a' },
+      33: { name: 'はしご', tiles: same('ladder'), tier: 0, drop: 'ladder', seeThrough: true, solid: false, climbable: true, render: 'glass', map: '#a87a46' },
+      34: { name: 'ドア', tiles: [tile('planks'), tile('planks'), tile('door')], tier: 0, drop: 'door', door: 'closed', map: '#9a6a36' },
+      35: { name: 'ドア（開）', tiles: [tile('doorOpen'), tile('doorOpen'), tile('doorOpen')], tier: 0, drop: 'door', door: 'open', seeThrough: true, solid: false, render: 'glass', map: '#9a6a36' },
+      36: { name: 'ランプ', tiles: same('lamp'), tier: 0, drop: 'lamp', light: true, map: '#f8e0a0' },
+      37: { name: 'TNT', tiles: [tile('tntTop'), tile('tntTop'), tile('tntSide')], tier: 0, drop: 'tnt', tnt: true, map: '#c8342c' },
+      // 生活の道具
+      38: { name: 'ベッド', tiles: [tile('bedTop'), tile('planks'), tile('bedSide')], tier: 0, drop: 'bed', bed: true, map: '#c8342c' },
+      39: { name: 'かまど', tiles: [tile('furnaceSide'), tile('furnaceSide'), tile('furnaceFront')], tier: 1, drop: 'furnace', furnace: true, map: '#7a7a7a' },
+      40: { name: 'チェスト', tiles: [tile('chestTop'), tile('chestTop'), tile('chestFront')], tier: 0, drop: 'chest', storage: true, map: '#9a6a2e' },
+      // 農業
+      41: { name: '耕した土', tiles: [tile('farmland'), tile('dirt'), tile('dirt')], tier: 0, drop: 'dirt', farmland: true, map: '#5a3a22' },
+      42: { name: '小麦（芽）', tiles: same('wheat0'), crop: 0, render: 'cross', seeThrough: true, solid: false, tier: 0, map: '#4a9a2a' },
+      43: { name: '小麦（成長中）', tiles: same('wheat1'), crop: 1, render: 'cross', seeThrough: true, solid: false, tier: 0, map: '#4a9a2a' },
+      44: { name: '小麦（もうすぐ）', tiles: same('wheat2'), crop: 2, render: 'cross', seeThrough: true, solid: false, tier: 0, map: '#7ab04a' },
+      45: { name: '小麦（実った）', tiles: same('wheat3'), crop: 3, render: 'cross', seeThrough: true, solid: false, tier: 0, map: '#e8c84a' },
+      46: { name: '苗', tiles: same('sapling'), sapling: true, render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'sapling', map: '#3c8a2c' },
+      47: { name: '草むら', tiles: same('tallGrass'), render: 'cross', seeThrough: true, solid: false, tier: 0, replaceable: true, map: '#5c9a32' },
+      48: { name: '赤い花', tiles: same('flowerRed'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'red_flower', map: '#d8342c' },
+      49: { name: '黄色い花', tiles: same('flowerYellow'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'yellow_flower', map: '#f4d42c' },
+      50: { name: '青い花', tiles: same('flowerBlue'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'blue_flower', map: '#3c7ce8' }
     };
     const GRASS = 1;
     const DIRT = 2;
@@ -1211,18 +1616,31 @@
     const SPRUCE_LEAVES = 21;
     const WATER = 22;
     const STONE_BRICKS = 23;
-    const CHEST = 24;
+    const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
+    const PLANKS = 26;
+    const DOOR_CLOSED = 34;
+    const DOOR_OPEN = 35;
+    const TNT = 37;
+    const BED = 38;
+    const FURNACE = 39;
+    const STORAGE_CHEST = 40;
+    const FARMLAND = 41;
+    const WHEAT_STAGES = [42, 43, 44, 45];
+    const SAPLING = 46;
+    const TALL_GRASS = 47;
+    const FLOWERS = [48, 49, 50];
 
-    // 地形のメッシュ用の材質（不透明なもの / ガラスとクモの巣 / 水）
+    // 地形のメッシュ用の材質（不透明なもの / ガラス・クモの巣・草花 / 水）
     const opaqueMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture, vertexColors: true });
     const glassMaterial = new THREE.MeshLambertMaterial({
       map: atlasTexture,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
       alphaTest: 0.1,
-      depthWrite: false
+      depthWrite: false,
+      side: THREE.DoubleSide
     });
     const waterMaterial = new THREE.MeshLambertMaterial({
       map: atlasTexture,
@@ -1304,7 +1722,7 @@
     });
 
     controls.addEventListener('unlock', () => {
-      if (player.health > 0) {
+      if (player.health > 0 && !inventoryOpen) {
         instructions.style.display = 'flex';
       }
     });
@@ -1318,7 +1736,7 @@
     const SIZE_Y = MAX_Y - BEDROCK_Y + 1;
     const SIZE_Z = WORLD_SIZE + 1;
     const SAVE_KEY = 'minecraft3d-save';
-    const SAVE_VERSION = 4; // 地形生成を変えたら上げる（古いセーブは読み込まない）
+    const SAVE_VERSION = 5; // 地形生成を変えたら上げる（古いセーブは読み込まない）
 
     // 全ブロックを1本の数字の列に入れる（0 は空気）
     const world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
@@ -1402,6 +1820,11 @@
       { dir: [0, 0, -1], corners: [[0.5, -0.5, -0.5], [-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5]], shade: 0.9, side: 2 }
     ];
 
+    const CROSS_FACES = [
+      { dir: [0, 1, 0], corners: [[-0.45, -0.5, -0.45], [0.45, -0.5, 0.45], [0.45, 0.5, 0.45], [-0.45, 0.5, -0.45]], shade: 0.95 },
+      { dir: [0, 1, 0], corners: [[-0.45, -0.5, 0.45], [0.45, -0.5, -0.45], [0.45, 0.5, -0.45], [-0.45, 0.5, 0.45]], shade: 0.95 }
+    ];
+
     // 面を描くかを決めるための「隣のブロック」。ワールドの外と岩盤の下は見えないので、ふさがっている扱い
     function neighborForMesh(x, y, z) {
       if (y > MAX_Y) return 0;
@@ -1464,6 +1887,11 @@
             if (id === 0) continue;
             const def = BLOCKS[id];
             if (def.torch) continue; // 松明は別に描く
+            if (def.render === 'cross') {
+              // 草花や作物は、×の形に交差した2枚の板で描く
+              CROSS_FACES.forEach(face => addFace(glass, x, y, z, face, def.tiles[2]));
+              continue;
+            }
             const buf = def.render === 'water' ? water : def.render === 'glass' ? glass : opaque;
             for (const face of FACES) {
               const n = neighborForMesh(x + face.dir[0], y + face.dir[1], z + face.dir[2]);
@@ -1570,6 +1998,12 @@
       for (const group of torchMeshes.values()) {
         if (group.position.distanceTo({ x, y, z }) < distance) return true;
       }
+      // ランプ（プレイヤーが置いた光るブロック）
+      for (const [key, id] of blockChanges) {
+        if (!BLOCKS[id] || !BLOCKS[id].light) continue;
+        const [lx, ly, lz] = key.split(',').map(Number);
+        if (Math.hypot(lx - x, ly - y, lz - z) < distance) return true;
+      }
       return false;
     }
 
@@ -1580,7 +2014,7 @@
       z = Math.round(z);
       if (!inBounds(x, y, z)) return false;
       const i = cellIndex(x, y, z);
-      if (world[i] !== 0 && world[i] !== WATER) return false; // 水の中には置ける（水と入れかわる）
+      if (world[i] !== 0 && !BLOCKS[world[i]].replaceable) return false; // 水や草むらの所には置ける（入れかわる）
 
       if (world[i] === 0) blockCount++;
       world[i] = id;
@@ -1609,6 +2043,10 @@
       if (BLOCKS[id].torch) removeTorchMesh(x, y, z);
       else markDirty(x, z);
       markMapDirty(x, z);
+
+      // 上に乗っていた草花や作物は、足場がなくなるので一緒に消える
+      const above = inBounds(x, y + 1, z) ? world[cellIndex(x, y + 1, z)] : 0;
+      if (above && BLOCKS[above].render === 'cross') removeBlock(x, y + 1, z, false);
 
       if (playSoundFlag) playSound('break');
       return id;
@@ -1870,6 +2308,12 @@
           else if (biome === 'snow' && r < 0.04) placeSpruceTree(x, surfaceY, z);
           else if (biome === 'mountain' && surfaceY < 12 && r < 0.03) placeSpruceTree(x, surfaceY, z);
           else if (biome === 'desert' && r < 0.012) placeCactus(x, surfaceY, z);
+          else if ((biome === 'plains' || biome === 'forest') && top === GRASS) {
+            // 草むら（掘ると種が出る）と花（染料になる）
+            const d = worldRandom();
+            if (d < 0.03) setBlockData(x, surfaceY + 1, z, FLOWERS[worldRandInt(0, 2)]);
+            else if (d < 0.15) setBlockData(x, surfaceY + 1, z, TALL_GRASS);
+          }
         }
       }
 
@@ -2093,8 +2537,13 @@
 
     function damagePlayer(amount, knockbackDir = null) {
       if (player.invulnerableTimer > 0 || player.health <= 0) return;
-      // 防具を持っていればダメージが減る
-      const reduced = Math.max(1, Math.round(amount * (1 - armorProtection())));
+      // 防具を持っていればダメージが減る。盾で守っていればさらに減る
+      let reduced = Math.max(1, Math.round(amount * (1 - armorProtection())));
+      if (isBlocking()) {
+        reduced = Math.floor(reduced * 0.2);
+        playSound('hit');
+        if (reduced <= 0) return;
+      }
       player.health = Math.max(0, player.health - reduced);
       player.invulnerableTimer = 0.8; // 0.8秒無敵
       player.regenCooldown = 6;
@@ -2129,7 +2578,13 @@
     respawnBtn.addEventListener('click', () => {
       player.health = player.maxHealth;
       updateHealthUI();
-      placePlayerOnGround(0, 0);
+      // ベッドで復活地点を決めていて、ベッドが残っていればそこから
+      if (spawnPoint && getBlock(spawnPoint.x, spawnPoint.y - 0.5, spawnPoint.z) === BED) {
+        camera.position.set(spawnPoint.x, spawnPoint.y + player.eye, spawnPoint.z);
+        player.velocity.set(0, 0, 0);
+      } else {
+        placePlayerOnGround(0, 0);
+      }
       player.invulnerableTimer = 3; // 復活直後は3秒無敵
       // ボス戦の途中で倒されたら、ボスは眠りにもどる（また部屋に入ると目覚める）
       if (boss) {
@@ -2288,7 +2743,7 @@
     const MOB_DEFS = {
       zombie: { name: 'ゾンビ', ai: 'melee', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
       husk: { name: 'ハスク', ai: 'melee', health: 22, speed: 2.5, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', noBurn: true, build: buildHusk },
-      creeper: { name: 'クリーパー', ai: 'creeper', health: 15, speed: 2.6, radius: 0.3, height: 1.4, sight: 16, build: buildCreeper },
+      creeper: { name: 'クリーパー', ai: 'creeper', health: 15, speed: 2.6, radius: 0.3, height: 1.4, sight: 16, drop: 'gunpowder', dropCount: [1, 2], build: buildCreeper },
       spider: { name: 'クモ', ai: 'melee', health: 16, speed: 4.0, radius: 0.55, height: 0.8, sight: 18, damage: 2, climbs: true, drop: 'string', dropCount: [1, 3], build: buildSpider },
       skeleton: { name: 'スケルトン', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, build: buildSkeleton },
       stray: { name: 'ストレイ', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, slowArrows: true, build: buildStray },
@@ -2550,16 +3005,22 @@
       for (let i = arrows.length - 1; i >= 0; i--) {
         const a = arrows[i];
         a.vel.y -= ARROW_GRAVITY * delta;
-        a.mesh.position.addScaledVector(a.vel, delta);
-        a.mesh.lookAt(a.mesh.position.clone().add(a.vel));
         a.life -= delta;
         const pos = a.mesh.position;
-
-        const hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.45 && Math.abs(pos.z - camera.position.z) < 0.45 &&
-          pos.y > feetY && pos.y < feetY + player.bodyHeight;
+        // 速い矢がプレイヤーや壁をすり抜けないように、少しずつ進めながら当たりを調べる
+        const steps = Math.max(1, Math.ceil((a.vel.length() * delta) / 0.25));
+        let hitsPlayer = false;
+        let blocked = false;
+        for (let s = 0; s < steps && !hitsPlayer && !blocked; s++) {
+          pos.addScaledVector(a.vel, delta / steps);
+          hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.45 && Math.abs(pos.z - camera.position.z) < 0.45 &&
+            pos.y > feetY && pos.y < feetY + player.bodyHeight;
+          blocked = isSolid(pos.x, pos.y, pos.z);
+        }
+        a.mesh.lookAt(pos.clone().add(a.vel));
         if (hitsPlayer) damagePlayer(a.damage, new THREE.Vector3(a.vel.x, 0, a.vel.z).normalize());
         if (hitsPlayer && a.slow) player.slowTimer = 3; // ストレイの矢は体が冷えて遅くなる
-        if (hitsPlayer || a.life <= 0 || isSolid(pos.x, pos.y, pos.z)) {
+        if (hitsPlayer || blocked || a.life <= 0) {
           scene.remove(a.mesh);
           arrows.splice(i, 1);
         }
@@ -2568,32 +3029,10 @@
 
     /* --- Enemies: Explosion, Damage & Drops --- */
     function triggerCreeperExplosion(mob) {
-      playSound('explosion');
       const center = mob.group.position.clone().add(new THREE.Vector3(0, 0.5, 0));
-      spawnParticles(center, 0xffffff, 40, 9);
-      spawnParticles(center, 0xff5500, 30, 8);
-      spawnParticles(center, 0x444444, 25, 6);
-
-      // 地形破壊 (半径2.6ブロック以内のブロックを吹き飛ばす。岩盤は残る)
-      const radius = 2.6;
-      for (let x = Math.floor(center.x - radius); x <= Math.ceil(center.x + radius); x++) {
-        for (let y = Math.floor(center.y - radius); y <= Math.ceil(center.y + radius); y++) {
-          for (let z = Math.floor(center.z - radius); z <= Math.ceil(center.z + radius); z++) {
-            const id = getBlock(x, y, z);
-            if (id === 0 || id === BEDROCK) continue;
-            if (Math.hypot(x - center.x, y - center.y, z - center.z) <= radius) removeBlock(x, y, z, false);
-          }
-        }
-      }
-
-      // プレイヤーへの爆風ダメージ & ノックバック
-      const distToPlayer = camera.position.distanceTo(center);
-      if (distToPlayer < 5.0) {
-        // 最大14ダメージ。深い場所のクリーパーは強いが、18で頭打ち（満タンからは即死しない）
-        const damage = Math.min(18, Math.round(((1.0 - distToPlayer / 5.0) * 12 + 2) * mob.power));
-        damagePlayer(damage, camera.position.clone().sub(center).normalize());
-      }
-      removeMob(mob);
+      removeMob(mob); // 先に消す（自分の爆発で倒されたことにならないように）
+      // 深い場所のクリーパーは強いが、ダメージは18で頭打ち（満タンからは即死しない）
+      explodeAt(center, 2.6, mob.power);
     }
 
     function hitMob(mob, damage, point) {
@@ -2638,7 +3077,10 @@
       }
 
       let drop = mob.def.drop;
-      if (mob.def.ai === 'ranged') drop = Math.random() < 0.6 ? 'coal' : 'iron';
+      if (mob.def.ai === 'ranged') {
+        giveOrDrop('arrow', rand(1, 2)); // 矢も落とす
+        drop = Math.random() < 0.6 ? 'coal' : 'iron';
+      }
       const count = mob.def.dropCount ? rand(mob.def.dropCount[0], mob.def.dropCount[1]) : 1;
       if (drop && addItem(drop, count)) showToast(`${ITEMS[drop].emoji} ${ITEMS[drop].name}${count > 1 ? ' ×' + count : ''} を手に入れた`);
     }
@@ -2914,14 +3356,21 @@
       for (let i = rocks.length - 1; i >= 0; i--) {
         const r = rocks[i];
         r.vel.y -= ROCK_GRAVITY * delta;
-        r.mesh.position.addScaledVector(r.vel, delta);
         r.mesh.rotation.x += delta * 5;
         r.life -= delta;
         const pos = r.mesh.position;
-        const hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.7 && Math.abs(pos.z - camera.position.z) < 0.7 &&
-          pos.y > feetY - 0.3 && pos.y < feetY + player.bodyHeight + 0.3;
+        // すり抜けないように、少しずつ進めながら当たりを調べる
+        const steps = Math.max(1, Math.ceil((r.vel.length() * delta) / 0.3));
+        let hitsPlayer = false;
+        let blocked = false;
+        for (let s = 0; s < steps && !hitsPlayer && !blocked; s++) {
+          pos.addScaledVector(r.vel, delta / steps);
+          hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.7 && Math.abs(pos.z - camera.position.z) < 0.7 &&
+            pos.y > feetY - 0.3 && pos.y < feetY + player.bodyHeight + 0.3;
+          blocked = isSolid(pos.x, pos.y, pos.z);
+        }
         if (hitsPlayer) damagePlayer(5, new THREE.Vector3(r.vel.x, 0, r.vel.z).normalize());
-        if (hitsPlayer || r.life <= 0 || isSolid(pos.x, pos.y, pos.z)) {
+        if (hitsPlayer || blocked || r.life <= 0) {
           spawnParticles(pos.clone(), 0x7d7d7d, 10, 4);
           scene.remove(r.mesh);
           rocks.splice(i, 1);
@@ -2958,7 +3407,7 @@
         return;
       }
       const loot = [['golem_sword', 1], ['diamond', 5], ['golden_apple', 2], ['iron', 8]];
-      if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.filter(item => !item).length < loot.length) {
+      if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.slice(0, usableSlots()).filter(item => !item).length < loot.length) {
         showToast('⚠️ 持ち物をあけてから開けよう');
         return;
       }
@@ -2981,7 +3430,7 @@
     let targetBlock = null; // { x, y, z, normal: [nx, ny, nz], id, distance }
 
     // 目の位置から見ている方向へ、ブロックを1マスずつたどって最初に当たるブロックを探す
-    function raycastBlock(origin, dir, maxDistance) {
+    function raycastBlock(origin, dir, maxDistance, includeWater = false) {
       // ブロックの境目が整数になるように 0.5 ずらした座標で考える
       const ox = origin.x + 0.5;
       const oy = origin.y + 0.5;
@@ -3003,7 +3452,7 @@
 
       while (t <= maxDistance) {
         const id = getBlock(ix, iy, iz);
-        if (id !== 0 && id !== WATER) return { x: ix, y: iy, z: iz, normal, id, distance: t }; // 水は通して見る
+        if (id !== 0 && (includeWater || id !== WATER)) return { x: ix, y: iy, z: iz, normal, id, distance: t }; // ふだん水は通して見る
         if (tMaxX < tMaxY && tMaxX < tMaxZ) {
           ix += stepX;
           t = tMaxX;
@@ -3063,24 +3512,41 @@
     /* --- Mining, Placing & Using Items --- */
     function mineBlock(target) {
       const def = BLOCKS[target.id];
-      if (def.tier >= 99) return; // 岩盤は壊せない
+      if (def.tier >= 99) return; // 岩盤・ダンジョンの宝箱・水は壊せない
       if (def.tier > pickaxeTier()) {
         showToast(`⛏️ ${def.name}を掘るには ${PICKAXE_NAMES[def.tier]} が必要です`);
         return;
       }
+      if (def.storage || def.furnace) spillContainer(target.x, target.y, target.z);
       removeBlock(target.x, target.y, target.z, true);
 
       const pos = new THREE.Vector3(target.x, target.y, target.z);
-      if (def.drop) {
-        if (!addItem(def.drop, 1)) {
-          showToast('⚠️ 持ち物がいっぱいです');
-        } else if (ITEMS[def.drop].kind === 'material') {
-          spawnParticles(pos, ITEMS[def.drop].particle || 0xffffff, 14, 3);
+      const give = (id, count = 1) => {
+        if (!addItem(id, count)) spawnDroppedItem(id, count, pos.clone());
+      };
+      if (def.crop !== undefined) {
+        // 実った小麦は小麦と種、まだ育っていなければ種だけ
+        if (def.crop === 3) {
+          give('wheat');
+          give('seeds', rand(1, 2));
+        } else {
+          give('seeds');
+        }
+      } else if (target.id === TALL_GRASS) {
+        if (Math.random() < 0.5) give('seeds');
+      } else if (def.drop) {
+        give(def.drop);
+        if (ITEMS[def.drop].particle) {
+          spawnParticles(pos, ITEMS[def.drop].particle, 14, 3);
           playSound('ore');
         }
       }
-      if ((target.id === LEAVES || target.id === SPRUCE_LEAVES) && Math.random() < 0.12 && addItem('apple', 1)) {
-        showToast('🍎 りんごを見つけた！');
+      if (target.id === LEAVES || target.id === SPRUCE_LEAVES) {
+        if (Math.random() < 0.1) give('sapling');
+        if (Math.random() < 0.12) {
+          give('apple');
+          showToast('🍎 りんごを見つけた！');
+        }
       }
       updateRaycast();
     }
@@ -3091,20 +3557,71 @@
         by + 0.5 > feetY && by - 0.5 < feetY + height;
     }
 
+    // 見ているブロックの手前（草むらや水なら、そのマス）に置けるか
+    function targetPlaceCell() {
+      const t = targetBlock;
+      if (!t) return null;
+      const cell = BLOCKS[t.id].replaceable
+        ? { x: t.x, y: t.y, z: t.z }
+        : { x: t.x + t.normal[0], y: t.y + t.normal[1], z: t.z + t.normal[2] };
+      const existing = getBlock(cell.x, cell.y, cell.z);
+      if (!isInsideWorld(cell.x, cell.z) || cell.y > MAX_Y || (existing !== 0 && !BLOCKS[existing].replaceable)) return null;
+      return cell;
+    }
+
+    function placeHeldBlock(item) {
+      const cell = targetPlaceCell();
+      if (!cell) return;
+      if (BLOCKS[item.block].solid !== false) {
+        const feetY = camera.position.y - player.eye;
+        if (blockOverlapsBox(cell.x, cell.y, cell.z, camera.position.x, feetY, camera.position.z, player.radius, player.bodyHeight)) return;
+        if (mobs.some(m => blockOverlapsBox(cell.x, cell.y, cell.z, m.group.position.x, m.group.position.y, m.group.position.z, m.radius, m.height))) return;
+      }
+      if (addBlock(cell.x, cell.y, cell.z, item.block, true)) {
+        consumeHeldItem();
+        updateRaycast();
+      }
+    }
+
+    // バケツ: 水をくむ / 水を置く
+    function useBucket(item) {
+      if (!item.water) {
+        const hit = raycastBlock(camera.position, lookDirection, REACH, true);
+        if (hit && hit.id === WATER) {
+          removeBlock(hit.x, hit.y, hit.z, false);
+          inventory[selectedSlot] = { id: 'water_bucket', count: 1 };
+          seenItems.add('water_bucket');
+          playSound('place');
+          renderInventory();
+        }
+        return;
+      }
+      const cell = targetPlaceCell();
+      if (cell && addBlock(cell.x, cell.y, cell.z, WATER, true)) {
+        inventory[selectedSlot] = { id: 'bucket', count: 1 };
+        renderInventory();
+        updateRaycast();
+      }
+    }
+
     function useItem() {
-      // 作業台を右クリックするとクラフト画面を開く
-      if (targetBlock && targetBlock.id === CRAFTING_TABLE) {
-        controls.unlock();
-        return;
-      }
-      // ダンジョンの宝箱
-      if (targetBlock && targetBlock.id === CHEST) {
-        openChest();
-        return;
-      }
       const held = inventory[selectedSlot];
-      if (!held) return;
-      const item = ITEMS[held.id];
+      const item = held ? ITEMS[held.id] : null;
+      const t = targetBlock;
+
+      // 使えるブロック
+      if (t) {
+        const def = BLOCKS[t.id];
+        const key = blockKey(t.x, t.y, t.z);
+        if (t.id === CRAFTING_TABLE) return openInventoryScreen();
+        if (def.storage) return openInventoryScreen({ type: 'chest', key });
+        if (def.furnace) return openInventoryScreen({ type: 'furnace', key });
+        if (def.door) return toggleDoor(t.x, t.y, t.z);
+        if (def.bed) return useBed(t.x, t.y, t.z);
+        if (t.id === CHEST) return openChest();
+        if (def.tnt && held && held.id === 'torch') return igniteTnt(t.x, t.y, t.z);
+      }
+      if (!item) return;
 
       // 食べ物は食べて回復
       if (item.heal) {
@@ -3118,24 +3635,39 @@
         showToast(`${item.emoji} ${item.name}を食べた`);
         return;
       }
+      if (item.kind === 'bow') return shootPlayerArrow();
+      if (item.kind === 'shield') return; // 右クリックを押しているあいだ守る
+      if (item.kind === 'bucket') return useBucket(item);
+      if (!t) return;
 
-      // ブロック（松明も）を置く
-      if (!item.block || !targetBlock) return;
-      const tx = targetBlock.x + targetBlock.normal[0];
-      const ty = targetBlock.y + targetBlock.normal[1];
-      const tz = targetBlock.z + targetBlock.normal[2];
-      const existing = getBlock(tx, ty, tz);
-      if (!isInsideWorld(tx, tz) || ty > MAX_Y || (existing !== 0 && existing !== WATER)) return;
-
-      if (BLOCKS[item.block].solid !== false) {
-        const feetY = camera.position.y - player.eye;
-        if (blockOverlapsBox(tx, ty, tz, camera.position.x, feetY, camera.position.z, player.radius, player.bodyHeight)) return;
-        if (mobs.some(m => blockOverlapsBox(tx, ty, tz, m.group.position.x, m.group.position.y, m.group.position.z, m.radius, m.height))) return;
+      // クワ: 草や土を耕す
+      if (item.kind === 'hoe') {
+        if ([GRASS, DIRT, SNOW_GRASS].includes(t.id) && getBlock(t.x, t.y + 1, t.z) === 0) {
+          replaceBlock(t.x, t.y, t.z, FARMLAND);
+          playSound('place');
+        }
+        return;
       }
-      if (addBlock(tx, ty, tz, item.block, true)) {
-        consumeHeldItem();
-        updateRaycast();
+      // 種: 耕した土の上に植える
+      if (item.kind === 'seeds') {
+        if (t.id === FARMLAND && getBlock(t.x, t.y + 1, t.z) === 0 && addBlock(t.x, t.y + 1, t.z, WHEAT_STAGES[0], true)) {
+          growingBlocks.add(blockKey(t.x, t.y + 1, t.z));
+          consumeHeldItem();
+        } else {
+          showToast('🌱 種はクワで耕した土の上に植えよう');
+        }
+        return;
       }
+      // 苗・花: 草や土の上に植える
+      if (item.block && BLOCKS[item.block].render === 'cross') {
+        if ([GRASS, DIRT, SNOW_GRASS, FARMLAND].includes(t.id) && getBlock(t.x, t.y + 1, t.z) === 0 &&
+            addBlock(t.x, t.y + 1, t.z, item.block, true)) {
+          if (BLOCKS[item.block].sapling) growingBlocks.add(blockKey(t.x, t.y + 1, t.z));
+          consumeHeldItem();
+        }
+        return;
+      }
+      if (item.block) placeHeldBlock(item);
     }
 
     /* --- Mouse & Keyboard --- */
@@ -3152,7 +3684,8 @@
         }
         if (targetBlock) mineBlock(targetBlock);
       } else if (e.button === 2) {
-        // 右クリック: 置く・食べる・作業台を開く
+        // 右クリック: 置く・食べる・道具を使う・ブロックを使う
+        rightMouseDown = true;
         useItem();
       }
     });
@@ -3186,8 +3719,15 @@
           keys.jump = true;
           break;
         case 'KeyE':
-          // 一時停止画面（クラフトとカバンがある）を開く
-          if (controls.isLocked) controls.unlock();
+          // 持ち物とクラフトの画面を開く／閉じる
+          toggleInventoryScreen();
+          break;
+        case 'KeyQ':
+          // 手に持っているアイテムを捨てる（Shift で全部）
+          if (controls.isLocked) dropHeldItem(e.shiftKey);
+          break;
+        case 'Escape':
+          if (inventoryOpen) closeInventoryScreen(false);
           break;
         default:
           if (/^Digit[1-8]$/.test(e.code)) selectSlot(Number(e.code.slice(5)) - 1);
@@ -3227,34 +3767,58 @@
 
     /* --- Items (アイテム) --- */
     const HOTBAR_SIZE = 8;
-    const INVENTORY_SIZE = 24; // 0〜7: ホットバー（画面の下）, 8〜23: カバン
+    const BAG_SMALL = 16;
+    const BAG_LARGE = 32;
+    const INVENTORY_SIZE = HOTBAR_SIZE + BAG_LARGE; // 0〜7: ホットバー, 8〜: カバン
     const MAX_STACK = 99;
     const FIST_DAMAGE = 3;
+    let bagSize = BAG_SMALL; // 大きなカバンを作ると 32 になる
 
     // kind: block（置ける）/ material（材料）/ food（食べると回復）/ pickaxe / sword / armor
+    //       seeds / hoe / bow / shield / bucket / bag
     const ITEMS = {
       grass: { name: '草', kind: 'block', block: GRASS, color: '#5c8e32', emoji: '🌿' },
       dirt: { name: '土', kind: 'block', block: DIRT, color: '#866043', emoji: '🟫' },
       stone: { name: '石', kind: 'block', block: STONE, color: '#777777', emoji: '🪨' },
-      wood: { name: '木材', kind: 'block', block: WOOD, color: '#a07449', emoji: '🪵' },
+      wood: { name: '原木', kind: 'block', block: WOOD, color: '#8f683d', emoji: '🪵' },
       leaves: { name: '葉', kind: 'block', block: LEAVES, color: '#377e22', emoji: '🍃' },
       brick: { name: 'レンガ', kind: 'block', block: 6, color: '#9c4233', emoji: '🧱' },
-      glass: { name: 'ガラス', kind: 'block', block: 7, color: '#5aa0cd', emoji: '🧊' },
+      glass: { name: 'ガラス', kind: 'block', block: 7, color: '#5aa0cd', emoji: '🪟' },
       table: { name: '作業台', kind: 'block', block: CRAFTING_TABLE, color: '#a57c4a', emoji: '🛠️' },
       torch: { name: '松明', kind: 'block', block: TORCH, color: '#7a5530', emoji: '🔥' },
-      sand: { name: '砂', kind: 'block', block: SAND, color: '#dbcf8e', emoji: '🟨' },
-      snow: { name: '雪', kind: 'block', block: SNOW, color: '#f4f8fb', emoji: '⬜' },
+      sand: { name: '砂', kind: 'block', block: SAND, color: '#dbcf8e', emoji: '🏖️' },
+      snow: { name: '雪', kind: 'block', block: SNOW, color: '#f4f8fb', emoji: '❄️' },
       ice: { name: '氷', kind: 'block', block: ICE, color: '#9cc8f0', emoji: '🧊' },
       cactus: { name: 'サボテン', kind: 'block', block: CACTUS, color: '#3f8a3a', emoji: '🌵' },
-      stone_bricks: { name: '石レンガ', kind: 'block', block: STONE_BRICKS, color: '#6a6a6a', emoji: '🧱' },
+      stone_bricks: { name: '石レンガ', kind: 'block', block: STONE_BRICKS, color: '#6a6a6a', emoji: '◼️' },
+      planks: { name: '木の板', kind: 'block', block: PLANKS, color: '#b8894f', emoji: '🟧' },
+      ladder: { name: 'はしご', kind: 'block', block: 33, color: '#a87a46', emoji: '🪜' },
+      door: { name: 'ドア', kind: 'block', block: DOOR_CLOSED, color: '#9a6a36', emoji: '🚪' },
+      lamp: { name: 'ランプ', kind: 'block', block: 36, color: '#f8e0a0', emoji: '💡' },
+      tnt: { name: 'TNT', kind: 'block', block: TNT, color: '#c8342c', emoji: '🧨' },
+      bed: { name: 'ベッド', kind: 'block', block: BED, color: '#c8342c', emoji: '🛏️' },
+      furnace: { name: 'かまど', kind: 'block', block: FURNACE, color: '#7a7a7a', emoji: '🏭' },
+      chest: { name: 'チェスト', kind: 'block', block: STORAGE_CHEST, color: '#9a6a2e', emoji: '📦' },
+      sapling: { name: '苗', kind: 'block', block: SAPLING, color: '#3c8a2c', emoji: '🌱' },
+      red_flower: { name: '赤い花', kind: 'block', block: FLOWERS[0], color: '#d8342c', emoji: '🌹' },
+      yellow_flower: { name: '黄色い花', kind: 'block', block: FLOWERS[1], color: '#f4d42c', emoji: '🌼' },
+      blue_flower: { name: '青い花', kind: 'block', block: FLOWERS[2], color: '#3c7ce8', emoji: '💠' },
       coal: { name: '石炭', kind: 'material', color: '#333333', emoji: '⚫', particle: 0x222222 },
+      charcoal: { name: '木炭', kind: 'material', color: '#3a2a1a', emoji: '♨️' },
       iron: { name: '鉄', kind: 'material', color: '#d8b08c', emoji: '🔩', particle: 0xd8b08c },
-      gold: { name: '金', kind: 'material', color: '#ffd700', emoji: '🟡', particle: 0xffd700 },
+      gold: { name: '金', kind: 'material', color: '#ffd700', emoji: '🥇', particle: 0xffd700 },
       diamond: { name: 'ダイヤ', kind: 'material', color: '#44eedd', emoji: '💎', particle: 0x44eedd },
       string: { name: '糸', kind: 'material', color: '#eeeeee', emoji: '🧵' },
-      slimeball: { name: 'スライムボール', kind: 'material', color: '#6cc24a', emoji: '🟢' },
+      slimeball: { name: 'スライムボール', kind: 'material', color: '#6cc24a', emoji: '🫧' },
+      stick: { name: '棒', kind: 'material', color: '#8a6236', emoji: '🥢' },
+      gunpowder: { name: '火薬', kind: 'material', color: '#555555', emoji: '💥' },
+      arrow: { name: '矢', kind: 'material', color: '#dddddd', emoji: '🪶' },
+      wheat: { name: '小麦', kind: 'material', color: '#e8c84a', emoji: '🌾' },
+      seeds: { name: '種', kind: 'seeds', color: '#7ab04a', emoji: '🫘' },
       apple: { name: 'りんご', kind: 'food', heal: 4, color: '#d83a2e', emoji: '🍎' },
       rotten_meat: { name: '腐った肉', kind: 'food', heal: 3, color: '#8a5a3a', emoji: '🍖' },
+      cooked_meat: { name: '焼いた肉', kind: 'food', heal: 8, color: '#a0602a', emoji: '🍗' },
+      bread: { name: 'パン', kind: 'food', heal: 6, color: '#d8a050', emoji: '🍞' },
       golden_apple: { name: '金のりんご', kind: 'food', heal: 20, color: '#ffd700', emoji: '🍏' },
       wood_pickaxe: { name: '木のツルハシ', kind: 'pickaxe', tier: 1, color: '#a07449', emoji: '⛏️', stack: 1 },
       stone_pickaxe: { name: '石のツルハシ', kind: 'pickaxe', tier: 2, color: '#8a8a8a', emoji: '⛏️', stack: 1 },
@@ -3264,22 +3828,43 @@
       iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1 },
       diamond_sword: { name: 'ダイヤの剣', kind: 'sword', damage: 14, color: '#44eedd', emoji: '🗡️', stack: 1 },
       golem_sword: { name: 'ゴーレムの剣', kind: 'sword', damage: 20, color: '#c8a0ff', emoji: '⚔️', stack: 1 },
-      iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🛡️', stack: 1 },
-      diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🛡️', stack: 1 }
+      iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🦺', stack: 1 },
+      diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🦺', stack: 1 },
+      hoe: { name: 'クワ', kind: 'hoe', color: '#a07449', emoji: '🔱', stack: 1 },
+      bow: { name: '弓', kind: 'bow', color: '#8a6236', emoji: '🏹', stack: 1 },
+      shield: { name: '盾', kind: 'shield', color: '#9a6a36', emoji: '🛡️', stack: 1 },
+      bucket: { name: 'バケツ', kind: 'bucket', color: '#b8b8b8', emoji: '🪣', stack: 1 },
+      water_bucket: { name: '水入りバケツ', kind: 'bucket', water: true, color: '#2f6fd6', emoji: '💧', stack: 1 },
+      big_bag: { name: '大きなカバン', kind: 'bag', color: '#8a5a2a', emoji: '🎒', stack: 1 }
     };
+    // 色つきブロックと染料
+    const COLOR_LIST = [
+      { key: 'red', name: '赤', block: 27, color: '#c8342c', emoji: '🟥', dye: '🔴' },
+      { key: 'yellow', name: '黄色', block: 28, color: '#e8c82c', emoji: '🟨', dye: '🟡' },
+      { key: 'blue', name: '青', block: 29, color: '#2c5cc8', emoji: '🟦', dye: '🔵' },
+      { key: 'green', name: '緑', block: 30, color: '#3c9a3c', emoji: '🟩', dye: '🟢' },
+      { key: 'white', name: '白', block: 31, color: '#e8e8e8', emoji: '⬜', dye: '⚪' },
+      { key: 'black', name: '黒', block: 32, color: '#2a2a2a', emoji: '⬛', dye: '🖤' }
+    ];
+    COLOR_LIST.forEach(c => {
+      ITEMS[`${c.key}_block`] = { name: `${c.name}のブロック`, kind: 'block', block: c.block, color: c.color, emoji: c.emoji };
+      ITEMS[`${c.key}_dye`] = { name: `${c.name}の染料`, kind: 'material', color: c.color, emoji: c.dye };
+    });
     const PICKAXE_NAMES = { 1: '木のツルハシ', 2: '石のツルハシ', 3: '鉄のツルハシ' };
 
     const maxStack = id => ITEMS[id].stack || MAX_STACK;
+    const usableSlots = () => HOTBAR_SIZE + bagSize;
 
     // 枠の中身: null（空）か { id: アイテム名, count: 個数 }
     let inventory = new Array(INVENTORY_SIZE).fill(null);
+    const seenItems = new Set(); // 一度でも手に入れたアイテム（レシピ本に載る条件）
 
     function countItem(id) {
-      return inventory.reduce((n, item) => n + (item && item.id === id ? item.count : 0), 0);
+      return inventory.slice(0, usableSlots()).reduce((n, item) => n + (item && item.id === id ? item.count : 0), 0);
     }
 
     function hasRoomFor(id, amount) {
-      const room = inventory.reduce((n, item) => {
+      const room = inventory.slice(0, usableSlots()).reduce((n, item) => {
         if (!item) return n + maxStack(id);
         return n + (item.id === id ? maxStack(id) - item.count : 0);
       }, 0);
@@ -3289,17 +3874,19 @@
     // 持ち物に入れる（入りきらなければ何もせず false）。ホットバーから先に埋まる
     function addItem(id, amount = 1) {
       if (!ITEMS[id] || !hasRoomFor(id, amount)) return false;
+      const slots = usableSlots();
       for (let i = 0; i < amount; i++) {
-        const stack = inventory.find(item => item && item.id === id && item.count < maxStack(id));
+        const stack = inventory.slice(0, slots).find(item => item && item.id === id && item.count < maxStack(id));
         if (stack) stack.count++;
-        else inventory[inventory.indexOf(null)] = { id, count: 1 };
+        else inventory[inventory.findIndex((item, index) => !item && index < slots)] = { id, count: 1 };
       }
+      seenItems.add(id);
       renderInventory();
       return true;
     }
 
     function removeItems(id, amount) {
-      for (let i = inventory.length - 1; i >= 0 && amount > 0; i--) {
+      for (let i = usableSlots() - 1; i >= 0 && amount > 0; i--) {
         const item = inventory[i];
         if (!item || item.id !== id) continue;
         const take = Math.min(item.count, amount);
@@ -3316,6 +3903,11 @@
       held.count--;
       if (held.count <= 0) inventory[selectedSlot] = null;
       renderInventory();
+    }
+
+    function heldItemDef() {
+      const held = inventory[selectedSlot];
+      return held ? ITEMS[held.id] : null;
     }
 
     // ツルハシと防具は、持ち物のどこかに持っていれば効果がある（一番いいものが使われる）
@@ -3342,80 +3934,282 @@
 
     // 剣は手に持っているときだけ強くなる
     function heldAttackDamage() {
-      const held = inventory[selectedSlot];
-      return held && ITEMS[held.id].damage ? ITEMS[held.id].damage : FIST_DAMAGE;
+      const def = heldItemDef();
+      return def && def.damage ? def.damage : FIST_DAMAGE;
     }
 
-    /* --- Crafting (クラフト) --- */
-    // table: true は作業台の近くでしか作れない
+    /* --- Recipes (作り方) --- */
+    // shape: 並べ方（. は空き）、key: 記号とアイテム（配列ならどれでもOK）。ingredients: 形を問わない材料
+    const shaped = (result, count, shape, key) => ({ result, count, shape, key });
+    const shapeless = (result, count, ingredients) => ({ result, count, ingredients });
     const RECIPES = [
-      { result: 'table', needs: [['wood', 4]] },
-      { result: 'torch', count: 4, needs: [['wood', 1], ['coal', 1]] },
-      { result: 'torch', count: 2, needs: [['wood', 1], ['slimeball', 1]] },
-      { result: 'wood_pickaxe', table: true, needs: [['wood', 3]] },
-      { result: 'wood_sword', table: true, needs: [['wood', 3]] },
-      { result: 'stone_pickaxe', table: true, needs: [['stone', 3], ['wood', 1]] },
-      { result: 'stone_sword', table: true, needs: [['stone', 3], ['wood', 1]] },
-      { result: 'iron_pickaxe', table: true, needs: [['iron', 3], ['wood', 1]] },
-      { result: 'iron_sword', table: true, needs: [['iron', 3], ['wood', 1]] },
-      { result: 'diamond_sword', table: true, needs: [['diamond', 3], ['wood', 1]] },
-      { result: 'iron_armor', table: true, needs: [['iron', 5], ['string', 2]] },
-      { result: 'diamond_armor', table: true, needs: [['diamond', 5], ['string', 2]] },
-      { result: 'golden_apple', table: true, needs: [['apple', 1], ['gold', 4]] },
-      { result: 'brick', count: 4, table: true, needs: [['dirt', 2], ['coal', 1]] },
-      { result: 'glass', count: 4, table: true, needs: [['stone', 2], ['coal', 1]] },
-      { result: 'glass', count: 4, table: true, needs: [['sand', 4]] },
-      { result: 'stone_bricks', count: 4, table: true, needs: [['stone', 4]] }
+      shapeless('planks', 4, ['wood']),
+      shaped('stick', 4, ['P', 'P'], { P: 'planks' }),
+      shaped('table', 1, ['PP', 'PP'], { P: 'planks' }),
+      shaped('torch', 4, ['C', 'K'], { C: ['coal', 'charcoal'], K: 'stick' }),
+      shaped('torch', 2, ['L', 'K'], { L: 'slimeball', K: 'stick' }),
+      shaped('wood_pickaxe', 1, ['PPP', '.K.', '.K.'], { P: 'planks', K: 'stick' }),
+      shaped('wood_sword', 1, ['P', 'P', 'K'], { P: 'planks', K: 'stick' }),
+      shaped('stone_pickaxe', 1, ['SSS', '.K.', '.K.'], { S: 'stone', K: 'stick' }),
+      shaped('stone_sword', 1, ['S', 'S', 'K'], { S: 'stone', K: 'stick' }),
+      shaped('iron_pickaxe', 1, ['III', '.K.', '.K.'], { I: 'iron', K: 'stick' }),
+      shaped('iron_sword', 1, ['I', 'I', 'K'], { I: 'iron', K: 'stick' }),
+      shaped('diamond_sword', 1, ['D', 'D', 'K'], { D: 'diamond', K: 'stick' }),
+      shaped('iron_armor', 1, ['I.I', 'IXI', 'III'], { I: 'iron', X: 'string' }),
+      shaped('diamond_armor', 1, ['D.D', 'DXD', 'DDD'], { D: 'diamond', X: 'string' }),
+      shaped('bow', 1, ['.KX', 'K.X', '.KX'], { K: 'stick', X: 'string' }),
+      shaped('arrow', 4, ['S', 'K', 'L'], { S: 'stone', K: 'stick', L: 'leaves' }),
+      shaped('shield', 1, ['PIP', 'PPP', '.P.'], { P: 'planks', I: 'iron' }),
+      shaped('bucket', 1, ['I.I', '.I.'], { I: 'iron' }),
+      shaped('tnt', 1, ['XSX', 'SXS', 'XSX'], { X: 'gunpowder', S: 'sand' }),
+      shaped('chest', 1, ['PPP', 'P.P', 'PPP'], { P: 'planks' }),
+      shaped('furnace', 1, ['SSS', 'S.S', 'SSS'], { S: 'stone' }),
+      shaped('bed', 1, ['XXX', 'PPP'], { X: 'string', P: 'planks' }),
+      shaped('big_bag', 1, ['XXX', 'X.X', 'XXX'], { X: 'string' }),
+      shaped('ladder', 3, ['K.K', 'KKK', 'K.K'], { K: 'stick' }),
+      shaped('door', 1, ['PP', 'PP', 'PP'], { P: 'planks' }),
+      shaped('lamp', 1, ['.G.', 'GTG', '.G.'], { G: 'glass', T: 'torch' }),
+      shaped('stone_bricks', 4, ['SS', 'SS'], { S: 'stone' }),
+      shapeless('brick', 4, ['dirt', 'dirt', 'coal']),
+      shaped('hoe', 1, ['PP', '.K', '.K'], { P: 'planks', K: 'stick' }),
+      shaped('bread', 1, ['WWW'], { W: 'wheat' }),
+      shaped('golden_apple', 1, ['.G.', 'GAG', '.G.'], { G: 'gold', A: 'apple' }),
+      shapeless('red_dye', 2, ['red_flower']),
+      shapeless('yellow_dye', 2, ['yellow_flower']),
+      shapeless('blue_dye', 2, ['blue_flower']),
+      shapeless('green_dye', 2, ['cactus']),
+      shapeless('white_dye', 2, ['snow']),
+      shapeless('black_dye', 2, ['coal']),
+      ...COLOR_LIST.map(c => shaped(`${c.key}_block`, 8, ['SSS', 'SDS', 'SSS'], { S: 'stone', D: `${c.key}_dye` }))
     ];
-
-    // 近く（横4マス・上下3マス以内）に作業台が置いてあるか
-    function isNearCraftingTable() {
-      const px = Math.round(camera.position.x);
-      const py = Math.round(camera.position.y - player.eye + 0.9);
-      const pz = Math.round(camera.position.z);
-      for (let x = px - 4; x <= px + 4; x++) {
-        for (let y = py - 3; y <= py + 3; y++) {
-          for (let z = pz - 4; z <= pz + 4; z++) {
-            if (getBlock(x, y, z) === CRAFTING_TABLE) return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    function canCraft(recipe, nearTable = isNearCraftingTable()) {
-      return recipe.needs.every(([id, count]) => countItem(id) >= count) && (!recipe.table || nearTable);
-    }
-
-    function craft(recipe) {
-      const count = recipe.count || 1;
-      if (!canCraft(recipe)) return;
-      if (!hasRoomFor(recipe.result, count)) {
-        showToast('⚠️ 持ち物がいっぱいです');
-        return;
-      }
-      recipe.needs.forEach(([id, n]) => removeItems(id, n));
-      addItem(recipe.result, count);
-      playSound('ore');
-      showToast(`🛠️ ${ITEMS[recipe.result].name}${count > 1 ? ' ×' + count : ''} を作った！`);
-    }
-
-    /* --- Inventory UI (ホットバー・カバン・クラフト画面) --- */
-    const hotbar = document.getElementById('hotbar');
-    const bagGrid = document.getElementById('bag-grid');
-    const craftList = document.getElementById('craft-list');
-    const craftHint = document.getElementById('craft-hint');
-    const gearDisplay = document.getElementById('gear-display');
-
-    // 押せないボタンやカバンのクリックで冒険が始まってしまわないように、パネル全体でクリックを止める
-    ['craft-panel', 'bag-panel'].forEach(id => {
-      document.getElementById(id).addEventListener('click', e => e.stopPropagation());
+    const optionsOf = spec => (Array.isArray(spec) ? spec : [spec]);
+    RECIPES.forEach(r => {
+      r.size = r.shape ? Math.max(r.shape.length, r.shape[0].length) : (r.ingredients.length > 4 ? 3 : 2);
+      r.specs = r.shape ? Object.values(r.key) : r.ingredients;
     });
 
-    function makeSlotElement(label) {
+    /* --- Crafting Grid (マスに並べてクラフト) --- */
+    const craftGrid = new Array(9).fill(null); // 3×3。2×2のときは 0,1,3,4 だけ使う
+    let craftSize = 2;
+    let currentRecipe = null;
+    let cursor = null; // マウスでつかんでいるアイテム
+    let inventoryOpen = false;
+    let openContainer = null; // { type: 'chest' | 'furnace', key }
+    let hintText = '';
+    let hintTimer = null;
+
+    const activeCells = () => (craftSize === 3 ? [0, 1, 2, 3, 4, 5, 6, 7, 8] : [0, 1, 3, 4]);
+
+    // 並べたアイテムを、空いている行と列を切り落とした形にする
+    function trimmedGrid() {
+      const rows = [];
+      for (let r = 0; r < craftSize; r++) {
+        const row = [];
+        for (let c = 0; c < craftSize; c++) row.push(craftGrid[r * 3 + c] ? craftGrid[r * 3 + c].id : null);
+        rows.push(row);
+      }
+      const usedRows = rows.map((row, r) => (row.some(Boolean) ? r : -1)).filter(r => r >= 0);
+      const usedCols = [...Array(craftSize).keys()].filter(c => rows.some(row => row[c]));
+      if (usedRows.length === 0) return null;
+      return rows.slice(usedRows[0], usedRows[usedRows.length - 1] + 1)
+        .map(row => row.slice(usedCols[0], usedCols[usedCols.length - 1] + 1));
+    }
+
+    function matchesShape(recipe, grid) {
+      const h = recipe.shape.length;
+      const w = recipe.shape[0].length;
+      if (grid.length !== h || grid[0].length !== w) return false;
+      const test = mirror => recipe.shape.every((row, r) => [...row].every((_, c) => {
+        const ch = row[mirror ? w - 1 - c : c];
+        const cell = grid[r][c];
+        return ch === '.' ? !cell : !!cell && optionsOf(recipe.key[ch]).includes(cell);
+      }));
+      return test(false) || test(true); // 左右反対に並べてもOK
+    }
+
+    function matchesShapeless(recipe, ids) {
+      if (ids.length !== recipe.ingredients.length) return false;
+      const remaining = [...ids];
+      return recipe.ingredients.every(spec => {
+        const i = remaining.findIndex(id => optionsOf(spec).includes(id));
+        if (i < 0) return false;
+        remaining.splice(i, 1);
+        return true;
+      });
+    }
+
+    function findRecipe() {
+      const grid = trimmedGrid();
+      if (!grid) return null;
+      const ids = grid.flat().filter(Boolean);
+      return RECIPES.find(r => (r.shape ? matchesShape(r, grid) : matchesShapeless(r, ids))) || null;
+    }
+
+    function setHint(text) {
+      hintText = text;
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => {
+        hintText = '';
+        refreshScreen();
+      }, 2500);
+    }
+
+    // 持ち物に入りきらないアイテムは足もとに落とす
+    function giveOrDrop(id, count) {
+      if (!addItem(id, count)) spawnDroppedItem(id, count, camera.position.clone().add(new THREE.Vector3(0, -1, 0)));
+    }
+
+    function returnGridToInventory() {
+      craftGrid.forEach((item, i) => {
+        craftGrid[i] = null;
+        if (item) giveOrDrop(item.id, item.count);
+      });
+    }
+
+    function craftOnce() {
+      const recipe = currentRecipe;
+      if (!recipe) return;
+      if (recipe.result === 'big_bag' && bagSize === BAG_LARGE) {
+        setHint('🎒 カバンはもう大きくなっています');
+        refreshScreen();
+        return;
+      }
+      if (recipe.result !== 'big_bag' && !hasRoomFor(recipe.result, recipe.count)) {
+        setHint('⚠️ 持ち物がいっぱいです');
+        refreshScreen();
+        return;
+      }
+      activeCells().forEach(i => {
+        if (!craftGrid[i]) return;
+        craftGrid[i].count--;
+        if (craftGrid[i].count <= 0) craftGrid[i] = null;
+      });
+      if (recipe.result === 'big_bag') {
+        bagSize = BAG_LARGE;
+        showToast('🎒 カバンが大きくなった！（32枠）');
+      } else {
+        addItem(recipe.result, recipe.count);
+        showToast(`🛠️ ${ITEMS[recipe.result].name}${recipe.count > 1 ? ' ×' + recipe.count : ''} を作った！`);
+      }
+      playSound('place');
+      renderRecipeBook();
+      renderInventory();
+    }
+
+    // レシピ本: 材料をすべて一度でも手に入れていれば載る
+    const isRecipeUnlocked = recipe => recipe.specs.every(spec => optionsOf(spec).some(id => seenItems.has(id)));
+
+    // レシピ本をクリック: 持ち物から材料をマスに並べる
+    function fillRecipe(recipe) {
+      returnGridToInventory();
+      if (recipe.size > craftSize) {
+        setHint('🛠️ これは作業台の近くで作れます（3×3 のマスが必要）');
+        renderInventory();
+        return;
+      }
+      const placements = [];
+      if (recipe.shape) {
+        recipe.shape.forEach((row, r) => [...row].forEach((ch, c) => {
+          if (ch !== '.') placements.push([r * 3 + c, recipe.key[ch]]);
+        }));
+      } else {
+        recipe.ingredients.forEach((spec, i) => placements.push([[0, 1, 3, 4, 2, 5, 6, 7, 8][i], spec]));
+      }
+      const counts = {};
+      inventory.slice(0, usableSlots()).forEach(item => {
+        if (item) counts[item.id] = (counts[item.id] || 0) + item.count;
+      });
+      const chosen = [];
+      for (const [cell, spec] of placements) {
+        const id = optionsOf(spec).find(option => counts[option] > 0);
+        if (!id) {
+          setHint(`❌ ${optionsOf(spec).map(option => ITEMS[option].name).join('か')}が足りません`);
+          renderInventory();
+          return;
+        }
+        counts[id]--;
+        chosen.push([cell, id]);
+      }
+      chosen.forEach(([cell, id]) => {
+        removeItems(id, 1);
+        craftGrid[cell] = { id, count: 1 };
+      });
+      renderInventory();
+    }
+
+    /* --- Slot Clicks (つかむ・置く) --- */
+    // 持ち物・チェスト・かまどの枠。左クリック: 全部 / 右クリック: 半分つかむ・1個置く
+    function clickStorageSlot(slots, index, button, accepts = () => true) {
+      const item = slots[index];
+      if (!cursor) {
+        if (!item) return;
+        if (button === 2 && item.count > 1) {
+          const half = Math.ceil(item.count / 2);
+          cursor = { id: item.id, count: half };
+          item.count -= half;
+        } else {
+          cursor = item;
+          slots[index] = null;
+        }
+        seenItems.add(cursor.id);
+        return;
+      }
+      if (!accepts(cursor.id)) return;
+      if (!item) {
+        if (button === 2) {
+          slots[index] = { id: cursor.id, count: 1 };
+          cursor.count--;
+          if (cursor.count <= 0) cursor = null;
+        } else {
+          slots[index] = cursor;
+          cursor = null;
+        }
+      } else if (item.id === cursor.id) {
+        const move = Math.min(maxStack(item.id) - item.count, button === 2 ? 1 : cursor.count);
+        item.count += move;
+        cursor.count -= move;
+        if (cursor.count <= 0) cursor = null;
+      } else {
+        slots[index] = cursor;
+        cursor = item;
+      }
+    }
+
+    // クラフトのマス: つかんでいれば1個ずつ置く。つかんでいなければマスのアイテムを取る
+    function clickGridCell(i) {
+      const item = craftGrid[i];
+      if (!cursor) {
+        if (item) {
+          cursor = item;
+          craftGrid[i] = null;
+        }
+        return;
+      }
+      if (!item) craftGrid[i] = { id: cursor.id, count: 1 };
+      else if (item.id === cursor.id && item.count < maxStack(item.id)) item.count++;
+      else return;
+      cursor.count--;
+      if (cursor.count <= 0) cursor = null;
+    }
+
+    /* --- Inventory Screen UI --- */
+    const inventoryScreen = document.getElementById('inventory-screen');
+    const hotbar = document.getElementById('hotbar');
+    const bagGrid = document.getElementById('bag-grid');
+    const gridEl = document.getElementById('craft-grid');
+    const resultEl = document.getElementById('craft-result');
+    const craftHint = document.getElementById('craft-hint');
+    const recipeBook = document.getElementById('recipe-book');
+    const containerGrid = document.getElementById('container-grid');
+    const furnaceUi = document.getElementById('furnace-ui');
+    const cursorEl = document.getElementById('cursor-item');
+    const gearDisplay = document.getElementById('gear-display');
+
+    function makeSlotElement(label = '') {
       const slot = document.createElement('div');
       slot.className = 'slot';
       slot.innerHTML = `<span class="slot-key">${label}</span><div class="slot-icon"></div><span class="slot-count"></span><span class="slot-name"></span>`;
+      slot.addEventListener('contextmenu', e => e.preventDefault());
       return slot;
     }
 
@@ -3424,7 +4218,7 @@
       const def = item && ITEMS[item.id];
       icon.classList.toggle('empty', !def);
       icon.style.background = def ? def.color : 'transparent';
-      icon.textContent = def && (def.kind !== 'block' || def.block === TORCH) ? def.emoji : '';
+      icon.textContent = def ? def.emoji : '';
       el.querySelector('.slot-count').textContent = def && item.count > 1 ? item.count : '';
       el.querySelector('.slot-name').textContent = !def ? '素手' : def.damage ? `${def.name}（攻撃 ${def.damage}）` : def.name;
       el.title = def ? def.name : '';
@@ -3441,33 +4235,104 @@
       hotbarSlots.push(slot);
     }
 
-    // カバン: 1回目のクリックで選び、2回目のクリックで入れかえる（同じアイテムならまとめる）
-    let pickedSlot = null;
     const bagSlots = [];
     for (let i = 0; i < INVENTORY_SIZE; i++) {
       const slot = makeSlotElement(i < HOTBAR_SIZE ? i + 1 : '');
       if (i < HOTBAR_SIZE) slot.classList.add('hotbar-row');
-      slot.addEventListener('click', () => {
-        if (pickedSlot === null) {
-          if (inventory[i]) pickedSlot = i;
-        } else {
-          const a = inventory[pickedSlot];
-          const b = inventory[i];
-          if (a && b && a.id === b.id && pickedSlot !== i && b.count < maxStack(b.id)) {
-            const move = Math.min(a.count, maxStack(b.id) - b.count);
-            b.count += move;
-            a.count -= move;
-            if (a.count === 0) inventory[pickedSlot] = null;
-          } else {
-            inventory[pickedSlot] = b;
-            inventory[i] = a;
-          }
-          pickedSlot = null;
-        }
+      slot.addEventListener('mousedown', (e) => {
+        clickStorageSlot(inventory, i, e.button);
         renderInventory();
       });
       bagGrid.appendChild(slot);
       bagSlots.push(slot);
+    }
+
+    const gridSlots = [];
+    for (let i = 0; i < 9; i++) {
+      const slot = makeSlotElement();
+      slot.addEventListener('mousedown', () => {
+        clickGridCell(i);
+        renderInventory();
+      });
+      gridEl.appendChild(slot);
+      gridSlots.push(slot);
+    }
+    resultEl.innerHTML = makeSlotElement().innerHTML;
+    resultEl.addEventListener('mousedown', () => craftOnce());
+
+    const containerSlots = [];
+    for (let i = 0; i < 24; i++) {
+      const slot = makeSlotElement();
+      slot.addEventListener('mousedown', (e) => {
+        if (openContainer && openContainer.type === 'chest') clickStorageSlot(getChestSlots(openContainer.key), i, e.button);
+        renderInventory();
+      });
+      containerGrid.appendChild(slot);
+      containerSlots.push(slot);
+    }
+
+    const furnaceSlotEls = ['furnace-input', 'furnace-fuel', 'furnace-output'].map((id, i) => {
+      const el = document.getElementById(id);
+      el.innerHTML = makeSlotElement().innerHTML;
+      el.addEventListener('mousedown', (e) => {
+        if (!openContainer || openContainer.type !== 'furnace') return;
+        const furnace = getFurnace(openContainer.key);
+        if (i === 0) clickStorageSlot(furnace.slots, 0, e.button, itemId => !!SMELTING[itemId]);
+        if (i === 1) clickStorageSlot(furnace.slots, 1, e.button, itemId => !!FUEL_SECONDS[itemId]);
+        if (i === 2 && furnace.slots[2] && (!cursor || cursor.id === furnace.slots[2].id)) {
+          const out = furnace.slots[2];
+          if (!cursor) cursor = out;
+          else cursor.count += out.count;
+          furnace.slots[2] = null;
+          seenItems.add(out.id);
+        }
+        renderInventory();
+      });
+      return el;
+    });
+
+    document.getElementById('trash-slot').addEventListener('mousedown', () => {
+      if (!cursor) return;
+      cursor = null;
+      playSound('break');
+      renderInventory();
+    });
+    document.getElementById('craft-clear').addEventListener('click', () => {
+      returnGridToInventory();
+      renderInventory();
+    });
+    document.getElementById('inv-close').addEventListener('click', () => closeInventoryScreen(true));
+    inventoryScreen.addEventListener('mousemove', (e) => {
+      cursorEl.style.left = `${e.clientX + 6}px`;
+      cursorEl.style.top = `${e.clientY + 6}px`;
+    });
+    inventoryScreen.addEventListener('contextmenu', e => e.preventDefault());
+
+    function renderRecipeBook() {
+      recipeBook.innerHTML = '';
+      const unlocked = RECIPES.filter(isRecipeUnlocked);
+      unlocked.forEach(recipe => {
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        const result = ITEMS[recipe.result];
+        const cells = new Array(9).fill('');
+        if (recipe.shape) {
+          recipe.shape.forEach((row, r) => [...row].forEach((ch, c) => {
+            if (ch !== '.') cells[r * 3 + c] = ITEMS[optionsOf(recipe.key[ch])[0]].emoji;
+          }));
+        } else {
+          recipe.ingredients.forEach((spec, i) => { cells[i] = ITEMS[optionsOf(spec)[0]].emoji; });
+        }
+        card.innerHTML = `<div>${result.emoji} ${result.name}${recipe.count > 1 ? '×' + recipe.count : ''}</div>` +
+          `<div class="pattern">${cells.map(cell => `<span>${cell}</span>`).join('')}</div>` +
+          `<div>${recipe.size === 3 ? '🛠️ 3×3' : recipe.shape ? '2×2' : '形は自由'}</div>`;
+        card.addEventListener('click', () => fillRecipe(recipe));
+        recipeBook.appendChild(card);
+      });
+      const locked = document.createElement('div');
+      locked.className = 'recipe-card locked';
+      locked.textContent = `❓ まだ見つけていない作り方: ${RECIPES.length - unlocked.length}個（材料を手に入れると載ります）`;
+      recipeBook.appendChild(locked);
     }
 
     function renderInventory() {
@@ -3477,36 +4342,89 @@
       });
       bagSlots.forEach((el, i) => {
         fillSlot(el, inventory[i]);
-        el.classList.toggle('picked', i === pickedSlot);
+        el.hidden = i >= usableSlots();
       });
 
       const held = inventory[selectedSlot];
       playerHand.textContent = held ? ITEMS[held.id].emoji : '✊';
-
       const armor = bestArmor();
       const pickaxe = bestPickaxe();
       gearDisplay.textContent = `🛡️ ${armor ? `${armor.name}（ダメージ -${Math.round(armor.protection * 100)}%）` : '防具なし'} ／ ⛏️ ${pickaxe || 'ツルハシなし'}`;
+
+      if (inventoryOpen) refreshScreen();
     }
 
-    function renderCraftPanel() {
-      const nearTable = isNearCraftingTable();
-      craftHint.textContent = nearTable
-        ? '🛠️ 作業台の近くにいるので、なんでも作れます'
-        : '💡 🛠️ マークのものは、作業台の近く（4マス以内）でないと作れません。まずは木材4個で作業台を作って置こう！';
-      craftList.innerHTML = '';
-      RECIPES.forEach(recipe => {
-        const result = ITEMS[recipe.result];
-        const btn = document.createElement('button');
-        btn.className = 'craft-btn';
-        btn.disabled = !canCraft(recipe, nearTable);
-        const needs = recipe.needs.map(([id, count]) => `${ITEMS[id].name} ${countItem(id)}/${count}`).join(' + ');
-        btn.textContent = `${recipe.table ? '🛠️ ' : ''}${result.emoji} ${result.name}${recipe.count > 1 ? '×' + recipe.count : ''}（${needs}）`;
-        btn.addEventListener('click', () => {
-          craft(recipe);
-          renderCraftPanel();
-        });
-        craftList.appendChild(btn);
+    function refreshScreen() {
+      if (!inventoryOpen) return;
+      gridEl.style.gridTemplateColumns = `repeat(${craftSize}, 50px)`;
+      const cells = activeCells();
+      gridSlots.forEach((el, i) => {
+        el.hidden = !cells.includes(i);
+        fillSlot(el, craftGrid[i]);
       });
+      currentRecipe = openContainer ? null : findRecipe();
+      fillSlot(resultEl, currentRecipe ? { id: currentRecipe.result, count: currentRecipe.count } : null);
+      craftHint.textContent = hintText ||
+        (currentRecipe ? `✨ ${ITEMS[currentRecipe.result].name}${currentRecipe.count > 1 ? ' ×' + currentRecipe.count : ''} ができます（右の枠をクリック）`
+          : trimmedGrid() ? '🤔 この並べ方では何もできません' : '💡 材料をマスに並べるか、レシピ本をクリック');
+
+      if (openContainer && openContainer.type === 'chest') {
+        const slots = getChestSlots(openContainer.key);
+        containerSlots.forEach((el, i) => fillSlot(el, slots[i]));
+      }
+      if (openContainer && openContainer.type === 'furnace') {
+        const furnace = getFurnace(openContainer.key);
+        furnaceSlotEls.forEach((el, i) => fillSlot(el, furnace.slots[i]));
+        document.getElementById('furnace-progress-fill').style.width = `${(furnace.progress / SMELT_TIME) * 100}%`;
+      }
+
+      cursorEl.hidden = !cursor;
+      if (cursor) {
+        cursorEl.style.background = ITEMS[cursor.id].color;
+        cursorEl.textContent = `${ITEMS[cursor.id].emoji}${cursor.count > 1 ? cursor.count : ''}`;
+      }
+    }
+
+    // E キー・作業台: クラフト / チェスト・かまど: 中身
+    function openInventoryScreen(container = null) {
+      inventoryOpen = true;
+      openContainer = container;
+      craftSize = isNearCraftingTable() ? 3 : 2;
+      document.getElementById('inv-title').textContent = !container ? '🎒 持ち物とクラフト'
+        : container.type === 'chest' ? '📦 チェスト' : '🏭 かまど';
+      document.getElementById('craft-area').hidden = !!container;
+      document.getElementById('recipe-area').hidden = !!container;
+      document.getElementById('container-area').hidden = !container;
+      document.getElementById('craft-title').textContent = craftSize === 3 ? '🛠️ クラフト（作業台 3×3）' : '🛠️ クラフト（2×2。作業台の近くでは 3×3）';
+      document.getElementById('container-title').textContent = !container ? ''
+        : container.type === 'chest' ? '📦 チェストの中身（クリックで出し入れ）' : '🏭 焼くものと燃料（石炭・木炭・原木・木の板・棒）を入れよう';
+      containerGrid.hidden = !container || container.type !== 'chest';
+      furnaceUi.hidden = !container || container.type !== 'furnace';
+      inventoryScreen.hidden = false;
+      instructions.style.display = 'none';
+      if (controls.isLocked) controls.unlock();
+      renderRecipeBook();
+      renderInventory();
+    }
+
+    function closeInventoryScreen(relock = true) {
+      if (!inventoryOpen) return;
+      inventoryOpen = false;
+      returnGridToInventory();
+      if (cursor) giveOrDrop(cursor.id, cursor.count);
+      cursor = null;
+      openContainer = null;
+      inventoryScreen.hidden = true;
+      cursorEl.hidden = true;
+      renderInventory();
+      saveGame();
+      if (relock) controls.lock();
+      else instructions.style.display = 'flex';
+    }
+
+    function toggleInventoryScreen() {
+      if (inventoryOpen) closeInventoryScreen(true);
+      else if (controls.isLocked) openInventoryScreen();
     }
 
     function selectSlot(idx) {
@@ -3514,8 +4432,376 @@
       renderInventory();
     }
 
+    // 近く（横4マス・上下3マス以内）に作業台が置いてあるか
+    function isNearCraftingTable() {
+      const px = Math.round(camera.position.x);
+      const py = Math.round(camera.position.y - player.eye + 0.9);
+      const pz = Math.round(camera.position.z);
+      for (let x = px - 4; x <= px + 4; x++) {
+        for (let y = py - 3; y <= py + 3; y++) {
+          for (let z = pz - 4; z <= pz + 4; z++) {
+            if (getBlock(x, y, z) === CRAFTING_TABLE) return true;
+          }
+        }
+      }
+      return false;
+    }
+
     renderInventory();
-    renderCraftPanel();
+
+    /* --- Chests & Furnaces (チェストとかまど) --- */
+    const CHEST_SIZE = 24;
+    const storageChests = new Map(); // "x,y,z" -> 24枠
+    const furnaces = new Map();      // "x,y,z" -> { slots: [焼くもの, 燃料, できたもの], burn: 燃料の残り秒, progress: 焼けた秒 }
+    const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat' };
+    const FUEL_SECONDS = { coal: 32, charcoal: 32, wood: 8, planks: 4, stick: 2 }; // 1個焼くのに4秒
+    const SMELT_TIME = 4;
+
+    function getChestSlots(key) {
+      if (!storageChests.has(key)) storageChests.set(key, new Array(CHEST_SIZE).fill(null));
+      return storageChests.get(key);
+    }
+
+    function getFurnace(key) {
+      if (!furnaces.has(key)) furnaces.set(key, { slots: [null, null, null], burn: 0, progress: 0 });
+      return furnaces.get(key);
+    }
+
+    // こわしたチェストやかまどの中身は、その場に落ちる
+    function spillContainer(x, y, z) {
+      const key = blockKey(x, y, z);
+      const slots = storageChests.get(key) || (furnaces.get(key) || {}).slots || [];
+      slots.forEach(item => {
+        if (item) spawnDroppedItem(item.id, item.count, new THREE.Vector3(x, y, z));
+      });
+      storageChests.delete(key);
+      furnaces.delete(key);
+    }
+
+    function updateFurnaces(delta) {
+      furnaces.forEach(furnace => {
+        const [input, fuel, output] = furnace.slots;
+        const result = input && SMELTING[input.id];
+        const canSmelt = result && (!output || (output.id === result && output.count < maxStack(result)));
+        if (furnace.burn <= 0 && canSmelt && fuel && FUEL_SECONDS[fuel.id]) {
+          furnace.burn = FUEL_SECONDS[fuel.id];
+          fuel.count--;
+          if (fuel.count <= 0) furnace.slots[1] = null;
+        }
+        if (furnace.burn > 0) furnace.burn -= delta;
+        if (furnace.burn > 0 && canSmelt) {
+          furnace.progress += delta;
+          if (furnace.progress >= SMELT_TIME) {
+            furnace.progress = 0;
+            input.count--;
+            if (input.count <= 0) furnace.slots[0] = null;
+            if (output) output.count++;
+            else furnace.slots[2] = { id: result, count: 1 };
+          }
+        } else {
+          furnace.progress = 0;
+        }
+      });
+    }
+
+    /* --- Dropped Items (落ちているアイテム) --- */
+    const droppedItems = [];
+    const dropGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+
+    function spawnDroppedItem(id, count, position, velocity = null, pickupDelay = 0.6) {
+      const mesh = new THREE.Mesh(dropGeo, new THREE.MeshLambertMaterial({ color: ITEMS[id].color }));
+      mesh.position.copy(position);
+      mesh.castShadow = true;
+      scene.add(mesh);
+      droppedItems.push({
+        id,
+        count,
+        mesh,
+        velocity: velocity ? velocity.clone() : new THREE.Vector3((Math.random() - 0.5) * 2, 3, (Math.random() - 0.5) * 2),
+        pickupDelay,
+        life: 300
+      });
+    }
+
+    function removeDropped(i) {
+      scene.remove(droppedItems[i].mesh);
+      droppedItems.splice(i, 1);
+    }
+
+    function updateDroppedItems(delta) {
+      const center = new THREE.Vector3(camera.position.x, camera.position.y - player.eye + 0.8, camera.position.z);
+      for (let i = droppedItems.length - 1; i >= 0; i--) {
+        const d = droppedItems[i];
+        const pos = d.mesh.position;
+        d.life -= delta;
+        d.pickupDelay -= delta;
+        d.velocity.y -= 18 * delta;
+
+        const nx = pos.x + d.velocity.x * delta;
+        const nz = pos.z + d.velocity.z * delta;
+        if (!isSolid(nx, pos.y, nz)) {
+          pos.x = nx;
+          pos.z = nz;
+        } else {
+          d.velocity.x = 0;
+          d.velocity.z = 0;
+        }
+        const ny = pos.y + d.velocity.y * delta;
+        if (d.velocity.y < 0 && isSolid(pos.x, ny - 0.15, pos.z)) {
+          pos.y = Math.floor(ny - 0.15 + 0.5) + 0.5 + 0.15; // ブロックの上に乗る
+          d.velocity.set(d.velocity.x * 0.5, 0, d.velocity.z * 0.5);
+        } else {
+          pos.y = ny;
+        }
+        d.mesh.rotation.y += delta * 2;
+
+        if (d.pickupDelay <= 0 && pos.distanceTo(center) < 1.6 && addItem(d.id, d.count)) {
+          playSound('place');
+          removeDropped(i);
+        } else if (d.life <= 0 || pos.y < BEDROCK_Y - 10) {
+          removeDropped(i);
+        }
+      }
+    }
+
+    // Q キー: 手に持っているアイテムを前に投げる（Shift で全部）
+    function dropHeldItem(all) {
+      const held = inventory[selectedSlot];
+      if (!held) return;
+      const count = all ? held.count : 1;
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const from = camera.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.3, 0));
+      spawnDroppedItem(held.id, count, from, dir.multiplyScalar(5).add(new THREE.Vector3(0, 2, 0)), 1.5);
+      held.count -= count;
+      if (held.count <= 0) inventory[selectedSlot] = null;
+      renderInventory();
+    }
+
+    /* --- Farming (作物と苗の成長) --- */
+    const growingBlocks = new Set(); // 育っている途中の作物・苗の "x,y,z"
+    let growthTimer = 0;
+
+    // 生成したあとでブロックを入れかえる（成長・ドアの開け閉め・畑を耕す）
+    function replaceBlock(x, y, z, id) {
+      if (!inBounds(x, y, z)) return;
+      const i = cellIndex(x, y, z);
+      if (world[i] === 0 && id !== 0) blockCount++;
+      world[i] = id;
+      blockChanges.set(blockKey(x, y, z), id);
+      markDirty(x, z);
+      markMapDirty(x, z);
+    }
+
+    function hasWaterNearby(x, y, z) {
+      for (let dx = -4; dx <= 4; dx++) {
+        for (let dz = -4; dz <= 4; dz++) {
+          if (getBlock(x + dx, y - 1, z + dz) === WATER || getBlock(x + dx, y, z + dz) === WATER) return true;
+        }
+      }
+      return false;
+    }
+
+    function growTree(x, groundY, z) {
+      removeBlock(x, groundY + 1, z, false);
+      const height = rand(4, 5);
+      for (let ty = 1; ty <= height; ty++) addBlock(x, groundY + ty, z, WOOD);
+      const top = groundY + height;
+      for (let lx = -2; lx <= 2; lx++) {
+        for (let lz = -2; lz <= 2; lz++) {
+          for (let ly = 0; ly <= 1; ly++) {
+            if (Math.abs(lx) === 2 && Math.abs(lz) === 2) continue;
+            addBlock(x + lx, top + ly, z + lz, LEAVES);
+          }
+        }
+      }
+      for (let lx = -1; lx <= 1; lx++) {
+        for (let lz = -1; lz <= 1; lz++) addBlock(x + lx, top + 2, z + lz, LEAVES);
+      }
+    }
+
+    // 1秒ごとに、作物は少しずつ育つ（近くに水があると早い）。苗はやがて木になる
+    function updateGrowth(delta) {
+      growthTimer -= delta;
+      if (growthTimer > 0) return;
+      growthTimer = 1;
+      [...growingBlocks].forEach(key => {
+        const [x, y, z] = key.split(',').map(Number);
+        const id = getBlock(x, y, z);
+        const def = BLOCKS[id];
+        if (!def || (def.crop === undefined && !def.sapling)) {
+          growingBlocks.delete(key);
+          return;
+        }
+        if (def.sapling) {
+          if (Math.random() < 1 / 45) {
+            growingBlocks.delete(key);
+            growTree(x, y - 1, z);
+          }
+          return;
+        }
+        if (def.crop >= 3) {
+          growingBlocks.delete(key);
+          return;
+        }
+        const chance = hasWaterNearby(x, y, z) ? 1 / 12 : 1 / 40;
+        if (Math.random() < chance) replaceBlock(x, y, z, WHEAT_STAGES[def.crop + 1]);
+      });
+    }
+
+    // セーブから再開したとき、育っている途中の作物と苗を探しなおす
+    blockChanges.forEach((id, key) => {
+      const def = BLOCKS[id];
+      if (def && ((def.crop !== undefined && def.crop < 3) || def.sapling)) growingBlocks.add(key);
+    });
+
+    /* --- TNT & Explosions (爆発) --- */
+    const litTnt = [];
+    const tntGeo = new THREE.BoxGeometry(1, 1, 1);
+
+    function igniteTnt(x, y, z, fuse = 3) {
+      if (litTnt.some(t => t.x === x && t.y === y && t.z === z)) return;
+      removeBlock(x, y, z, false);
+      const mesh = new THREE.Mesh(tntGeo, new THREE.MeshLambertMaterial({ color: 0xc8342c }));
+      mesh.position.set(x, y, z);
+      scene.add(mesh);
+      litTnt.push({ x, y, z, timer: fuse, mesh });
+      playSound('fuse');
+    }
+
+    function updateTnt(delta) {
+      for (let i = litTnt.length - 1; i >= 0; i--) {
+        const t = litTnt[i];
+        t.timer -= delta;
+        t.mesh.material.color.setHex(Math.sin(t.timer * 20) > 0 ? 0xffffff : 0xc8342c);
+        if (t.timer <= 0) {
+          scene.remove(t.mesh);
+          litTnt.splice(i, 1);
+          explodeAt(new THREE.Vector3(t.x, t.y, t.z), 3.2, 1.2);
+        }
+      }
+    }
+
+    // 爆発: まわりのブロックを壊し、プレイヤーと敵にダメージ。近くの TNT にも火がつく
+    function explodeAt(center, radius, power) {
+      playSound('explosion');
+      spawnParticles(center, 0xffffff, 40, 9);
+      spawnParticles(center, 0xff5500, 30, 8);
+      spawnParticles(center, 0x444444, 25, 6);
+
+      for (let x = Math.floor(center.x - radius); x <= Math.ceil(center.x + radius); x++) {
+        for (let y = Math.floor(center.y - radius); y <= Math.ceil(center.y + radius); y++) {
+          for (let z = Math.floor(center.z - radius); z <= Math.ceil(center.z + radius); z++) {
+            const id = getBlock(x, y, z);
+            if (id === 0 || id === BEDROCK || id === CHEST || id === WATER) continue;
+            if (Math.hypot(x - center.x, y - center.y, z - center.z) > radius) continue;
+            if (id === TNT) {
+              igniteTnt(x, y, z, 0.5);
+              continue;
+            }
+            if (BLOCKS[id].storage || BLOCKS[id].furnace) spillContainer(x, y, z);
+            removeBlock(x, y, z, false);
+          }
+        }
+      }
+
+      const reach = radius * 1.9;
+      const distToPlayer = camera.position.distanceTo(center);
+      if (distToPlayer < reach) {
+        const damage = Math.min(18, Math.round(((1 - distToPlayer / reach) * 12 + 2) * power));
+        damagePlayer(damage, camera.position.clone().sub(center).normalize());
+      }
+      [...mobs].forEach(mob => {
+        const d = mob.group.position.distanceTo(center);
+        if (d >= reach || mob.health <= 0) return;
+        mob.health -= Math.round((1 - d / reach) * 20 * power);
+        if (mob.def.boss) updateBossBar(mob);
+        if (mob.health <= 0) killMob(mob);
+      });
+    }
+
+    /* --- Bow, Shield & Bed (弓矢・盾・ベッド) --- */
+    const playerArrows = [];
+    let bowCooldown = 0;
+    let rightMouseDown = false;
+    let spawnPoint = null; // ベッドで決めた復活地点 { x, y, z }
+
+    function shootPlayerArrow() {
+      if (bowCooldown > 0) return;
+      if (countItem('arrow') <= 0) {
+        showToast('🏹 矢がありません（石・棒・葉で作れます）');
+        return;
+      }
+      removeItems('arrow', 1);
+      bowCooldown = 0.6;
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const mesh = new THREE.Mesh(arrowGeo, arrowMat);
+      mesh.position.copy(camera.position).addScaledVector(dir, 0.5);
+      const vel = dir.multiplyScalar(26);
+      mesh.lookAt(mesh.position.clone().add(vel));
+      scene.add(mesh);
+      playerArrows.push({ mesh, vel, life: 3 });
+      playSound('bow');
+    }
+
+    function updatePlayerArrows(delta) {
+      bowCooldown -= delta;
+      for (let i = playerArrows.length - 1; i >= 0; i--) {
+        const a = playerArrows[i];
+        a.vel.y -= ARROW_GRAVITY * delta;
+        a.life -= delta;
+        const pos = a.mesh.position;
+        // 速い矢が敵や壁をすり抜けないように、少しずつ進めながら当たりを調べる
+        const steps = Math.max(1, Math.ceil((a.vel.length() * delta) / 0.25));
+        let target = null;
+        let blocked = false;
+        for (let s = 0; s < steps && !target && !blocked; s++) {
+          pos.addScaledVector(a.vel, delta / steps);
+          target = mobs.find(mob => {
+            const p = mob.group.position;
+            return Math.abs(pos.x - p.x) < mob.radius + 0.2 && Math.abs(pos.z - p.z) < mob.radius + 0.2 &&
+              pos.y > p.y && pos.y < p.y + mob.height;
+          });
+          blocked = isSolid(pos.x, pos.y, pos.z);
+        }
+        a.mesh.lookAt(pos.clone().add(a.vel));
+        if (target) hitMob(target, 8, pos.clone());
+        if (target || blocked || a.life <= 0) {
+          scene.remove(a.mesh);
+          playerArrows.splice(i, 1);
+        }
+      }
+    }
+
+    // 盾を持って右クリックを押しているあいだ、ダメージを大きく減らす
+    function isBlocking() {
+      const def = heldItemDef();
+      return rightMouseDown && !!def && def.kind === 'shield';
+    }
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 2) rightMouseDown = false;
+    });
+
+    function useBed(x, y, z) {
+      spawnPoint = { x, y: y + 0.5, z };
+      if (daylight >= 0.3) {
+        showToast('🛏️ 復活地点をここにした（夜に使うと朝まで眠れる）');
+      } else if (mobs.some(mob => !mob.def.boss && mob.group.position.distanceTo(camera.position) < 10)) {
+        showToast('😨 近くに敵がいて眠れない！');
+      } else {
+        timeOfDay = 0.02;
+        showToast('🛏️ おやすみ… おはよう！ 朝になった');
+      }
+      saveGame();
+    }
+
+    function toggleDoor(x, y, z) {
+      const id = getBlock(x, y, z);
+      replaceBlock(x, y, z, id === DOOR_CLOSED ? DOOR_OPEN : DOOR_CLOSED);
+      playSound('place');
+    }
 
     /* --- Map (ミニマップと全体マップ) --- */
     // ワールドを真上から見た絵を 1ブロック = 1ピクセル で作っておき、ブロックが変わった列だけ描き直す
@@ -3533,6 +4819,58 @@
     const dirtyMapColumns = new Set();
     let mapTimer = 0;
 
+    // 行ったことのある場所だけマップに出す（最初はまっくら）
+    const EXPLORE_RADIUS = 24;
+    const explored = new Uint8Array(SIZE_X * SIZE_Z);
+    let dungeonFound = false; // ダンジョンの入口を見つけたらマップに 💀 が出る
+    const isExplored = (x, z) => explored[(z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)] === 1;
+
+    function exploreAround(px, pz) {
+      const cx = Math.round(px);
+      const cz = Math.round(pz);
+      for (let x = cx - EXPLORE_RADIUS; x <= cx + EXPLORE_RADIUS; x++) {
+        for (let z = cz - EXPLORE_RADIUS; z <= cz + EXPLORE_RADIUS; z++) {
+          if (!isInsideWorld(x, z) || (x - cx) ** 2 + (z - cz) ** 2 > EXPLORE_RADIUS ** 2) continue;
+          const i = (z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE);
+          if (!explored[i]) {
+            explored[i] = 1;
+            markMapDirty(x, z);
+          }
+        }
+      }
+      if (!dungeonFound && DUNGEON.entrance) {
+        const feetY = camera.position.y - player.eye;
+        if (Math.hypot(px - DUNGEON.entrance.x, pz - DUNGEON.entrance.z) < 10 || isInDungeonRoom(px, feetY, pz)) {
+          dungeonFound = true;
+          showToast('💀 ダンジョンの入口を見つけた！ マップに印がついた');
+        }
+      }
+    }
+
+    // セーブ用: 行った場所を 1マス1ビットにつめて文字にする
+    function encodeExplored() {
+      let text = '';
+      for (let i = 0; i < explored.length; i += 8) {
+        let byte = 0;
+        for (let b = 0; b < 8; b++) if (explored[i + b]) byte |= 1 << b;
+        text += String.fromCharCode(byte);
+      }
+      return btoa(text);
+    }
+
+    function decodeExplored(encoded) {
+      if (!encoded) return;
+      try {
+        const text = atob(encoded);
+        for (let i = 0; i < text.length; i++) {
+          const byte = text.charCodeAt(i);
+          for (let b = 0; b < 8 && i * 8 + b < explored.length; b++) explored[i * 8 + b] = (byte >> b) & 1;
+        }
+      } catch (e) {
+        // 読めないときは、まだどこにも行っていないことにする
+      }
+    }
+
     const mapRgb = {};
     Object.entries(BLOCKS).forEach(([id, def]) => {
       const hex = parseInt(def.map.slice(1), 16);
@@ -3541,6 +4879,14 @@
 
     // その列の一番上のブロックの色。高い場所ほど明るく、低い場所ほど暗くする
     function paintMapColumn(x, z) {
+      const i = ((z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)) * 4;
+      if (!isExplored(x, z)) {
+        mapImage.data[i] = 18;
+        mapImage.data[i + 1] = 18;
+        mapImage.data[i + 2] = 24;
+        mapImage.data[i + 3] = 255;
+        return;
+      }
       let y = MAX_Y;
       while (y > BEDROCK_Y) {
         const id = world[cellIndex(x, y, z)];
@@ -3549,7 +4895,6 @@
       }
       const rgb = mapRgb[world[cellIndex(x, y, z)]] || [0, 0, 0];
       const shade = THREE.MathUtils.clamp(0.8 + y * 0.02, 0.45, 1.3);
-      const i = ((z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)) * 4;
       mapImage.data[i] = Math.min(255, rgb[0] * shade);
       mapImage.data[i + 1] = Math.min(255, rgb[1] * shade);
       mapImage.data[i + 2] = Math.min(255, rgb[2] * shade);
@@ -3630,8 +4975,10 @@
       });
       const [hx, hy] = toMini(0, 0);
       drawEmoji(minimapCtx, '🏠', edge(hx), edge(hy), 13);
-      const [dx, dy] = toMini(DUNGEON.x, DUNGEON.z);
-      drawEmoji(minimapCtx, dungeonIcon(), edge(dx), edge(dy), 14);
+      if (dungeonFound) {
+        const [dx, dy] = toMini(DUNGEON.x, DUNGEON.z);
+        drawEmoji(minimapCtx, dungeonIcon(), edge(dx), edge(dy), 14);
+      }
       drawPlayerArrow(minimapCtx, size / 2, size / 2, 6);
     }
 
@@ -3643,9 +4990,9 @@
       const toMap = (wx, wz) => [(wx + HALF_SIZE + 0.5) * scale, (wz + HALF_SIZE + 0.5) * scale];
       const [hx, hy] = toMap(0, 0);
       drawEmoji(worldMapCtx, '🏠', hx, hy, 24);
-      const [dx, dy] = toMap(DUNGEON.x, DUNGEON.z);
-      drawEmoji(worldMapCtx, dungeonIcon(), dx, dy, 28);
-      if (DUNGEON.entrance) {
+      if (dungeonFound) {
+        const [dx, dy] = toMap(DUNGEON.x, DUNGEON.z);
+        drawEmoji(worldMapCtx, dungeonIcon(), dx, dy, 28);
         const [ex, ey] = toMap(DUNGEON.entrance.x, DUNGEON.entrance.z);
         drawEmoji(worldMapCtx, '🚪', ex, ey, 20);
       }
@@ -3669,11 +5016,13 @@
       mapTimer -= delta;
       if (mapTimer > 0) return;
       mapTimer = 0.2;
+      exploreAround(camera.position.x, camera.position.z);
       flushMapChanges();
       drawMinimap();
       if (!mapOverlay.hidden) drawWorldMap();
     }
 
+    exploreAround(camera.position.x, camera.position.z);
     buildMapImage();
     drawMinimap();
 
@@ -3749,12 +5098,14 @@
       // 水・クモの巣・サボテン・ストレイの矢
       const inWater = bodyTouches(def => def.water);
       const inWeb = bodyTouches(def => def.web);
+      const onLadder = bodyTouches(def => def.climbable);
       if (bodyTouches(def => def.hurts, 0.05)) damagePlayer(1); // サボテンにさわると痛い
       if (player.slowTimer > 0) player.slowTimer -= delta;
       let speedFactor = 1;
       if (inWater) speedFactor *= 0.5;
       if (inWeb) speedFactor *= 0.3;
       if (player.slowTimer > 0) speedFactor *= 0.6;
+      if (isBlocking()) speedFactor *= 0.4; // 盾で守っているあいだはゆっくり
 
       // 見ている向き（水平成分）を基準に前後左右を決める
       const forward = new THREE.Vector3();
@@ -3789,7 +5140,10 @@
       camera.position.z = THREE.MathUtils.clamp(camera.position.z, -limit, limit);
 
       // 重力 & 垂直移動（速く落ちても床をすり抜けないように、小さく分けて動かす）
-      if (inWater || inWeb) {
+      if (onLadder) {
+        // はしご: 前かスペースで登り、離すとゆっくり下りる
+        player.velocity.y = keys.forward || keys.jump ? 3 : -1.5;
+      } else if (inWater || inWeb) {
         // 水の中はゆっくり沈み、スペースを押しているあいだ浮かぶ
         player.velocity.y = Math.max(player.velocity.y - GRAVITY * 0.25 * delta, inWeb ? -1 : -3);
         if (keys.jump && inWater) player.velocity.y = 3.5;
@@ -3887,7 +5241,14 @@
 
     // 近くの松明に光を割り当てる
     function updateTorchLights() {
-      const nearest = [...torchMeshes.values()]
+      const lamps = [];
+      blockChanges.forEach((id, key) => {
+        if (id !== TORCH && BLOCKS[id] && BLOCKS[id].light) {
+          const [x, y, z] = key.split(',').map(Number);
+          lamps.push({ position: new THREE.Vector3(x, y, z) });
+        }
+      });
+      const nearest = [...torchMeshes.values(), ...lamps]
         .map(group => ({ group, d: group.position.distanceToSquared(camera.position) }))
         .filter(t => t.d < 30 * 30)
         .sort((a, b) => a.d - b.d);
@@ -3925,6 +5286,10 @@
         updateBossTrigger();
         updateBossEffects(delta);
         updateMap(delta);
+        updateDroppedItems(delta);
+        updateGrowth(delta);
+        updateTnt(delta);
+        updatePlayerArrows(delta);
 
         torchLightTimer -= delta;
         if (torchLightTimer <= 0) {
@@ -3940,6 +5305,10 @@
         posDisplay.textContent = `XYZ: ${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)}`;
         blockCountDisplay.textContent = `Blocks: ${blockCount}`;
       }
+
+      // かまどは持ち物画面を開いているあいだも焼き続ける
+      updateFurnaces(delta);
+      if (inventoryOpen && openContainer && openContainer.type === 'furnace') refreshScreen();
 
       updateSunPosition();
       updateChunks();
@@ -3987,6 +5356,13 @@
         timeOfDay,
         bossDefeated,
         chestLooted,
+        bagSize,
+        seenItems: [...seenItems],
+        storageChests: Object.fromEntries(storageChests),
+        furnaces: Object.fromEntries(furnaces),
+        spawnPoint,
+        explored: encodeExplored(),
+        dungeonFound,
         savedAt: Date.now()
       };
       try {
@@ -4011,8 +5387,17 @@
       if (typeof data.timeOfDay === 'number') timeOfDay = data.timeOfDay;
       bossDefeated = !!data.bossDefeated;
       chestLooted = !!data.chestLooted;
+      if (data.bagSize === BAG_LARGE) bagSize = BAG_LARGE;
+      (data.seenItems || []).forEach(id => { if (ITEMS[id]) seenItems.add(id); });
+      Object.entries(data.storageChests || {}).forEach(([key, slots]) => {
+        storageChests.set(key, slots.map(item => (item && ITEMS[item.id] ? item : null)));
+      });
+      Object.entries(data.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
+      spawnPoint = data.spawnPoint || null;
+      decodeExplored(data.explored);
+      dungeonFound = !!data.dungeonFound;
       renderInventory();
-      renderCraftPanel();
+      buildMapImage();
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
     }
 
@@ -4037,9 +5422,7 @@
 
     controls.addEventListener('unlock', () => {
       saveGame();
-      pickedSlot = null;
       renderInventory();
-      renderCraftPanel(); // 一時停止画面を開いたときに、今の材料で作れるものを表示
     });
     window.addEventListener('beforeunload', () => saveGame());
 
@@ -4065,6 +5448,25 @@
         DUNGEON,
         biomeAt,
         openChest,
+        replaceBlock,
+        damagePlayer,
+        isBlocking,
+        litTnt,
+        spawnDroppedItem,
+        droppedItems,
+        storageChests,
+        getFurnace,
+        growingBlocks,
+        RECIPES,
+        craftGrid,
+        seenItems,
+        openInventoryScreen,
+        closeInventoryScreen,
+        isExplored,
+        get craftSize() { return craftSize; },
+        get bagSize() { return bagSize; },
+        get dungeonFound() { return dungeonFound; },
+        get spawnPoint() { return spawnPoint; },
         get boss() { return boss; },
         get bossDefeated() { return bossDefeated; },
         spawnMob(type, x, y, z, size = 1) {
