@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Minecraft Web - Creeper & Zombie Edition</title>
+  <title>3D Minecraft Web - Big World Edition</title>
   <style>
     * {
       box-sizing: border-box;
@@ -321,7 +321,7 @@
     .slot-icon.empty {
       box-shadow: none;
     }
-    #craft-panel {
+    #craft-panel, #bag-panel {
       margin-top: 16px;
       padding: 10px 14px;
       width: 100%;
@@ -331,7 +331,7 @@
       border-radius: 10px;
       cursor: default;
     }
-    #craft-panel h2 {
+    #craft-panel h2, #bag-panel h2 {
       margin: 0 0 8px;
       font-size: 16px;
       color: #ffdd55;
@@ -353,6 +353,22 @@
     .craft-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
+    }
+    #bag-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 50px);
+      gap: 6px;
+      justify-content: center;
+    }
+    #bag-grid .slot-name {
+      display: none !important;
+    }
+    #bag-grid .slot.hotbar-row {
+      background: rgba(110, 100, 30, 0.7);
+    }
+    #bag-grid .slot.picked {
+      border-color: #ffdd55;
+      box-shadow: 0 0 10px #ffdd55;
     }
   </style>
 
@@ -376,13 +392,13 @@
   <div id="health-bar"></div>
 
   <div id="info-panel">
-    <div><strong>3D Minecraft - Creeper & Zombie Edition</strong></div>
+    <div><strong>3D Minecraft - Big World Edition</strong></div>
     <div id="pos-display">XYZ: 0.0, 0.0, 0.0</div>
     <div id="time-display">☀️ 昼</div>
     <div id="depth-display">深さ: 0m (最深記録: 0m)</div>
     <div id="mob-count">Enemies: 0</div>
     <div id="kill-count">Kills: 0</div>
-    <div id="ore-display">⛏️ 石炭 0 / 鉄 0 / 金 0 / ダイヤ 0</div>
+    <div id="gear-display">🛡️ 防具なし ／ ⛏️ ツルハシなし</div>
     <div id="block-count">Blocks: 0</div>
     <div id="fps-display">FPS: 60</div>
   </div>
@@ -393,25 +409,28 @@
   <!-- 開始案内画面 -->
   <div id="instructions">
     <h1>MINECRAFT 3D</h1>
-    <div class="subtitle">⚔️ クリーパー & ゾンビ襲来エディション 🧟</div>
+    <div class="subtitle">🌍 広い世界と5種類の敵 ⚔️</div>
     <div class="keys">
       <div><b>W, A, S, D</b> : 移動 ／ <b>SPACE</b> : ジャンプ</div>
       <div><b>マウス移動</b> : 視点回転</div>
       <div><b>左クリック</b> : 敵を攻撃！ (またはブロックを掘って持ち物に入れる)</div>
-      <div><b>右クリック</b> : 持っているブロックを置く</div>
+      <div><b>右クリック</b> : ブロックや松明を置く ／ 食べ物を食べる ／ 作業台を開く</div>
       <div><b>数字キー 1〜8 / ホイール</b> : 持ち物の切り替え</div>
-      <div><b>E</b> : クラフト（剣やブロックを作る）</div>
+      <div><b>E</b> : クラフトとカバン（持ち物の整理）</div>
       <div><b>ESC</b> : 一時停止（自動でセーブされます。30秒ごとにも自動セーブ）</div>
       <div class="mob-info">
         ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！離れるか剣で仕留めよう！<br>
         ⚠️ <b>ゾンビ (Zombie)</b>: 両手を伸ばして追いかけてきてパンチします！<br>
+        ⚠️ <b>クモ</b>: 足が速く、壁を登って追いかけてきます！<br>
+        ⚠️ <b>スケルトン</b>: 遠くから弓矢で撃ってきます。物陰に隠れながら近づこう！<br>
+        ⚠️ <b>スライム</b>: 地下でぴょんぴょん跳ねてきます。倒すと小さく分裂！<br>
         🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！
       </div>
       <div class="mob-info">
-        🎒 <b>持ち物</b>: 最初は空っぽ（素手）。ブロックを掘ると持ち物に入り、それを置けます。木材4個で<b>作業台</b>を作って置くと、その近くで剣が作れる！（木材・石・鉄・ダイヤを3個ずつ）
+        🎒 <b>持ち物</b>: 最初は空っぽ（素手）。木を掘って木材を集め、<b>作業台</b>（木材4個）を置いて、<b>ツルハシ</b>と<b>剣</b>を作ろう！石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます。<b>松明</b>を置くと明るくなって近くに敵が出なくなり、<b>防具</b>を持つと受けるダメージが減ります。りんごや肉を右クリックで食べると回復！
       </div>
       <div class="mob-info">
-        ⛏️ <b>地下探検</b>: 地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。
+        ⛏️ <b>地下探検</b>: ワールドは161×161ブロックの広さ。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。
       </div>
     </div>
     <button class="btn-main">クリックして冒険を始める！</button>
@@ -420,6 +439,10 @@
       <button class="btn-sub" id="new-world-btn">🆕 新しいワールド</button>
     </div>
     <div id="save-status"></div>
+    <div id="bag-panel">
+      <h2>🎒 カバン（2回クリックで入れかえ。黄色い段が画面下のホットバー）</h2>
+      <div id="bag-grid"></div>
+    </div>
     <div id="craft-panel">
       <h2>🛠️ クラフト（E キー、または作業台を右クリックで開けます）</h2>
       <div id="craft-hint" style="font-size: 13px; margin-bottom: 8px; color: #ddd;"></div>
@@ -543,6 +566,47 @@
           osc.start(start);
           osc.stop(start + 0.15);
         });
+      } else if (type === 'eat') {
+        // 食べる「もぐもぐ」
+        [0, 0.12].forEach(offset => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(180, now + offset);
+          osc.frequency.exponentialRampToValueAtTime(90, now + offset + 0.08);
+          gain.gain.setValueAtTime(0.12, now + offset);
+          gain.gain.linearRampToValueAtTime(0.01, now + offset + 0.08);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.08);
+        });
+      } else if (type === 'bow') {
+        // スケルトンが矢を撃つ「ヒュン」
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(700, now);
+        osc.frequency.exponentialRampToValueAtTime(250, now + 0.12);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'slime') {
+        // スライムが跳ねる「ぷよん」
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.15);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
       } else if (type === 'explosion') {
         // クリーパーの大爆発！
         const bufferSize = audioCtx.sampleRate * 0.9;
@@ -566,7 +630,6 @@
         noise.start(now);
       }
     }
-
     /* --- Procedural Textures (16x16 Pixel Art) --- */
     function createPixelTexture(drawFn) {
       const canvas = document.createElement('canvas');
@@ -793,79 +856,116 @@
       })
     };
 
-    /* --- Block Definitions --- */
-    const BLOCK_TYPES = [
-      { id: 'sword', name: '鉄の剣 (Iron Sword)' }, // 0: 剣
-      {
-        id: 0,
-        name: 'Grass',
-        materials: [
-          new THREE.MeshLambertMaterial({ map: textures.grassSide }),
-          new THREE.MeshLambertMaterial({ map: textures.grassSide }),
-          new THREE.MeshLambertMaterial({ map: textures.grassTop }),
-          new THREE.MeshLambertMaterial({ map: textures.dirt }),
-          new THREE.MeshLambertMaterial({ map: textures.grassSide }),
-          new THREE.MeshLambertMaterial({ map: textures.grassSide })
-        ]
-      },
-      { id: 1, name: 'Dirt', materials: new THREE.MeshLambertMaterial({ map: textures.dirt }) },
-      { id: 2, name: 'Stone', materials: new THREE.MeshLambertMaterial({ map: textures.stone }) },
-      {
-        id: 3,
-        name: 'Wood',
-        materials: [
-          new THREE.MeshLambertMaterial({ map: textures.woodSide }),
-          new THREE.MeshLambertMaterial({ map: textures.woodSide }),
-          new THREE.MeshLambertMaterial({ map: textures.woodTop }),
-          new THREE.MeshLambertMaterial({ map: textures.woodTop }),
-          new THREE.MeshLambertMaterial({ map: textures.woodSide }),
-          new THREE.MeshLambertMaterial({ map: textures.woodSide })
-        ]
-      },
-      { id: 4, name: 'Leaves', transparent: true, materials: new THREE.MeshLambertMaterial({ map: textures.leaves, transparent: true }) },
-      { id: 5, name: 'Bricks', materials: new THREE.MeshLambertMaterial({ map: textures.brick }) },
-      { id: 6, name: 'Glass', transparent: true, materials: new THREE.MeshLambertMaterial({ map: textures.glass, transparent: true, opacity: 0.75 }) },
-      // 以下は地下専用（ホットバーには無い）
-      { id: 7, name: 'Bedrock', materials: new THREE.MeshLambertMaterial({ map: textures.bedrock }) },
-      { id: 8, name: 'Coal Ore', materials: new THREE.MeshLambertMaterial({ map: textures.coalOre }) },
-      { id: 9, name: 'Iron Ore', materials: new THREE.MeshLambertMaterial({ map: textures.ironOre }) },
-      { id: 10, name: 'Gold Ore', materials: new THREE.MeshLambertMaterial({ map: textures.goldOre }) },
-      { id: 11, name: 'Diamond Ore', materials: new THREE.MeshLambertMaterial({ map: textures.diamondOre }) },
-      // クラフトで作って置く
-      {
-        id: 12,
-        name: 'Crafting Table',
-        materials: [
-          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide }),
-          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide }),
-          new THREE.MeshLambertMaterial({ map: textures.craftingTableTop }),
-          new THREE.MeshLambertMaterial({ map: textures.woodTop }),
-          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide }),
-          new THREE.MeshLambertMaterial({ map: textures.craftingTableSide })
-        ]
+    // 追加した敵の顔
+    textures.spiderFace = createPixelTexture(ctx => {
+      ctx.fillStyle = '#2b2424';
+      ctx.fillRect(0, 0, 16, 16);
+      for (let i = 0; i < 40; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#3a3030' : '#1e1818';
+        ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
       }
+      ctx.fillStyle = '#ff2a2a';
+      ctx.fillRect(3, 5, 2, 2);
+      ctx.fillRect(11, 5, 2, 2);
+      ctx.fillRect(5, 8, 2, 2);
+      ctx.fillRect(9, 8, 2, 2);
+    });
+    textures.skeletonFace = createPixelTexture(ctx => {
+      ctx.fillStyle = '#d8d8d8';
+      ctx.fillRect(0, 0, 16, 16);
+      for (let i = 0; i < 40; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#c4c4c4' : '#eaeaea';
+        ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+      }
+      ctx.fillStyle = '#222';
+      ctx.fillRect(3, 5, 3, 3);
+      ctx.fillRect(10, 5, 3, 3);
+      ctx.fillRect(7, 9, 2, 2);
+      ctx.fillRect(4, 12, 8, 1);
+    });
+    textures.slimeFace = createPixelTexture(ctx => {
+      ctx.fillStyle = '#6cc24a';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#1d3d12';
+      ctx.fillRect(4, 5, 2, 3);
+      ctx.fillRect(10, 5, 2, 3);
+      ctx.fillRect(7, 11, 2, 1);
+    });
+
+    /* --- Block Definitions & Texture Atlas --- */
+    // 地形はチャンク（16×16列）ごとに「見えている面」だけをまとめて描く。
+    // そのために全ブロックの絵を1枚の画像（アトラス）に並べ、面ごとにどの絵を使うかを決める
+    const ATLAS_TILES = [
+      'grassTop', 'grassSide', 'dirt', 'stone', 'woodSide', 'woodTop', 'leaves', 'brick',
+      'glass', 'bedrock', 'coalOre', 'ironOre', 'goldOre', 'diamondOre', 'craftingTableTop', 'craftingTableSide'
     ];
+    const ATLAS_COLS = 4;
+    const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
+    const atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = 16 * ATLAS_COLS;
+    atlasCanvas.height = 16 * ATLAS_ROWS;
+    const atlasCtx = atlasCanvas.getContext('2d');
+    ATLAS_TILES.forEach((name, i) => {
+      atlasCtx.drawImage(textures[name].image, (i % ATLAS_COLS) * 16, Math.floor(i / ATLAS_COLS) * 16);
+    });
+    const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
+    atlasTexture.magFilter = THREE.NearestFilter;
+    atlasTexture.minFilter = THREE.NearestFilter;
+    atlasTexture.generateMipmaps = false;
+
+    const tile = name => ATLAS_TILES.indexOf(name);
+
+    // tiles: [上, 下, 横] の絵
+    // tier: 掘るのに必要なツルハシ（0: 素手でOK, 1: 木, 2: 石, 3: 鉄, 99: 壊せない）
+    // drop: 掘ったときに持ち物に入るアイテム
+    // seeThrough: 向こうが透けて見える（隣のブロックの面を隠さない）
+    // solid: false なら通り抜けられる
+    const BLOCKS = {
+      1: { name: '草', tiles: [tile('grassTop'), tile('dirt'), tile('grassSide')], tier: 0, drop: 'grass' },
+      2: { name: '土', tiles: [tile('dirt'), tile('dirt'), tile('dirt')], tier: 0, drop: 'dirt' },
+      3: { name: '石', tiles: [tile('stone'), tile('stone'), tile('stone')], tier: 1, drop: 'stone' },
+      4: { name: '木材', tiles: [tile('woodTop'), tile('woodTop'), tile('woodSide')], tier: 0, drop: 'wood' },
+      5: { name: '葉', tiles: [tile('leaves'), tile('leaves'), tile('leaves')], tier: 0, drop: 'leaves', seeThrough: true },
+      6: { name: 'レンガ', tiles: [tile('brick'), tile('brick'), tile('brick')], tier: 1, drop: 'brick' },
+      7: { name: 'ガラス', tiles: [tile('glass'), tile('glass'), tile('glass')], tier: 0, drop: 'glass', seeThrough: true, glass: true },
+      8: { name: '岩盤', tiles: [tile('bedrock'), tile('bedrock'), tile('bedrock')], tier: 99 },
+      9: { name: '石炭の鉱石', tiles: [tile('coalOre'), tile('coalOre'), tile('coalOre')], tier: 1, drop: 'coal' },
+      10: { name: '鉄の鉱石', tiles: [tile('ironOre'), tile('ironOre'), tile('ironOre')], tier: 2, drop: 'iron' },
+      11: { name: '金の鉱石', tiles: [tile('goldOre'), tile('goldOre'), tile('goldOre')], tier: 3, drop: 'gold' },
+      12: { name: 'ダイヤの鉱石', tiles: [tile('diamondOre'), tile('diamondOre'), tile('diamondOre')], tier: 3, drop: 'diamond' },
+      13: { name: '作業台', tiles: [tile('craftingTableTop'), tile('woodTop'), tile('craftingTableSide')], tier: 0, drop: 'table' },
+      14: { name: '松明', torch: true, seeThrough: true, solid: false, tier: 0, drop: 'torch' }
+    };
+    const GRASS = 1;
+    const DIRT = 2;
+    const STONE = 3;
+    const WOOD = 4;
+    const LEAVES = 5;
     const BEDROCK = 8;
     const COAL_ORE = 9;
     const IRON_ORE = 10;
     const GOLD_ORE = 11;
     const DIAMOND_ORE = 12;
     const CRAFTING_TABLE = 13;
+    const TORCH = 14;
 
-    // 採掘した鉱石の数
-    const ORES = {
-      [COAL_ORE]: { name: '石炭', color: 0x222222, count: 0 },
-      [IRON_ORE]: { name: '鉄', color: 0xd8b08c, count: 0 },
-      [GOLD_ORE]: { name: '金', color: 0xffd700, count: 0 },
-      [DIAMOND_ORE]: { name: 'ダイヤ', color: 0x44eedd, count: 0 }
-    };
+    // 地形のメッシュ用の材質（不透明なもの / ガラス）
+    const opaqueMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture, vertexColors: true });
+    const glassMaterial = new THREE.MeshLambertMaterial({
+      map: atlasTexture,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      depthWrite: false
+    });
 
     /* --- Scene, Camera, Renderer --- */
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x78a7ff);
-    scene.fog = new THREE.Fog(0x78a7ff, 25, 55);
+    scene.fog = new THREE.Fog(0x78a7ff, 30, 75);
+    const VIEW_DISTANCE = 90; // これより遠いチャンクは描かない（霧で見えないので）
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
     const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -876,24 +976,41 @@
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
+    // 太陽の光。影を作る範囲はプレイヤーのまわりだけなので、プレイヤーについてくる
     const sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    sunLight.position.set(40, 70, 30);
+    const SUN_OFFSET = new THREE.Vector3(40, 70, 30);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 1024;
     sunLight.shadow.mapSize.height = 1024;
     sunLight.shadow.camera.near = 10;
-    sunLight.shadow.camera.far = 150;
-    const d = 35;
+    sunLight.shadow.camera.far = 200;
+    const d = 40;
     sunLight.shadow.camera.left = -d;
     sunLight.shadow.camera.right = d;
     sunLight.shadow.camera.top = d;
     sunLight.shadow.camera.bottom = -d;
     scene.add(sunLight);
+    scene.add(sunLight.target);
 
-    // 地下で灯る手元のたいまつ光（カメラに追従）
+    function updateSunPosition() {
+      sunLight.target.position.set(Math.round(camera.position.x), 0, Math.round(camera.position.z));
+      sunLight.position.copy(sunLight.target.position).add(SUN_OFFSET);
+    }
+
+    // 暗いときに灯る手元のたいまつ光（カメラに追従）
     const torchLight = new THREE.PointLight(0xffd9a0, 0, 16, 1);
     camera.add(torchLight);
     scene.add(camera);
+
+    // 置いた松明の光（近いものから最大 TORCH_LIGHT_COUNT 個）
+    // 光の数を途中で変えると画面が一瞬止まるので、数は固定して明るさだけ変える
+    const TORCH_LIGHT_COUNT = 6;
+    const torchLights = [];
+    for (let i = 0; i < TORCH_LIGHT_COUNT; i++) {
+      const light = new THREE.PointLight(0xffb45a, 0, 12, 1.2);
+      scene.add(light);
+      torchLights.push(light);
+    }
 
     /* --- Controls & Screens --- */
     const controls = new PointerLockControls(camera, document.body);
@@ -918,113 +1035,316 @@
       }
     });
 
-    /* --- World & Block Management --- */
-    const WORLD_SIZE = 28;
-    const HALF_SIZE = Math.floor(WORLD_SIZE / 2);
-    const BEDROCK_Y = -40; // 最下層（岩盤）の高さ
+    /* --- World Data (ブロックの情報) --- */
+    const WORLD_SIZE = 160;           // 161×161 ブロック
+    const HALF_SIZE = WORLD_SIZE / 2;
+    const BEDROCK_Y = -40;            // 最下層（岩盤）の高さ
+    const MAX_Y = 40;                 // これより上には置けない
+    const SIZE_X = WORLD_SIZE + 1;
+    const SIZE_Y = MAX_Y - BEDROCK_Y + 1;
+    const SIZE_Z = WORLD_SIZE + 1;
     const SAVE_KEY = 'minecraft3d-save';
-    const SAVE_VERSION = 2; // 地形生成を変えたら上げる（古いセーブは読み込まない）
-    const blockChanges = new Map(); // key -> blockIndex（-1 は破壊）。生成後に変わったブロック（セーブ用）
+    const SAVE_VERSION = 3; // 地形生成を変えたら上げる（古いセーブは読み込まない）
 
-    const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const worldData = new Map(); // key -> blockIndex（埋もれて見えないブロックも含む全データ）
-    const blocksMap = new Map(); // key -> mesh（表面に露出していて描画が必要なブロックのみ）
-    const blocksGroup = new THREE.Group();
-    scene.add(blocksGroup);
+    // 全ブロックを1本の数字の列に入れる（0 は空気）
+    const world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
+    const blockChanges = new Map(); // "x,y,z" -> ブロック番号（0 は破壊）。生成後に変わったブロック（セーブ用）
+    let blockCount = 0;
 
-    function getBlockKey(x, y, z) {
-      return `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
-    }
-
-    function hasBlock(x, y, z) {
-      return worldData.has(getBlockKey(x, y, z));
+    function blockKey(x, y, z) {
+      return `${x},${y},${z}`;
     }
 
     function isInsideWorld(x, z) {
       return Math.abs(Math.round(x)) <= HALF_SIZE && Math.abs(Math.round(z)) <= HALF_SIZE;
     }
 
-    // 隣接マスが視線を遮るか。ワールド外・岩盤より下はプレイヤーから見えないので遮る扱い
-    function isOccluding(x, y, z) {
-      if (y < BEDROCK_Y || !isInsideWorld(x, z)) return true;
-      const idx = worldData.get(getBlockKey(x, y, z));
-      return idx !== undefined && !BLOCK_TYPES[idx].transparent;
+    function inBounds(x, y, z) {
+      return x >= -HALF_SIZE && x <= HALF_SIZE && z >= -HALF_SIZE && z <= HALF_SIZE && y >= BEDROCK_Y && y <= MAX_Y;
     }
 
-    const NEIGHBOR_OFFSETS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-
-    // 露出していればメッシュを作り、完全に埋もれていれば消す（地下を丸ごと描画すると重いため）
-    function refreshMesh(x, y, z) {
-      const key = getBlockKey(x, y, z);
-      const blockIndex = worldData.get(key);
-      const exposed = blockIndex !== undefined &&
-        NEIGHBOR_OFFSETS.some(([dx, dy, dz]) => !isOccluding(x + dx, y + dy, z + dz));
-      const mesh = blocksMap.get(key);
-
-      if (exposed && !mesh) {
-        const blockDef = BLOCK_TYPES[blockIndex] || BLOCK_TYPES[1];
-        const newMesh = new THREE.Mesh(boxGeometry, blockDef.materials);
-        newMesh.position.set(x, y, z);
-        newMesh.castShadow = y >= -4; // 地下深くの洞窟の壁は影を落としても見えないので省略（軽量化）
-        newMesh.receiveShadow = true;
-        newMesh.userData = { key, blockIndex };
-        blocksGroup.add(newMesh);
-        blocksMap.set(key, newMesh);
-      } else if (!exposed && mesh) {
-        blocksGroup.remove(mesh);
-        blocksMap.delete(key);
-      }
+    // 整数の座標を配列の番号に変換
+    function cellIndex(x, y, z) {
+      return ((x + HALF_SIZE) * SIZE_Y + (y - BEDROCK_Y)) * SIZE_Z + (z + HALF_SIZE);
     }
 
-    function refreshAround(x, y, z) {
-      refreshMesh(x, y, z);
-      NEIGHBOR_OFFSETS.forEach(([dx, dy, dz]) => refreshMesh(x + dx, y + dy, z + dz));
-    }
-
-    // データのみ登録（ワールド生成用。メッシュは生成後にまとめて作る）
-    function setBlockData(x, y, z, blockIndex) {
-      const key = getBlockKey(x, y, z);
-      if (!worldData.has(key)) worldData.set(key, blockIndex);
-    }
-
-    function addBlock(x, y, z, blockIndex, playSoundFlag = false) {
+    function getBlock(x, y, z) {
       x = Math.round(x);
       y = Math.round(y);
       z = Math.round(z);
-      const key = getBlockKey(x, y, z);
-      if (worldData.has(key)) return false;
+      return inBounds(x, y, z) ? world[cellIndex(x, y, z)] : 0;
+    }
 
-      worldData.set(key, blockIndex);
-      blockChanges.set(key, blockIndex);
-      refreshAround(x, y, z);
+    function hasBlock(x, y, z) {
+      return getBlock(x, y, z) !== 0;
+    }
+
+    // ぶつかるブロックか（松明は通り抜けられる）
+    function isSolid(x, y, z) {
+      const id = getBlock(x, y, z);
+      return id !== 0 && BLOCKS[id].solid !== false;
+    }
+
+    // 生成用: 空気のところにだけ置く
+    function setBlockData(x, y, z, id) {
+      if (!inBounds(x, y, z)) return;
+      const i = cellIndex(x, y, z);
+      if (world[i] === 0) {
+        world[i] = id;
+        blockCount++;
+      }
+    }
+
+    function clearBlockData(x, y, z) {
+      if (!inBounds(x, y, z)) return;
+      const i = cellIndex(x, y, z);
+      if (world[i] !== 0) {
+        world[i] = 0;
+        blockCount--;
+      }
+    }
+
+    /* --- Chunk Meshes (見えている面だけをまとめて描く) --- */
+    const CHUNK_SIZE = 16;
+    const CHUNKS_PER_SIDE = Math.ceil(SIZE_X / CHUNK_SIZE);
+    const chunks = [];
+    const terrainGroup = new THREE.Group();
+    scene.add(terrainGroup);
+
+    function chunkAt(x, z) {
+      const cx = Math.floor((Math.round(x) + HALF_SIZE) / CHUNK_SIZE);
+      const cz = Math.floor((Math.round(z) + HALF_SIZE) / CHUNK_SIZE);
+      if (cx < 0 || cz < 0 || cx >= CHUNKS_PER_SIDE || cz >= CHUNKS_PER_SIDE) return null;
+      return chunks[cx * CHUNKS_PER_SIDE + cz];
+    }
+
+    // 面ごとの向き・4つの角（外から見て 左下→右下→右上→左上）・明るさ・使う絵（0: 上, 1: 下, 2: 横）
+    const FACES = [
+      { dir: [1, 0, 0], corners: [[0.5, -0.5, 0.5], [0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5]], shade: 0.8, side: 2 },
+      { dir: [-1, 0, 0], corners: [[-0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, 0.5, -0.5]], shade: 0.8, side: 2 },
+      { dir: [0, 1, 0], corners: [[-0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5]], shade: 1.0, side: 0 },
+      { dir: [0, -1, 0], corners: [[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5]], shade: 0.55, side: 1 },
+      { dir: [0, 0, 1], corners: [[-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5]], shade: 0.9, side: 2 },
+      { dir: [0, 0, -1], corners: [[0.5, -0.5, -0.5], [-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5]], shade: 0.9, side: 2 }
+    ];
+
+    // 面を描くかを決めるための「隣のブロック」。ワールドの外と岩盤の下は見えないので、ふさがっている扱い
+    function neighborForMesh(x, y, z) {
+      if (y > MAX_Y) return 0;
+      if (y < BEDROCK_Y || x < -HALF_SIZE || x > HALF_SIZE || z < -HALF_SIZE || z > HALF_SIZE) return BEDROCK;
+      return world[cellIndex(x, y, z)];
+    }
+
+    function newFaceBuffer() {
+      return { positions: [], normals: [], uvs: [], colors: [], indices: [] };
+    }
+
+    function addFace(buf, x, y, z, face, tileIndex) {
+      const start = buf.positions.length / 3;
+      const col = tileIndex % ATLAS_COLS;
+      const row = Math.floor(tileIndex / ATLAS_COLS);
+      const e = 0.0005; // 隣の絵がにじまないように少し内側を使う
+      const u0 = col / ATLAS_COLS + e;
+      const u1 = (col + 1) / ATLAS_COLS - e;
+      const v0 = 1 - (row + 1) / ATLAS_ROWS + e;
+      const v1 = 1 - row / ATLAS_ROWS - e;
+      const uv = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+      for (let i = 0; i < 4; i++) {
+        const c = face.corners[i];
+        buf.positions.push(x + c[0], y + c[1], z + c[2]);
+        buf.normals.push(face.dir[0], face.dir[1], face.dir[2]);
+        buf.uvs.push(uv[i][0], uv[i][1]);
+        buf.colors.push(face.shade, face.shade, face.shade);
+      }
+      buf.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    }
+
+    function makeChunkMesh(buf, material) {
+      if (buf.indices.length === 0) return null;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(buf.positions, 3));
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(buf.normals, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(buf.uvs, 2));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(buf.colors, 3));
+      geometry.setIndex(buf.indices);
+      geometry.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.castShadow = material === opaqueMaterial;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    function buildChunk(chunk) {
+      const opaque = newFaceBuffer();
+      const glass = newFaceBuffer();
+      const x0 = -HALF_SIZE + chunk.cx * CHUNK_SIZE;
+      const z0 = -HALF_SIZE + chunk.cz * CHUNK_SIZE;
+      const x1 = Math.min(HALF_SIZE, x0 + CHUNK_SIZE - 1);
+      const z1 = Math.min(HALF_SIZE, z0 + CHUNK_SIZE - 1);
+
+      for (let x = x0; x <= x1; x++) {
+        for (let z = z0; z <= z1; z++) {
+          for (let y = BEDROCK_Y; y <= MAX_Y; y++) {
+            const id = world[cellIndex(x, y, z)];
+            if (id === 0) continue;
+            const def = BLOCKS[id];
+            if (def.torch) continue; // 松明は別に描く
+            const buf = def.glass ? glass : opaque;
+            for (const face of FACES) {
+              const n = neighborForMesh(x + face.dir[0], y + face.dir[1], z + face.dir[2]);
+              if (n !== 0 && !BLOCKS[n].seeThrough) continue; // 隣がふさがっていて見えない
+              if (n === id && def.seeThrough) continue;      // 葉と葉、ガラスとガラスの間は描かない
+              addFace(buf, x, y, z, face, def.tiles[face.side]);
+            }
+          }
+        }
+      }
+
+      for (const key of ['opaqueMesh', 'glassMesh']) {
+        if (chunk[key]) {
+          terrainGroup.remove(chunk[key]);
+          chunk[key].geometry.dispose();
+          chunk[key] = null;
+        }
+      }
+      chunk.opaqueMesh = makeChunkMesh(opaque, opaqueMaterial);
+      chunk.glassMesh = makeChunkMesh(glass, glassMaterial);
+      if (chunk.opaqueMesh) terrainGroup.add(chunk.opaqueMesh);
+      if (chunk.glassMesh) terrainGroup.add(chunk.glassMesh);
+      chunk.dirty = false;
+    }
+
+    function buildAllChunks() {
+      for (let cx = 0; cx < CHUNKS_PER_SIDE; cx++) {
+        for (let cz = 0; cz < CHUNKS_PER_SIDE; cz++) {
+          const chunk = {
+            cx,
+            cz,
+            centerX: -HALF_SIZE + cx * CHUNK_SIZE + CHUNK_SIZE / 2,
+            centerZ: -HALF_SIZE + cz * CHUNK_SIZE + CHUNK_SIZE / 2,
+            opaqueMesh: null,
+            glassMesh: null,
+            dirty: false
+          };
+          chunks.push(chunk);
+          buildChunk(chunk);
+        }
+      }
+    }
+
+    // ブロックが変わったら、そのチャンクと（境目なら）隣のチャンクを作り直す
+    function markDirty(x, z) {
+      for (const dx of [-1, 0, 1]) {
+        for (const dz of [-1, 0, 1]) {
+          const chunk = chunkAt(x + dx, z + dz);
+          if (chunk) chunk.dirty = true;
+        }
+      }
+    }
+
+    function updateChunks() {
+      let rebuilt = 0;
+      for (const chunk of chunks) {
+        if (chunk.dirty && rebuilt < 4) {
+          buildChunk(chunk);
+          rebuilt++;
+        }
+        const far = Math.hypot(chunk.centerX - camera.position.x, chunk.centerZ - camera.position.z) > VIEW_DISTANCE;
+        if (chunk.opaqueMesh) chunk.opaqueMesh.visible = !far;
+        if (chunk.glassMesh) chunk.glassMesh.visible = !far;
+      }
+    }
+
+    /* --- Torches (松明) --- */
+    const torchGroup = new THREE.Group();
+    scene.add(torchGroup);
+    const torchMeshes = new Map(); // "x,y,z" -> Group
+    const torchStickGeo = new THREE.BoxGeometry(0.12, 0.55, 0.12);
+    const torchFlameGeo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+    const torchStickMat = new THREE.MeshLambertMaterial({ color: 0x7a5530 });
+    const torchFlameMat = new THREE.MeshBasicMaterial({ color: 0xffcc33 });
+
+    function addTorchMesh(x, y, z) {
+      const group = new THREE.Group();
+      const stick = new THREE.Mesh(torchStickGeo, torchStickMat);
+      stick.position.y = -0.22;
+      const flame = new THREE.Mesh(torchFlameGeo, torchFlameMat);
+      flame.position.y = 0.12;
+      group.add(stick, flame);
+      group.position.set(x, y, z);
+      torchGroup.add(group);
+      torchMeshes.set(blockKey(x, y, z), group);
+    }
+
+    function removeTorchMesh(x, y, z) {
+      const key = blockKey(x, y, z);
+      const group = torchMeshes.get(key);
+      if (group) {
+        torchGroup.remove(group);
+        torchMeshes.delete(key);
+      }
+    }
+
+    // 近く（distance マス以内）に松明があるか。松明の近くには敵が出ない
+    function isNearTorch(x, y, z, distance) {
+      for (const group of torchMeshes.values()) {
+        if (group.position.distanceTo({ x, y, z }) < distance) return true;
+      }
+      return false;
+    }
+
+    /* --- Placing & Removing Blocks --- */
+    function addBlock(x, y, z, id, playSoundFlag = false) {
+      x = Math.round(x);
+      y = Math.round(y);
+      z = Math.round(z);
+      if (!inBounds(x, y, z)) return false;
+      const i = cellIndex(x, y, z);
+      if (world[i] !== 0) return false;
+
+      world[i] = id;
+      blockCount++;
+      blockChanges.set(blockKey(x, y, z), id);
+      if (BLOCKS[id].torch) addTorchMesh(x, y, z);
+      else markDirty(x, z);
 
       if (playSoundFlag) playSound('place');
       return true;
     }
 
-    // 壊したブロックの種類を返す（無ければ null）
+    // 壊したブロックの番号を返す（無ければ null）
     function removeBlock(x, y, z, playSoundFlag = true) {
       x = Math.round(x);
       y = Math.round(y);
       z = Math.round(z);
-      const key = getBlockKey(x, y, z);
-      const blockIndex = worldData.get(key);
-      if (blockIndex === undefined) return null;
+      if (!inBounds(x, y, z)) return null;
+      const i = cellIndex(x, y, z);
+      const id = world[i];
+      if (id === 0) return null;
 
-      worldData.delete(key);
-      blockChanges.set(key, -1);
-      refreshAround(x, y, z);
+      world[i] = 0;
+      blockCount--;
+      blockChanges.set(blockKey(x, y, z), 0);
+      if (BLOCKS[id].torch) removeTorchMesh(x, y, z);
+      else markDirty(x, z);
 
       if (playSoundFlag) playSound('break');
-      return blockIndex;
+      return id;
     }
 
     /* --- Procedural Terrain --- */
+    // シードから地形のずらし量を決めて、ワールドごとに違う形にする
+    let terrainOffsetX = 0;
+    let terrainOffsetZ = 0;
+
     function surfaceHeight(x, z) {
-      const v = Math.sin(x * 0.18) * Math.cos(z * 0.18) +
-                Math.sin(x * 0.35 + z * 0.2) * 0.5 +
-                Math.cos(x * 0.08 - z * 0.12) * 0.8;
-      return Math.floor(v * 2.2) + 3;
+      x += terrainOffsetX;
+      z += terrainOffsetZ;
+      const hills = 3 * Math.sin(x * 0.05) * Math.cos(z * 0.045) +
+                    2.2 * Math.sin(x * 0.12 + z * 0.09) +
+                    1.2 * Math.cos(x * 0.21 - z * 0.17);
+      const mountains = 9 * Math.max(0, Math.sin(x * 0.018 + 1.3) * Math.cos(z * 0.021 - 0.7) - 0.3);
+      return Math.floor(4 + hills + mountains);
     }
 
     // 深いほどレアな鉱石が出る
@@ -1034,10 +1354,13 @@
       if (y < -18 && r < 0.03) return GOLD_ORE;
       if (y < -6 && r < 0.06) return IRON_ORE;
       if (r < 0.08) return COAL_ORE;
-      return 3; // Stone
+      return STONE;
     }
 
     function generateWorld() {
+      terrainOffsetX = (worldSeed % 10007) * 1.37;
+      terrainOffsetZ = (Math.floor(worldSeed / 10007) % 10007) * 1.91;
+
       for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
         for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) {
           const surfaceY = surfaceHeight(x, z);
@@ -1047,31 +1370,30 @@
             setBlockData(x, y, z, undergroundBlock(y));
           }
           for (let y = surfaceY - 2; y < surfaceY; y++) {
-            setBlockData(x, y, z, 2); // Dirt (index 2)
+            setBlockData(x, y, z, DIRT);
           }
-          setBlockData(x, surfaceY, z, 1); // Grass (index 1)
+          setBlockData(x, surfaceY, z, GRASS);
 
-          // 木の生成
-          // スタート地点のまわりには木を生やさない
+          // 木の生成（スタート地点のまわりには生やさない）
           const nearSpawn = Math.abs(x) <= 3 && Math.abs(z) <= 3;
           if (!nearSpawn && x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
             if (worldRandom() < 0.025 && surfaceY >= 2) {
               const trunkHeight = worldRandInt(3, 4);
               for (let ty = 1; ty <= trunkHeight; ty++) {
-                setBlockData(x, surfaceY + ty, z, 4); // Wood (index 4)
+                setBlockData(x, surfaceY + ty, z, WOOD);
               }
               const topY = surfaceY + trunkHeight;
               for (let lx = -2; lx <= 2; lx++) {
                 for (let lz = -2; lz <= 2; lz++) {
                   for (let ly = 0; ly <= 1; ly++) {
                     if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && worldRandom() > 0.4) continue;
-                    setBlockData(x + lx, topY + ly, z + lz, 5); // Leaves (index 5)
+                    setBlockData(x + lx, topY + ly, z + lz, LEAVES);
                   }
                 }
               }
               for (let lx = -1; lx <= 1; lx++) {
                 for (let lz = -1; lz <= 1; lz++) {
-                  setBlockData(x + lx, topY + 2, z + lz, 5);
+                  setBlockData(x + lx, topY + 2, z + lz, LEAVES);
                 }
               }
             }
@@ -1080,22 +1402,6 @@
       }
 
       generateCaves();
-    }
-
-    function buildAllMeshes() {
-      for (const key of worldData.keys()) {
-        const [x, y, z] = key.split(',').map(Number);
-        refreshMesh(x, y, z);
-      }
-    }
-
-    // セーブデータの「生成後に変わったブロック」を反映（-1 は壊したブロック）
-    function applyBlockChanges(changes) {
-      Object.entries(changes).forEach(([key, blockIndex]) => {
-        if (blockIndex === -1) worldData.delete(key);
-        else worldData.set(key, blockIndex);
-        blockChanges.set(key, blockIndex);
-      });
     }
 
     /* --- Cave Generation --- */
@@ -1108,10 +1414,9 @@
             if (y <= BEDROCK_Y) continue;
             if (Math.hypot(x - cx, y - cy, z - cz) > r) continue;
             if (Math.abs(x) <= 2 && Math.abs(z) <= 2 && y >= spawnSurface - 5) continue;
-            const key = getBlockKey(x, y, z);
-            const idx = worldData.get(key);
-            if (idx === undefined || idx === BEDROCK || idx === 4 || idx === 5) continue;
-            worldData.delete(key);
+            const id = getBlock(x, y, z);
+            if (id === 0 || id === BEDROCK || id === WOOD || id === LEAVES) continue;
+            clearBlockData(x, y, z);
           }
         }
       }
@@ -1154,12 +1459,12 @@
     }
 
     function generateCaves() {
-      // 地下を走るトンネル
-      for (let i = 0; i < 9; i++) {
+      // 地下を走るトンネル（ワールドが広いので本数も多い）
+      for (let i = 0; i < 110; i++) {
         carveWorm(worldRandInt(-HALF_SIZE + 2, HALF_SIZE - 2), worldRandInt(BEDROCK_Y + 4, -8), worldRandInt(-HALF_SIZE + 2, HALF_SIZE - 2), worldRandInt(40, 80), false);
       }
       // 地表から入れる洞窟の入口
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 20; i++) {
         let x, z;
         do {
           x = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
@@ -1169,12 +1474,34 @@
       }
     }
 
+    // セーブデータの「生成後に変わったブロック」を反映（0 は壊したブロック）
+    function applyBlockChanges(changes) {
+      Object.entries(changes).forEach(([key, id]) => {
+        const [x, y, z] = key.split(',').map(Number);
+        if (!inBounds(x, y, z)) return;
+        clearBlockData(x, y, z);
+        if (id > 0) {
+          setBlockData(x, y, z, id);
+          if (BLOCKS[id] && BLOCKS[id].torch) addTorchMesh(x, y, z);
+        }
+        blockChanges.set(key, id);
+      });
+    }
+
+    // その列で一番上の「乗れる」ブロックの上面の高さ（足の位置）
+    function findGroundY(x, z) {
+      for (let y = MAX_Y; y >= BEDROCK_Y; y--) {
+        if (isSolid(x, y, z)) return y + 0.5;
+      }
+      return BEDROCK_Y + 0.5;
+    }
+
     const savedGame = loadSave();
     worldSeed = savedGame ? savedGame.seed : Math.floor(Math.random() * 2 ** 31);
     worldRngState = worldSeed;
     generateWorld();
     if (savedGame) applyBlockChanges(savedGame.changes);
-    buildAllMeshes();
+    buildAllChunks();
 
     /* --- Particle System (Explosions & Hits) --- */
     const particles = [];
@@ -1209,10 +1536,11 @@
       }
     }
 
-    /* --- Player Physics & State --- */
+    /* --- Player State --- */
     const player = {
-      height: 1.6,
-      radius: 0.35,
+      eye: 1.6,          // 足から目（カメラ）までの高さ
+      bodyHeight: 1.75,  // 体の高さ（頭がぶつかる高さ）
+      radius: 0.3,
       speed: 7.0,
       jumpVelocity: 8.5,
       velocity: new THREE.Vector3(),
@@ -1224,20 +1552,41 @@
       regenTimer: 0
     };
 
-    // 体が重なる列の中で一番高いブロックの上に立たせる（木や地面に埋まって動けなくならないように）
-    function placePlayerOnGround(x, z) {
-      let topY = BEDROCK_Y;
-      for (let cx = Math.floor(x - player.radius); cx <= Math.floor(x + player.radius); cx++) {
-        for (let cz = Math.floor(z - player.radius); cz <= Math.floor(z + player.radius); cz++) {
-          for (let y = 40; y > topY; y--) {
-            if (hasBlock(cx, y, cz)) {
-              topY = y;
-              break;
-            }
+    /* --- Collision (当たり判定) --- */
+    // ブロック n は n-0.5 〜 n+0.5 の範囲を占める（見た目と当たり判定をそろえる）
+    const COLLISION_EPS = 1e-4;
+
+    // 箱（中心 x,z・足の高さ・半径・高さ）が、ぶつかるブロックに重なっているか
+    function collidesBox(x, feetY, z, radius, height) {
+      const minX = Math.floor(x - radius + 0.5 + COLLISION_EPS);
+      const maxX = Math.floor(x + radius + 0.5 - COLLISION_EPS);
+      const minY = Math.floor(feetY + 0.5 + COLLISION_EPS);
+      const maxY = Math.floor(feetY + height + 0.5 - COLLISION_EPS);
+      const minZ = Math.floor(z - radius + 0.5 + COLLISION_EPS);
+      const maxZ = Math.floor(z + radius + 0.5 - COLLISION_EPS);
+      for (let bx = minX; bx <= maxX; bx++) {
+        for (let by = minY; by <= maxY; by++) {
+          for (let bz = minZ; bz <= maxZ; bz++) {
+            if (isSolid(bx, by, bz)) return true;
           }
         }
       }
-      camera.position.set(x, topY + 1 + player.height, z);
+      return false;
+    }
+
+    function playerCollides() {
+      return collidesBox(camera.position.x, camera.position.y - player.eye, camera.position.z, player.radius, player.bodyHeight);
+    }
+
+    // 体が重なる列の中で一番高い地面の上に立たせる（木や地面に埋まって動けなくならないように）
+    function placePlayerOnGround(x, z) {
+      let groundY = BEDROCK_Y + 0.5;
+      for (let cx = Math.floor(x - player.radius + 0.5); cx <= Math.floor(x + player.radius + 0.5); cx++) {
+        for (let cz = Math.floor(z - player.radius + 0.5); cz <= Math.floor(z + player.radius + 0.5); cz++) {
+          groundY = Math.max(groundY, findGroundY(cx, cz));
+        }
+      }
+      camera.position.set(x, groundY + player.eye, z);
       player.velocity.set(0, 0, 0);
     }
 
@@ -1271,7 +1620,9 @@
 
     function damagePlayer(amount, knockbackDir = null) {
       if (player.invulnerableTimer > 0 || player.health <= 0) return;
-      player.health = Math.max(0, player.health - amount);
+      // 防具を持っていればダメージが減る
+      const reduced = Math.max(1, Math.round(amount * (1 - armorProtection())));
+      player.health = Math.max(0, player.health - reduced);
       player.invulnerableTimer = 0.8; // 0.8秒無敵
       player.regenCooldown = 6;
       playSound('hurt');
@@ -1297,169 +1648,169 @@
       }
     }
 
+    function healPlayer(amount) {
+      player.health = Math.min(player.maxHealth, player.health + amount);
+      updateHealthUI();
+    }
+
     respawnBtn.addEventListener('click', () => {
       player.health = player.maxHealth;
       updateHealthUI();
       placePlayerOnGround(0, 0);
-      player.velocity.set(0, 0, 0);
       player.invulnerableTimer = 3; // 復活直後は3秒無敵
-      // 復活地点の近くにいる敵は消す（後で離れた場所にリスポーンする）
+      // 復活地点の近くにいる敵は消す（後で離れた場所に湧き直す）
       [...mobs].forEach(mob => {
-        if (Math.hypot(mob.group.position.x, mob.group.position.z) < 12) removeMob(mob);
+        if (Math.hypot(mob.group.position.x, mob.group.position.z) < 16) removeMob(mob);
       });
       gameOverScreen.style.display = 'none';
       controls.lock();
     });
 
-    /* --- Enemies (Mobs: Creeper & Zombie) --- */
+    /* --- Enemies: Models (見た目) --- */
     const mobs = [];
     const mobCountDisplay = document.getElementById('mob-count');
 
-    // クリーパー作成
-    function createCreeper(x, y, z) {
-      const group = new THREE.Group();
-
-      // 頭
-      const headMat = [
-        new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
-        new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
-        new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
-        new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
-        new THREE.MeshLambertMaterial({ map: textures.creeperFace }), // 前
-        new THREE.MeshLambertMaterial({ map: textures.creeperSkin })
-      ];
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
-      head.position.y = 1.15;
-      head.castShadow = true;
-      group.add(head);
-
-      // 胴体
-      const bodyMat = new THREE.MeshLambertMaterial({ map: textures.creeperSkin });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), bodyMat);
-      body.position.y = 0.65;
-      body.castShadow = true;
-      group.add(body);
-
-      // 4本足
-      const legMat = new THREE.MeshLambertMaterial({ map: textures.creeperSkin });
-      const legGeo = new THREE.BoxGeometry(0.18, 0.35, 0.18);
-      const legs = [];
-      const offsets = [
-        [-0.14, -0.1],
-        [0.14, -0.1],
-        [-0.14, 0.1],
-        [0.14, 0.1]
-      ];
-      for (let i = 0; i < 4; i++) {
-        const leg = new THREE.Mesh(legGeo, legMat);
-        leg.position.set(offsets[i][0], 0.18, offsets[i][1]);
-        leg.castShadow = true;
-        group.add(leg);
-        legs.push(leg);
-      }
-
-      group.position.set(x, y, z);
-      scene.add(group);
-
-      const mob = {
-        type: 'creeper',
-        group,
-        head,
-        body,
-        legs,
-        health: 15,
-        speed: 2.8,
-        fuseTimer: 0,
-        fuseDuration: 1.5,
-        exploding: false,
-        flashTimer: 0,
-        hitFlashTimer: 0
-      };
-      mobs.push(mob);
-      return mob;
+    function addBox(group, size, material, position) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.castShadow = true;
+      group.add(mesh);
+      return mesh;
     }
 
-    // ゾンビ作成
-    function createZombie(x, y, z) {
-      const group = new THREE.Group();
+    // 正面（+Z の面）だけ顔の絵にした頭の材質
+    function faceMaterials(sideOptions, faceTexture, extra = {}) {
+      return [0, 1, 2, 3, 4, 5].map(i => new THREE.MeshLambertMaterial(
+        i === 4 ? { map: faceTexture, ...extra } : { ...sideOptions, ...extra }
+      ));
+    }
 
-      // 頭
-      const headMat = [
+    function buildZombie() {
+      const group = new THREE.Group();
+      const head = addBox(group, [0.5, 0.5, 0.5], [
         new THREE.MeshLambertMaterial({ color: 0x497c36 }),
         new THREE.MeshLambertMaterial({ color: 0x497c36 }),
         new THREE.MeshLambertMaterial({ color: 0x22381b }), // 髪
         new THREE.MeshLambertMaterial({ color: 0x497c36 }),
         new THREE.MeshLambertMaterial({ map: textures.zombieFace }),
         new THREE.MeshLambertMaterial({ color: 0x22381b })
-      ];
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
-      head.position.y = 1.4;
-      head.castShadow = true;
-      group.add(head);
-
-      // 胴体 (水色のシャツ)
-      const bodyMat = new THREE.MeshLambertMaterial({ color: 0x248f8f });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.65, 0.28), bodyMat);
-      body.position.y = 0.85;
-      body.castShadow = true;
-      group.add(body);
-
-      // 腕 (前に突き出し)
+      ], [0, 1.55, 0]);
+      addBox(group, [0.48, 0.65, 0.28], new THREE.MeshLambertMaterial({ color: 0x248f8f }), [0, 0.98, 0]); // 水色のシャツ
       const armMat = new THREE.MeshLambertMaterial({ color: 0x497c36 });
-      const armGeo = new THREE.BoxGeometry(0.18, 0.55, 0.18);
-      const armL = new THREE.Mesh(armGeo, armMat);
-      armL.position.set(-0.33, 0.9, 0.22);
+      const armL = addBox(group, [0.18, 0.55, 0.18], armMat, [-0.33, 1.1, 0.22]);
+      const armR = addBox(group, [0.18, 0.55, 0.18], armMat, [0.33, 1.1, 0.22]);
       armL.rotation.x = Math.PI / 2;
-      armL.castShadow = true;
-      group.add(armL);
-
-      const armR = new THREE.Mesh(armGeo, armMat);
-      armR.position.set(0.33, 0.9, 0.22);
       armR.rotation.x = Math.PI / 2;
-      armR.castShadow = true;
-      group.add(armR);
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x26337a }); // 青ズボン
+      const legL = addBox(group, [0.2, 0.65, 0.22], legMat, [-0.13, 0.33, 0]);
+      const legR = addBox(group, [0.2, 0.65, 0.22], legMat, [0.13, 0.33, 0]);
+      return { group, head, legs: [legL, legR] };
+    }
 
-      // 足 (青ズボン)
-      const legMat = new THREE.MeshLambertMaterial({ color: 0x26337a });
-      const legGeo = new THREE.BoxGeometry(0.2, 0.6, 0.22);
-      const legL = new THREE.Mesh(legGeo, legMat);
-      legL.position.set(-0.13, 0.3, 0);
-      legL.castShadow = true;
-      group.add(legL);
+    function buildCreeper() {
+      const group = new THREE.Group();
+      const head = addBox(group, [0.5, 0.5, 0.5], faceMaterials({ map: textures.creeperSkin }, textures.creeperFace), [0, 1.15, 0]);
+      addBox(group, [0.45, 0.65, 0.3], new THREE.MeshLambertMaterial({ map: textures.creeperSkin }), [0, 0.65, 0]);
+      const legMat = new THREE.MeshLambertMaterial({ map: textures.creeperSkin });
+      const legs = [[-0.14, -0.1], [0.14, -0.1], [-0.14, 0.1], [0.14, 0.1]]
+        .map(([x, z]) => addBox(group, [0.18, 0.35, 0.18], legMat, [x, 0.18, z]));
+      return { group, head, legs };
+    }
 
-      const legR = new THREE.Mesh(legGeo, legMat);
-      legR.position.set(0.13, 0.3, 0);
-      legR.castShadow = true;
-      group.add(legR);
+    function buildSpider() {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0x3a2f2f });
+      addBox(group, [0.7, 0.4, 0.6], bodyMat, [0, 0.45, 0.05]);
+      addBox(group, [0.85, 0.55, 0.8], bodyMat, [0, 0.5, -0.6]); // おしり
+      const head = addBox(group, [0.5, 0.45, 0.45], faceMaterials({ color: 0x3a2f2f }, textures.spiderFace), [0, 0.45, 0.55]);
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x2a2222 });
+      const legs = [];
+      for (let i = 0; i < 8; i++) {
+        const side = i < 4 ? 1 : -1;
+        const zPos = 0.3 - (i % 4) * 0.2;
+        const leg = addBox(group, [0.9, 0.08, 0.08], legMat, [side * 0.55, 0.45, zPos]);
+        leg.rotation.z = side * 0.5;
+        legs.push(leg);
+      }
+      return { group, head, legs };
+    }
 
-      group.position.set(x, y, z);
-      scene.add(group);
+    function buildSkeleton() {
+      const group = new THREE.Group();
+      const boneMat = new THREE.MeshLambertMaterial({ color: 0xd0d0d0 });
+      const head = addBox(group, [0.5, 0.5, 0.5], faceMaterials({ color: 0xd8d8d8 }, textures.skeletonFace), [0, 1.55, 0]);
+      addBox(group, [0.4, 0.65, 0.2], boneMat, [0, 0.98, 0]);
+      const armL = addBox(group, [0.1, 0.6, 0.1], boneMat, [-0.28, 1.1, 0.22]);
+      const armR = addBox(group, [0.1, 0.6, 0.1], boneMat, [0.28, 1.1, 0.22]);
+      armL.rotation.x = Math.PI / 2;
+      armR.rotation.x = Math.PI / 2;
+      addBox(group, [0.06, 0.7, 0.06], new THREE.MeshLambertMaterial({ color: 0x7a5530 }), [0.28, 1.1, 0.55]); // 弓
+      const legL = addBox(group, [0.12, 0.65, 0.12], boneMat, [-0.12, 0.33, 0]);
+      const legR = addBox(group, [0.12, 0.65, 0.12], boneMat, [0.12, 0.33, 0]);
+      return { group, head, legs: [legL, legR] };
+    }
 
+    function buildSlime(size) {
+      const group = new THREE.Group();
+      const body = addBox(group, [size, size, size],
+        faceMaterials({ color: 0x6cc24a }, textures.slimeFace, { transparent: true, opacity: 0.75 }),
+        [0, size / 2, 0]);
+      addBox(group, [size * 0.55, size * 0.55, size * 0.55], new THREE.MeshLambertMaterial({ color: 0x3f8a2a }), [0, size / 2, 0]);
+      return { group, head: body, legs: [] };
+    }
+
+    // 敵の種類ごとの強さ（地上の強さ。深い場所ではさらに強くなる）
+    const MOB_DEFS = {
+      zombie: { name: 'ゾンビ', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
+      creeper: { name: 'クリーパー', health: 15, speed: 2.6, radius: 0.3, height: 1.4, sight: 16, build: buildCreeper },
+      spider: { name: 'クモ', health: 16, speed: 4.0, radius: 0.55, height: 0.8, sight: 18, damage: 2, climbs: true, drop: 'string', build: buildSpider },
+      skeleton: { name: 'スケルトン', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, ranged: true, build: buildSkeleton },
+      slime: { name: 'スライム', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, drop: 'slimeball', build: buildSlime }
+    };
+
+    // x, z は中心、y は足の高さ。size はスライムの大きさ（1: 大きい, 0.5: 小さい）
+    function createMob(type, x, y, z, size = 1) {
+      const def = MOB_DEFS[type];
+      const model = def.build(size);
+      model.group.position.set(x, y, z);
+      scene.add(model.group);
       const mob = {
-        type: 'zombie',
-        group,
-        head,
-        body,
-        legs: [legL, legR],
-        arms: [armL, armR],
-        health: 20,
-        speed: 2.4,
-        attackCooldown: 0,
-        hitFlashTimer: 0
+        type,
+        def,
+        ...model,
+        size,
+        health: Math.max(2, Math.round(def.health * size * size)),
+        speed: def.speed,
+        radius: def.radius * size,
+        height: def.height * size,
+        velocity: new THREE.Vector3(),
+        onGround: false,
+        power: 1,
+        baseScale: 1,
+        tint: new THREE.Color(1, 1, 1),
+        attackCooldown: 1,
+        hitFlashTimer: 0,
+        farTimer: 0,
+        hopTimer: 0.5 + Math.random(),
+        shootTimer: 1 + Math.random() * 2,
+        fuseTimer: 0,
+        fuseDuration: 1.5,
+        exploding: false,
+        flashTimer: 0
       };
       mobs.push(mob);
       return mob;
     }
 
-    // その列で一番上のブロックの上に立てる高さ
-    function findGroundY(x, z) {
-      for (let y = 30; y >= BEDROCK_Y; y--) {
-        if (hasBlock(x, y, z)) return y + 0.5;
+    function removeMob(mob) {
+      const idx = mobs.indexOf(mob);
+      if (idx !== -1) {
+        scene.remove(mob.group);
+        mobs.splice(idx, 1);
       }
-      return 3;
     }
 
-    /* --- Mob Strength (深いほど強い) --- */
+    /* --- Enemies: Strength (深いほど強い) --- */
     const HIT_RED = new THREE.Color(1.5, 0.3, 0.3);
     const FUSE_WHITE = new THREE.Color(2, 2, 2);
 
@@ -1479,16 +1830,31 @@
       mob.power = 1 + t;                                 // 攻撃力は最大2倍
       mob.speed *= 1 + t * 0.4;
       mob.baseScale = 1 + t * 0.35;
+      mob.radius *= mob.baseScale;
+      mob.height *= mob.baseScale;
       mob.group.scale.setScalar(mob.baseScale);
       mob.tint = new THREE.Color(1, 1 - t * 0.45, 1 - t * 0.45);
       setMobColor(mob, mob.tint);
     }
 
-    /* --- Mob Spawning (夜と暗い地下で湧く) --- */
+    /* --- Enemies: Spawning (夜と暗い地下で湧く) --- */
     const pendingSpawns = []; // 各スポーン予約の残り秒数
     let killCount = 0;
     const killCountDisplay = document.getElementById('kill-count');
     let currentDepth = 0; // プレイヤーの今の深さ（updateAtmosphere で更新）
+
+    // 出てくる敵の種類と出やすさ
+    const SURFACE_MOBS = [['zombie', 35], ['creeper', 25], ['spider', 25], ['skeleton', 15]];
+    const UNDERGROUND_MOBS = [['zombie', 25], ['creeper', 20], ['spider', 15], ['skeleton', 20], ['slime', 20]];
+
+    function pickWeighted(list) {
+      let r = Math.random() * list.reduce((sum, [, w]) => sum + w, 0);
+      for (const [type, weight] of list) {
+        r -= weight;
+        if (r <= 0) return type;
+      }
+      return list[0][0];
+    }
 
     // 暗いかどうか（夜、または地面から5m以上もぐった場所）
     function isDarkAt(x, y, z) {
@@ -1497,26 +1863,29 @@
 
     // 同時に出てくる敵の数。昼の地上は0、夜の地上は倒した数で増え、地下は深いほど増える
     function desiredMobCount() {
-      if (currentDepth >= 5) return Math.min(6, 2 + Math.floor(currentDepth / 10));
-      if (daylight < 0.3) return Math.min(8, 3 + Math.floor(killCount / 4));
+      if (currentDepth >= 5) return Math.min(8, 3 + Math.floor(currentDepth / 8));
+      if (daylight < 0.3) return Math.min(10, 4 + Math.floor(killCount / 4));
       return 0;
     }
 
-    function spawnMobAt(x, y, z) {
-      const mob = Math.random() < 0.5 ? createCreeper(x, y, z) : createZombie(x, y, z);
+    function spawnMobAt(type, x, y, z) {
+      const def = MOB_DEFS[type];
+      if (collidesBox(x, y, z, def.radius, def.height) || isNearTorch(x, y, z, 8)) return null;
+      const mob = createMob(type, x, y, z);
       applyMobStrength(mob);
-      spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0x9933ff, 16, 3);
+      spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9933ff, 16, 3);
+      return mob;
     }
 
     // 夜の地上: プレイヤーから少し離れた地表に出す
     function spawnSurfaceMob() {
       for (let attempt = 0; attempt < 20; attempt++) {
-        const x = rand(-HALF_SIZE + 1, HALF_SIZE - 1);
-        const z = rand(-HALF_SIZE + 1, HALF_SIZE - 1);
-        const d = Math.hypot(x - camera.position.x, z - camera.position.z);
-        if (d < 12 || d > 24) continue;
-        spawnMobAt(x, findGroundY(x, z) + 0.5, z);
-        return true;
+        const angle = Math.random() * Math.PI * 2;
+        const r = 14 + Math.random() * 14;
+        const x = Math.round(camera.position.x + Math.cos(angle) * r);
+        const z = Math.round(camera.position.z + Math.sin(angle) * r);
+        if (!isInsideWorld(x, z)) continue;
+        if (spawnMobAt(pickWeighted(SURFACE_MOBS), x, findGroundY(x, z), z)) return true;
       }
       return false;
     }
@@ -1525,17 +1894,14 @@
     function spawnUndergroundMob() {
       const px = camera.position.x;
       const pz = camera.position.z;
-      const feetY = Math.floor(camera.position.y - player.height + 1e-6);
+      const feetCell = Math.floor(camera.position.y - player.eye + 0.5);
       for (let attempt = 0; attempt < 60; attempt++) {
-        const x = Math.round(px + rand(-14, 14));
-        const z = Math.round(pz + rand(-14, 14));
+        const x = Math.round(px + rand(-16, 16));
+        const z = Math.round(pz + rand(-16, 16));
         if (!isInsideWorld(x, z) || Math.hypot(x - px, z - pz) < 6) continue;
-        for (let y = feetY + 6; y >= feetY - 8; y--) {
-          if (hasBlock(x, y - 1, z) && !hasBlock(x, y, z) && !hasBlock(x, y + 1, z)) {
-            if (y < surfaceHeight(x, z) - 4) {
-              spawnMobAt(x, y, z);
-              return true;
-            }
+        for (let y = feetCell + 6; y >= feetCell - 8; y--) {
+          if (isSolid(x, y - 1, z) && !isSolid(x, y, z) && !isSolid(x, y + 1, z)) {
+            if (y < surfaceHeight(x, z) - 4 && spawnMobAt(pickWeighted(UNDERGROUND_MOBS), x, y - 0.5, z)) return true;
             break;
           }
         }
@@ -1558,33 +1924,130 @@
       }
     }
 
-    // クリーパー大爆発の処理
+    /* --- Enemies: Physics (壁にめり込まない動き) --- */
+    const MOB_GRAVITY = 22;
+
+    function moveMob(mob, delta) {
+      const p = mob.group.position;
+      const v = mob.velocity;
+      const r = mob.radius;
+      const h = mob.height;
+
+      // ブロックに埋まっていたら（上にブロックを置かれた等）上に押し出す
+      if (collidesBox(p.x, p.y, p.z, r, h)) p.y = Math.floor(p.y + 0.5) + 0.5 + 1;
+
+      v.y -= MOB_GRAVITY * delta;
+      let blocked = false;
+
+      // 横は X と Z を別々に動かし、ぶつかる方向だけ止める
+      const dx = (mob.moveX + v.x) * delta;
+      if (dx !== 0) {
+        if (!collidesBox(p.x + dx, p.y, p.z, r, h)) p.x += dx;
+        else { blocked = true; v.x = 0; }
+      }
+      const dz = (mob.moveZ + v.z) * delta;
+      if (dz !== 0) {
+        if (!collidesBox(p.x, p.y, p.z + dz, r, h)) p.z += dz;
+        else { blocked = true; v.z = 0; }
+      }
+
+      const ny = p.y + v.y * delta;
+      if (!collidesBox(p.x, ny, p.z, r, h)) {
+        p.y = ny;
+        mob.onGround = false;
+      } else {
+        if (v.y < 0) {
+          const snapped = Math.floor(ny + 0.5) + 0.5; // 足を下のブロックの上面にそろえる
+          if (!collidesBox(p.x, snapped, p.z, r, h)) p.y = snapped;
+          mob.onGround = true;
+        }
+        v.y = 0;
+      }
+
+      // 壁に当たったら、地面にいればジャンプ。クモは壁を登る
+      if (blocked) {
+        if (mob.def.climbs) v.y = Math.max(v.y, 3.5);
+        else if (mob.onGround && mob.type !== 'slime') v.y = 7.2;
+      }
+
+      // ノックバックはすぐ減速する
+      const damping = Math.max(0, 1 - 6 * delta);
+      v.x *= damping;
+      v.z *= damping;
+
+      p.x = THREE.MathUtils.clamp(p.x, -HALF_SIZE, HALF_SIZE);
+      p.z = THREE.MathUtils.clamp(p.z, -HALF_SIZE, HALF_SIZE);
+    }
+
+    // 2点の間にぶつかるブロックが無いか（スケルトンが矢を撃てるか）
+    function hasLineOfSight(from, to) {
+      const dir = to.clone().sub(from);
+      const length = dir.length();
+      dir.normalize();
+      for (let t = 0.5; t < length; t += 0.25) {
+        if (isSolid(from.x + dir.x * t, from.y + dir.y * t, from.z + dir.z * t)) return false;
+      }
+      return true;
+    }
+
+    /* --- Enemies: Arrows (スケルトンの矢) --- */
+    const arrows = [];
+    const ARROW_GRAVITY = 9;
+    const arrowGeo = new THREE.BoxGeometry(0.05, 0.05, 0.5);
+    const arrowMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
+
+    function shootArrow(mob, target) {
+      const p = mob.group.position;
+      const from = new THREE.Vector3(p.x, p.y + 1.4 * mob.baseScale, p.z);
+      const dir = target.clone().sub(from);
+      const distance = dir.length();
+      const speed = 16;
+      const vel = dir.normalize().multiplyScalar(speed);
+      vel.y += 0.5 * ARROW_GRAVITY * (distance / speed); // 重力で落ちる分だけ上に向けて撃つ
+      const mesh = new THREE.Mesh(arrowGeo, arrowMat);
+      mesh.position.copy(from);
+      mesh.lookAt(from.clone().add(vel));
+      scene.add(mesh);
+      arrows.push({ mesh, vel, life: 4, damage: Math.round(mob.def.damage * mob.power) });
+      playSound('bow');
+    }
+
+    function updateArrows(delta) {
+      const feetY = camera.position.y - player.eye;
+      for (let i = arrows.length - 1; i >= 0; i--) {
+        const a = arrows[i];
+        a.vel.y -= ARROW_GRAVITY * delta;
+        a.mesh.position.addScaledVector(a.vel, delta);
+        a.mesh.lookAt(a.mesh.position.clone().add(a.vel));
+        a.life -= delta;
+        const pos = a.mesh.position;
+
+        const hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.45 && Math.abs(pos.z - camera.position.z) < 0.45 &&
+          pos.y > feetY && pos.y < feetY + player.bodyHeight;
+        if (hitsPlayer) damagePlayer(a.damage, new THREE.Vector3(a.vel.x, 0, a.vel.z).normalize());
+        if (hitsPlayer || a.life <= 0 || isSolid(pos.x, pos.y, pos.z)) {
+          scene.remove(a.mesh);
+          arrows.splice(i, 1);
+        }
+      }
+    }
+
+    /* --- Enemies: Explosion, Damage & Drops --- */
     function triggerCreeperExplosion(mob) {
       playSound('explosion');
       const center = mob.group.position.clone().add(new THREE.Vector3(0, 0.5, 0));
-
-      // パーティクル
       spawnParticles(center, 0xffffff, 40, 9);
       spawnParticles(center, 0xff5500, 30, 8);
       spawnParticles(center, 0x444444, 25, 6);
 
-      // 地形破壊 (半径2.6ブロック以内のブロックを吹き飛ばす)
+      // 地形破壊 (半径2.6ブロック以内のブロックを吹き飛ばす。岩盤は残る)
       const radius = 2.6;
-      const minX = Math.floor(center.x - radius);
-      const maxX = Math.ceil(center.x + radius);
-      const minY = Math.floor(center.y - radius);
-      const maxY = Math.ceil(center.y + radius);
-      const minZ = Math.floor(center.z - radius);
-      const maxZ = Math.ceil(center.z + radius);
-
-      for (let x = minX; x <= maxX; x++) {
-        for (let y = minY; y <= maxY; y++) {
-          for (let z = minZ; z <= maxZ; z++) {
-            const blockIndex = worldData.get(getBlockKey(x, y, z));
-            if (blockIndex === undefined || blockIndex === BEDROCK) continue;
-            if (Math.hypot(x - center.x, y - center.y, z - center.z) <= radius) {
-              removeBlock(x, y, z, false);
-            }
+      for (let x = Math.floor(center.x - radius); x <= Math.ceil(center.x + radius); x++) {
+        for (let y = Math.floor(center.y - radius); y <= Math.ceil(center.y + radius); y++) {
+          for (let z = Math.floor(center.z - radius); z <= Math.ceil(center.z + radius); z++) {
+            const id = getBlock(x, y, z);
+            if (id === 0 || id === BEDROCK) continue;
+            if (Math.hypot(x - center.x, y - center.y, z - center.z) <= radius) removeBlock(x, y, z, false);
           }
         }
       }
@@ -1594,149 +2057,181 @@
       if (distToPlayer < 5.0) {
         // 最大14ダメージ。深い場所のクリーパーは強いが、18で頭打ち（満タンからは即死しない）
         const damage = Math.min(18, Math.round(((1.0 - distToPlayer / 5.0) * 12 + 2) * mob.power));
-        const knockback = camera.position.clone().sub(center).normalize();
-        damagePlayer(damage, knockback);
+        damagePlayer(damage, camera.position.clone().sub(center).normalize());
       }
-
-      // モブ自身を消去
       removeMob(mob);
     }
 
-    function removeMob(mob) {
-      const idx = mobs.indexOf(mob);
-      if (idx !== -1) {
-        scene.remove(mob.group);
-        mobs.splice(idx, 1);
-      }
+    function hitMob(mob, damage, point) {
+      mob.health -= damage;
+      mob.hitFlashTimer = 0.2;
+      playSound('hit');
+      setMobColor(mob, HIT_RED);
+      spawnParticles(point, 0xff2222, 10, 4);
+
+      // ノックバック（位置を直接動かさず、速さを与える → 壁にめり込まない）
+      const away = new THREE.Vector3(mob.group.position.x - camera.position.x, 0, mob.group.position.z - camera.position.z).normalize();
+      mob.velocity.x += away.x * 7;
+      mob.velocity.z += away.z * 7;
+      mob.velocity.y = Math.max(mob.velocity.y, 4);
+
+      if (mob.health <= 0) killMob(mob);
     }
 
-    /* --- Update Mobs AI & Animation --- */
-    function updateMobs(delta) {
-      const playerPos = camera.position.clone();
-      playerPos.y -= player.height / 2;
+    function killMob(mob) {
+      const p = mob.group.position;
+      spawnParticles(p.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 24, 6);
+      removeMob(mob);
+      killCount++;
+      killCountDisplay.textContent = `Kills: ${killCount}`;
 
+      // 大きいスライムは小さいスライムに分裂する
+      if (mob.type === 'slime' && mob.size > 0.6) {
+        const count = rand(2, 3);
+        for (let i = 0; i < count; i++) {
+          const child = createMob('slime', p.x + (Math.random() - 0.5) * 0.6, p.y + 0.3, p.z + (Math.random() - 0.5) * 0.6, 0.5);
+          applyMobStrength(child);
+          child.velocity.set((Math.random() - 0.5) * 4, 4, (Math.random() - 0.5) * 4);
+        }
+        return;
+      }
+
+      let drop = mob.def.drop;
+      if (mob.type === 'skeleton') drop = Math.random() < 0.6 ? 'coal' : 'iron';
+      if (drop && addItem(drop, 1)) showToast(`${ITEMS[drop].emoji} ${ITEMS[drop].name} を手に入れた`);
+    }
+
+    /* --- Enemies: AI (動き方) --- */
+    function walkAnimation(mob, speedFactor) {
+      const swing = Math.sin(performance.now() * 0.008 * speedFactor) * 0.45;
+      mob.legs.forEach((leg, i) => {
+        if (mob.type === 'spider') leg.rotation.y = (i % 2 === 0 ? swing : -swing) * 0.5;
+        else leg.rotation.x = i % 2 === 0 ? swing : -swing;
+      });
+    }
+
+    function updateMobs(delta) {
       updateSpawning(delta);
 
-      // ループ中に爆発などで mobs から削除されても安全なようにコピーを回す
-      [...mobs].forEach(mob => {
-        const mobPos = mob.group.position;
+      const playerFeet = camera.position.y - player.eye;
+      const playerCenter = new THREE.Vector3(camera.position.x, playerFeet + 0.9, camera.position.z);
 
-        // ワールドの端から出ないようにする
-        mobPos.x = THREE.MathUtils.clamp(mobPos.x, -HALF_SIZE, HALF_SIZE);
-        mobPos.z = THREE.MathUtils.clamp(mobPos.z, -HALF_SIZE, HALF_SIZE);
-        if (mobPos.y < BEDROCK_Y - 5) {
-          removeMob(mob); // 万一奈落に落ちたら消す（後でリスポーンする）
+      // ループ中に倒されて mobs から消えても安全なようにコピーを回す
+      [...mobs].forEach(mob => {
+        const p = mob.group.position;
+        if (p.y < BEDROCK_Y - 5) {
+          removeMob(mob);
           return;
         }
 
-        const dist = mobPos.distanceTo(playerPos);
-        const dir = new THREE.Vector3().subVectors(playerPos, mobPos);
-        dir.y = 0; // 水平追従
+        const center = new THREE.Vector3(p.x, p.y + mob.height / 2, p.z);
+        const dist = center.distanceTo(playerCenter);
+        const toPlayer = new THREE.Vector3(camera.position.x - p.x, 0, camera.position.z - p.z);
+        const flatDist = toPlayer.length();
+        if (flatDist > 0.01) toPlayer.divideScalar(flatDist);
 
         // 明るい場所（朝の地上）にいる敵は、少しずつ燃えて消える
-        if (!isDarkAt(mobPos.x, mobPos.y, mobPos.z) && Math.random() < delta * 0.3) {
-          const center = mobPos.clone().add(new THREE.Vector3(0, 0.8, 0));
+        if (!isDarkAt(p.x, p.y, p.z) && Math.random() < delta * 0.3) {
           spawnParticles(center, 0xff8800, 16, 3);
           spawnParticles(center, 0x333333, 10, 2);
           removeMob(mob);
           return;
         }
 
-        // 遠く離れた敵や、洞窟に落ちるなどして長いあいだ近づけない敵は消す（その分また湧く）
-        mob.farTimer = dist > 12 ? (mob.farTimer || 0) + delta : 0;
-        if (dist > 28 || mob.farTimer > 45) {
+        // 遠く離れた敵や、長いあいだ近づけない敵は消す（その分また湧く）
+        mob.farTimer = dist > 12 ? mob.farTimer + delta : 0;
+        if (dist > 48 || mob.farTimer > 45) {
           removeMob(mob);
           return;
         }
 
-        // 被弾赤フラッシュの戻し
         if (mob.hitFlashTimer > 0) {
           mob.hitFlashTimer -= delta;
-          if (mob.hitFlashTimer <= 0) {
-            setMobColor(mob, mob.tint);
-          }
+          if (mob.hitFlashTimer <= 0) setMobColor(mob, mob.tint);
         }
+        if (mob.attackCooldown > 0) mob.attackCooldown -= delta;
 
-        // プレイヤーの方向を向く
-        if (dir.length() > 0.1) {
-          mob.group.rotation.y = Math.atan2(dir.x, dir.z);
-        }
-
-        // 足元グラウンド判定（簡単な重力）
-        let blockUnderY = -10;
-        if (hasBlock(mobPos.x, Math.floor(mobPos.y), mobPos.z)) {
-          mobPos.y = Math.floor(mobPos.y) + 1;
-        } else {
-          if (!hasBlock(mobPos.x, Math.floor(mobPos.y - 0.5), mobPos.z)) {
-            mobPos.y -= 7.0 * delta; // 落下
-          }
-        }
+        mob.moveX = 0;
+        mob.moveZ = 0;
+        const sees = dist < mob.def.sight;
+        if (sees && flatDist > 0.1) mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
+        const walkToward = sign => {
+          mob.moveX = toPlayer.x * mob.speed * sign;
+          mob.moveZ = toPlayer.z * mob.speed * sign;
+          walkAnimation(mob, mob.speed / 3);
+        };
+        const meleeDamage = () => Math.max(1, Math.round(mob.def.damage * mob.power * (mob.type === 'slime' ? mob.size : 1)));
 
         if (mob.type === 'creeper') {
-          // クリーパーAI
           if (dist < 3.0) {
-            // 起爆シーケンス中
+            // 起爆シーケンス中: 白く点滅＆膨張
             if (!mob.exploding) {
               mob.exploding = true;
               playSound('fuse');
             }
             mob.fuseTimer += delta;
             mob.flashTimer += delta * 15;
-
-            // 白く点滅＆膨張
             mob.group.scale.setScalar(mob.baseScale * (1.0 + (mob.fuseTimer / mob.fuseDuration) * 0.3));
             setMobColor(mob, Math.sin(mob.flashTimer) > 0 ? FUSE_WHITE : mob.tint);
-
             if (mob.fuseTimer >= mob.fuseDuration) {
               triggerCreeperExplosion(mob);
+              return;
             }
           } else {
-            // 遠ざかったら起爆キャンセル
             if (mob.exploding) {
+              // 遠ざかったら起爆キャンセル
               mob.exploding = false;
               mob.fuseTimer = 0;
               mob.group.scale.setScalar(mob.baseScale);
               setMobColor(mob, mob.tint);
             }
-            // 接近移動 (16ブロック以内)
-            if (dist < 16.0 && dist >= 2.6) {
-              dir.normalize();
-              mobPos.x += dir.x * mob.speed * delta;
-              mobPos.z += dir.z * mob.speed * delta;
-
-              // 足パタパタアニメーション
-              const walkCycle = Math.sin(performance.now() * 0.008) * 0.35;
-              mob.legs[0].rotation.x = walkCycle;
-              mob.legs[1].rotation.x = -walkCycle;
-              mob.legs[2].rotation.x = -walkCycle;
-              mob.legs[3].rotation.x = walkCycle;
+            if (sees && flatDist >= 2.2) walkToward(1);
+          }
+        } else if (mob.type === 'zombie' || mob.type === 'spider') {
+          const reach = mob.radius + 1.0;
+          if (sees && flatDist > reach) walkToward(1);
+          if (dist < reach + 0.4 && mob.attackCooldown <= 0) {
+            mob.attackCooldown = mob.type === 'spider' ? 1.0 : 1.3;
+            damagePlayer(meleeDamage(), toPlayer.clone());
+          }
+        } else if (mob.type === 'skeleton') {
+          // 近すぎたら下がり、遠すぎたら近づき、見えていれば矢を撃つ
+          if (sees) {
+            if (flatDist > 10) walkToward(1);
+            else if (flatDist < 5) walkToward(-0.8);
+            mob.shootTimer -= delta;
+            const eye = new THREE.Vector3(p.x, p.y + 1.4 * mob.baseScale, p.z);
+            if (mob.shootTimer <= 0 && dist < 16 && hasLineOfSight(eye, camera.position)) {
+              mob.shootTimer = 2.2;
+              shootArrow(mob, playerCenter);
             }
           }
-        } else if (mob.type === 'zombie') {
-          // ゾンビAI
-          if (dist < 20.0) {
-            if (dist > 1.3) {
-              dir.normalize();
-              mobPos.x += dir.x * mob.speed * delta;
-              mobPos.z += dir.z * mob.speed * delta;
-
-              // 足パタパタ
-              const walkCycle = Math.sin(performance.now() * 0.007) * 0.45;
-              mob.legs[0].rotation.x = walkCycle;
-              mob.legs[1].rotation.x = -walkCycle;
-            } else {
-              // 近接攻撃 (パンチ)
-              if (mob.attackCooldown <= 0) {
-                mob.attackCooldown = 1.3;
-                const knockDir = dir.clone().normalize();
-                damagePlayer(Math.round(3 * mob.power), knockDir); // 地上ではハート1.5個分、深いほど強い
-              }
+        } else if (mob.type === 'slime') {
+          // ぴょんぴょん跳ねて近づく
+          if (mob.onGround) {
+            mob.hopX = 0;
+            mob.hopZ = 0;
+            mob.hopTimer -= delta;
+            if (sees && mob.hopTimer <= 0) {
+              mob.hopTimer = 0.8 + Math.random() * 0.8;
+              mob.velocity.y = 6.5;
+              mob.hopX = toPlayer.x * mob.speed;
+              mob.hopZ = toPlayer.z * mob.speed;
+              playSound('slime');
             }
           }
-          if (mob.attackCooldown > 0) mob.attackCooldown -= delta;
+          mob.moveX = mob.hopX || 0;
+          mob.moveZ = mob.hopZ || 0;
+          if (dist < mob.radius + 0.9 && mob.attackCooldown <= 0) {
+            mob.attackCooldown = 1.0;
+            damagePlayer(meleeDamage(), toPlayer.clone());
+          }
         }
+
+        moveMob(mob, delta);
       });
 
+      updateArrows(delta);
       mobCountDisplay.textContent = `Enemies: ${mobs.length}`;
     }
 
@@ -1747,42 +2242,81 @@
     highlightMesh.visible = false;
     scene.add(highlightMesh);
 
-    /* --- Raycasting for Interaction (Blocks & Mobs) --- */
-    const raycaster = new THREE.Raycaster();
-    raycaster.far = 6.0;
-    let targetBlockIntersection = null;
+    /* --- Voxel Raycast (見ているブロックを探す) --- */
+    const REACH = 6;
+    let targetBlock = null; // { x, y, z, normal: [nx, ny, nz], id, distance }
+
+    // 目の位置から見ている方向へ、ブロックを1マスずつたどって最初に当たるブロックを探す
+    function raycastBlock(origin, dir, maxDistance) {
+      // ブロックの境目が整数になるように 0.5 ずらした座標で考える
+      const ox = origin.x + 0.5;
+      const oy = origin.y + 0.5;
+      const oz = origin.z + 0.5;
+      let ix = Math.floor(ox);
+      let iy = Math.floor(oy);
+      let iz = Math.floor(oz);
+      const stepX = dir.x > 0 ? 1 : -1;
+      const stepY = dir.y > 0 ? 1 : -1;
+      const stepZ = dir.z > 0 ? 1 : -1;
+      const tDeltaX = dir.x !== 0 ? Math.abs(1 / dir.x) : Infinity;
+      const tDeltaY = dir.y !== 0 ? Math.abs(1 / dir.y) : Infinity;
+      const tDeltaZ = dir.z !== 0 ? Math.abs(1 / dir.z) : Infinity;
+      let tMaxX = dir.x > 0 ? (ix + 1 - ox) * tDeltaX : dir.x < 0 ? (ox - ix) * tDeltaX : Infinity;
+      let tMaxY = dir.y > 0 ? (iy + 1 - oy) * tDeltaY : dir.y < 0 ? (oy - iy) * tDeltaY : Infinity;
+      let tMaxZ = dir.z > 0 ? (iz + 1 - oz) * tDeltaZ : dir.z < 0 ? (oz - iz) * tDeltaZ : Infinity;
+      let normal = [0, 0, 0];
+      let t = 0;
+
+      while (t <= maxDistance) {
+        const id = getBlock(ix, iy, iz);
+        if (id !== 0) return { x: ix, y: iy, z: iz, normal, id, distance: t };
+        if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+          ix += stepX;
+          t = tMaxX;
+          tMaxX += tDeltaX;
+          normal = [-stepX, 0, 0];
+        } else if (tMaxY < tMaxZ) {
+          iy += stepY;
+          t = tMaxY;
+          tMaxY += tDeltaY;
+          normal = [0, -stepY, 0];
+        } else {
+          iz += stepZ;
+          t = tMaxZ;
+          tMaxZ += tDeltaZ;
+          normal = [0, 0, -stepZ];
+        }
+      }
+      return null;
+    }
+
+    const lookDirection = new THREE.Vector3();
 
     function updateRaycast() {
       if (!controls.isLocked) {
         highlightMesh.visible = false;
-        targetBlockIntersection = null;
+        targetBlock = null;
         return;
       }
-
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-
-      // ブロック判定
-      const blockIntersects = raycaster.intersectObjects(blocksGroup.children);
-      if (blockIntersects.length > 0) {
-        targetBlockIntersection = blockIntersects[0];
-        highlightMesh.position.copy(targetBlockIntersection.object.position);
-        highlightMesh.visible = true;
-      } else {
-        targetBlockIntersection = null;
-        highlightMesh.visible = false;
-      }
+      camera.getWorldDirection(lookDirection);
+      targetBlock = raycastBlock(camera.position, lookDirection, REACH);
+      highlightMesh.visible = !!targetBlock;
+      if (targetBlock) highlightMesh.position.set(targetBlock.x, targetBlock.y, targetBlock.z);
     }
 
-    // 敵モブへのヒット判定
+    // 敵へのヒット判定（ブロックより手前にいる敵だけ）
+    const mobRaycaster = new THREE.Raycaster();
+    mobRaycaster.far = 4.2;
+
     function checkMobHit() {
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      mobRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      let best = null;
       for (const mob of mobs) {
-        const intersects = raycaster.intersectObjects(mob.group.children, true);
-        if (intersects.length > 0 && intersects[0].distance < 4.2) {
-          return { mob, point: intersects[0].point };
-        }
+        const hit = mobRaycaster.intersectObjects(mob.group.children, true)[0];
+        if (hit && (!best || hit.distance < best.distance)) best = { mob, point: hit.point, distance: hit.distance };
       }
-      return null;
+      if (best && targetBlock && targetBlock.distance < best.distance) return null;
+      return best;
     }
 
     // 腕・武器スイングアニメーション
@@ -1792,99 +2326,99 @@
       playerHand.classList.add('swing-animation');
     }
 
-    /* --- Mouse Actions (Attack / Mine / Place) --- */
+    /* --- Mining, Placing & Using Items --- */
+    function mineBlock(target) {
+      const def = BLOCKS[target.id];
+      if (def.tier >= 99) return; // 岩盤は壊せない
+      if (def.tier > pickaxeTier()) {
+        showToast(`⛏️ ${def.name}を掘るには ${PICKAXE_NAMES[def.tier]} が必要です`);
+        return;
+      }
+      removeBlock(target.x, target.y, target.z, true);
+
+      const pos = new THREE.Vector3(target.x, target.y, target.z);
+      if (def.drop) {
+        if (!addItem(def.drop, 1)) {
+          showToast('⚠️ 持ち物がいっぱいです');
+        } else if (ITEMS[def.drop].kind === 'material') {
+          spawnParticles(pos, ITEMS[def.drop].particle || 0xffffff, 14, 3);
+          playSound('ore');
+        }
+      }
+      if (target.id === LEAVES && Math.random() < 0.12 && addItem('apple', 1)) {
+        showToast('🍎 りんごを見つけた！');
+      }
+      updateRaycast();
+    }
+
+    // ブロック（中心 bx,by,bz）が、箱（中心 x,z・足の高さ・半径・高さ）と重なるか
+    function blockOverlapsBox(bx, by, bz, x, feetY, z, radius, height) {
+      return Math.abs(bx - x) < 0.5 + radius && Math.abs(bz - z) < 0.5 + radius &&
+        by + 0.5 > feetY && by - 0.5 < feetY + height;
+    }
+
+    function useItem() {
+      // 作業台を右クリックするとクラフト画面を開く
+      if (targetBlock && targetBlock.id === CRAFTING_TABLE) {
+        controls.unlock();
+        return;
+      }
+      const held = inventory[selectedSlot];
+      if (!held) return;
+      const item = ITEMS[held.id];
+
+      // 食べ物は食べて回復
+      if (item.heal) {
+        if (player.health >= player.maxHealth) {
+          showToast('❤️ 体力はいっぱいです');
+          return;
+        }
+        healPlayer(item.heal);
+        consumeHeldItem();
+        playSound('eat');
+        showToast(`${item.emoji} ${item.name}を食べた`);
+        return;
+      }
+
+      // ブロック（松明も）を置く
+      if (!item.block || !targetBlock) return;
+      const tx = targetBlock.x + targetBlock.normal[0];
+      const ty = targetBlock.y + targetBlock.normal[1];
+      const tz = targetBlock.z + targetBlock.normal[2];
+      if (!isInsideWorld(tx, tz) || ty > MAX_Y || getBlock(tx, ty, tz) !== 0) return;
+
+      if (BLOCKS[item.block].solid !== false) {
+        const feetY = camera.position.y - player.eye;
+        if (blockOverlapsBox(tx, ty, tz, camera.position.x, feetY, camera.position.z, player.radius, player.bodyHeight)) return;
+        if (mobs.some(m => blockOverlapsBox(tx, ty, tz, m.group.position.x, m.group.position.y, m.group.position.z, m.radius, m.height))) return;
+      }
+      if (addBlock(tx, ty, tz, item.block, true)) {
+        consumeHeldItem();
+        updateRaycast();
+      }
+    }
+
+    /* --- Mouse & Keyboard --- */
     window.addEventListener('mousedown', (e) => {
       if (!controls.isLocked || player.health <= 0) return;
 
       if (e.button === 0) {
-        // 左クリック: 敵への攻撃 or ブロック破壊
+        // 左クリック: 敵への攻撃 or ブロックを掘る
         swingHand();
-
         const hit = checkMobHit();
         if (hit) {
-          // モブに攻撃命中！
-          const mob = hit.mob;
-          const weapon = inventory[selectedSlot];
-          const damage = weapon && weapon.sword ? SWORDS[weapon.sword].damage : FIST_DAMAGE;
-          mob.health -= damage;
-          mob.hitFlashTimer = 0.2;
-          playSound('hit');
-
-          // 赤く点滅
-          setMobColor(mob, HIT_RED);
-
-          // ノックバック
-          const knockDir = mob.group.position.clone().sub(camera.position).normalize();
-          knockDir.y = 0.25;
-          mob.group.position.addScaledVector(knockDir, 0.9);
-
-          // ヒットパーティクル
-          spawnParticles(hit.point, 0xff2222, 10, 4);
-
-          // 撃破判定
-          if (mob.health <= 0) {
-            spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 24, 6);
-            removeMob(mob);
-            killCount++;
-            killCountDisplay.textContent = `Kills: ${killCount}`;
-          }
+          hitMob(hit.mob, heldAttackDamage(), hit.point);
           return;
         }
-
-        // 敵に当たらなければブロック破壊
-        if (targetBlockIntersection) {
-          const pos = targetBlockIntersection.object.position.clone();
-          if (worldData.get(getBlockKey(pos.x, pos.y, pos.z)) === BEDROCK) return; // 岩盤は壊せない
-
-          const removed = removeBlock(pos.x, pos.y, pos.z, true);
-          const ore = ORES[removed];
-          if (ore) {
-            ore.count++;
-            spawnParticles(pos, ore.color, 14, 3);
-            playSound('ore');
-            updateOreUI();
-          } else if (BLOCK_ITEMS[removed] && !addBlockItem(removed)) {
-            showToast('⚠️ 持ち物がいっぱいです');
-          }
-          updateRaycast();
-        }
+        if (targetBlock) mineBlock(targetBlock);
       } else if (e.button === 2) {
-        // 右クリック: 作業台ならクラフト画面を開く。それ以外は持っているブロックを置く
-        if (targetBlockIntersection && targetBlockIntersection.object.userData.blockIndex === CRAFTING_TABLE) {
-          controls.unlock();
-          return;
-        }
-        const held = inventory[selectedSlot];
-        if (!held || !held.block) return; // 素手や剣のときは置けない
-
-        if (targetBlockIntersection) {
-          const normal = targetBlockIntersection.face.normal;
-          const targetPos = targetBlockIntersection.object.position.clone().add(normal);
-          if (!isInsideWorld(targetPos.x, targetPos.z)) return;
-
-          // プレイヤーとの衝突判定
-          const pBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(camera.position.x, camera.position.y - player.height / 2, camera.position.z),
-            new THREE.Vector3(player.radius * 2, player.height, player.radius * 2)
-          );
-          const bBox = new THREE.Box3().setFromCenterAndSize(
-            targetPos,
-            new THREE.Vector3(0.95, 0.95, 0.95)
-          );
-
-          if (!pBox.intersectsBox(bBox) && addBlock(targetPos.x, targetPos.y, targetPos.z, held.block, true)) {
-            held.count--;
-            if (held.count <= 0) inventory[selectedSlot] = null;
-            renderHotbar();
-            updateRaycast();
-          }
-        }
+        // 右クリック: 置く・食べる・作業台を開く
+        useItem();
       }
     });
 
     window.addEventListener('contextmenu', e => e.preventDefault());
 
-    /* --- Keyboard Controls --- */
     window.addEventListener('keydown', (e) => {
       switch (e.code) {
         case 'KeyW':
@@ -1911,18 +2445,12 @@
           }
           keys.jump = true;
           break;
-        case 'Digit1': selectSlot(0); break;
-        case 'Digit2': selectSlot(1); break;
-        case 'Digit3': selectSlot(2); break;
-        case 'Digit4': selectSlot(3); break;
-        case 'Digit5': selectSlot(4); break;
-        case 'Digit6': selectSlot(5); break;
-        case 'Digit7': selectSlot(6); break;
-        case 'Digit8': selectSlot(7); break;
         case 'KeyE':
-          // 一時停止画面（クラフトがある）を開く
+          // 一時停止画面（クラフトとカバンがある）を開く
           if (controls.isLocked) controls.unlock();
           break;
+        default:
+          if (/^Digit[1-8]$/.test(e.code)) selectSlot(Number(e.code.slice(5)) - 1);
       }
     });
 
@@ -1953,100 +2481,154 @@
     // ホイールでスロット選択
     window.addEventListener('wheel', (e) => {
       if (!controls.isLocked) return;
-      if (e.deltaY > 0) {
-        selectSlot((selectedSlot + 1) % 8);
-      } else if (e.deltaY < 0) {
-        selectSlot((selectedSlot + 7) % 8);
-      }
+      if (e.deltaY > 0) selectSlot((selectedSlot + 1) % HOTBAR_SIZE);
+      else if (e.deltaY < 0) selectSlot((selectedSlot + HOTBAR_SIZE - 1) % HOTBAR_SIZE);
     });
 
-    /* --- Inventory (持ち物) & Crafting (クラフト) --- */
+    /* --- Items (アイテム) --- */
     const HOTBAR_SIZE = 8;
+    const INVENTORY_SIZE = 24; // 0〜7: ホットバー（画面の下）, 8〜23: カバン
     const MAX_STACK = 99;
     const FIST_DAMAGE = 3;
-    const BLOCK_ITEMS = {
-      1: { name: '草', color: '#5c8e32', emoji: '🌿' },
-      2: { name: '土', color: '#866043', emoji: '🟫' },
-      3: { name: '石', color: '#777777', emoji: '🪨' },
-      4: { name: '木材', color: '#a07449', emoji: '🪵' },
-      5: { name: '葉', color: '#377e22', emoji: '🍃' },
-      6: { name: 'レンガ', color: '#9c4233', emoji: '🧱' },
-      7: { name: 'ガラス', color: '#5aa0cd', emoji: '🧊' },
-      13: { name: '作業台', color: '#a57c4a', emoji: '🛠️' }
-    };
-    const SWORDS = {
-      wood: { name: '木の剣', damage: 5, color: '#a07449' },
-      stone: { name: '石の剣', damage: 7, color: '#8a8a8a' },
-      iron: { name: '鉄の剣', damage: 10, color: '#d8d8d8' },
-      diamond: { name: 'ダイヤの剣', damage: 14, color: '#44eedd' }
-    };
-    // 材料は { block: ブロック番号 } か { ore: 鉱石番号 }。table: true は作業台の近くでしか作れない
-    const RECIPES = [
-      { name: '作業台', needs: [{ block: 4, count: 4 }], result: { block: CRAFTING_TABLE, count: 1 } },
-      { name: '木の剣', table: true, needs: [{ block: 4, count: 3 }], result: { sword: 'wood' } },
-      { name: '石の剣', table: true, needs: [{ block: 3, count: 3 }], result: { sword: 'stone' } },
-      { name: '鉄の剣', table: true, needs: [{ ore: IRON_ORE, count: 3 }], result: { sword: 'iron' } },
-      { name: 'ダイヤの剣', table: true, needs: [{ ore: DIAMOND_ORE, count: 3 }], result: { sword: 'diamond' } },
-      { name: 'レンガ×4', table: true, needs: [{ block: 2, count: 2 }, { ore: COAL_ORE, count: 1 }], result: { block: 6, count: 4 } },
-      { name: 'ガラス×4', table: true, needs: [{ block: 3, count: 2 }, { ore: COAL_ORE, count: 1 }], result: { block: 7, count: 4 } }
-    ];
 
-    // 枠の中身: null（空）/ { block: ブロック番号, count: 個数 } / { sword: 'wood' など }
-    let inventory = new Array(HOTBAR_SIZE).fill(null);
+    // kind: block（置ける）/ material（材料）/ food（食べると回復）/ pickaxe / sword / armor
+    const ITEMS = {
+      grass: { name: '草', kind: 'block', block: GRASS, color: '#5c8e32', emoji: '🌿' },
+      dirt: { name: '土', kind: 'block', block: DIRT, color: '#866043', emoji: '🟫' },
+      stone: { name: '石', kind: 'block', block: STONE, color: '#777777', emoji: '🪨' },
+      wood: { name: '木材', kind: 'block', block: WOOD, color: '#a07449', emoji: '🪵' },
+      leaves: { name: '葉', kind: 'block', block: LEAVES, color: '#377e22', emoji: '🍃' },
+      brick: { name: 'レンガ', kind: 'block', block: 6, color: '#9c4233', emoji: '🧱' },
+      glass: { name: 'ガラス', kind: 'block', block: 7, color: '#5aa0cd', emoji: '🧊' },
+      table: { name: '作業台', kind: 'block', block: CRAFTING_TABLE, color: '#a57c4a', emoji: '🛠️' },
+      torch: { name: '松明', kind: 'block', block: TORCH, color: '#7a5530', emoji: '🔥' },
+      coal: { name: '石炭', kind: 'material', color: '#333333', emoji: '⚫', particle: 0x222222 },
+      iron: { name: '鉄', kind: 'material', color: '#d8b08c', emoji: '🔩', particle: 0xd8b08c },
+      gold: { name: '金', kind: 'material', color: '#ffd700', emoji: '🟡', particle: 0xffd700 },
+      diamond: { name: 'ダイヤ', kind: 'material', color: '#44eedd', emoji: '💎', particle: 0x44eedd },
+      string: { name: '糸', kind: 'material', color: '#eeeeee', emoji: '🧵' },
+      slimeball: { name: 'スライムボール', kind: 'material', color: '#6cc24a', emoji: '🟢' },
+      apple: { name: 'りんご', kind: 'food', heal: 4, color: '#d83a2e', emoji: '🍎' },
+      rotten_meat: { name: '腐った肉', kind: 'food', heal: 3, color: '#8a5a3a', emoji: '🍖' },
+      golden_apple: { name: '金のりんご', kind: 'food', heal: 20, color: '#ffd700', emoji: '🍏' },
+      wood_pickaxe: { name: '木のツルハシ', kind: 'pickaxe', tier: 1, color: '#a07449', emoji: '⛏️', stack: 1 },
+      stone_pickaxe: { name: '石のツルハシ', kind: 'pickaxe', tier: 2, color: '#8a8a8a', emoji: '⛏️', stack: 1 },
+      iron_pickaxe: { name: '鉄のツルハシ', kind: 'pickaxe', tier: 3, color: '#d8d8d8', emoji: '⛏️', stack: 1 },
+      wood_sword: { name: '木の剣', kind: 'sword', damage: 5, color: '#a07449', emoji: '🗡️', stack: 1 },
+      stone_sword: { name: '石の剣', kind: 'sword', damage: 7, color: '#8a8a8a', emoji: '🗡️', stack: 1 },
+      iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1 },
+      diamond_sword: { name: 'ダイヤの剣', kind: 'sword', damage: 14, color: '#44eedd', emoji: '🗡️', stack: 1 },
+      iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🛡️', stack: 1 },
+      diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🛡️', stack: 1 }
+    };
+    const PICKAXE_NAMES = { 1: '木のツルハシ', 2: '石のツルハシ', 3: '鉄のツルハシ' };
 
-    function countBlockItems(blockIndex) {
-      return inventory.reduce((n, item) => n + (item && item.block === blockIndex ? item.count : 0), 0);
+    const maxStack = id => ITEMS[id].stack || MAX_STACK;
+
+    // 枠の中身: null（空）か { id: アイテム名, count: 個数 }
+    let inventory = new Array(INVENTORY_SIZE).fill(null);
+
+    function countItem(id) {
+      return inventory.reduce((n, item) => n + (item && item.id === id ? item.count : 0), 0);
     }
 
-    function hasRoomFor(blockIndex, amount) {
+    function hasRoomFor(id, amount) {
       const room = inventory.reduce((n, item) => {
-        if (!item) return n + MAX_STACK;
-        return n + (item.block === blockIndex ? MAX_STACK - item.count : 0);
+        if (!item) return n + maxStack(id);
+        return n + (item.id === id ? maxStack(id) - item.count : 0);
       }, 0);
       return room >= amount;
     }
 
-    // ブロックを持ち物に入れる（入りきらなければ false）
-    function addBlockItem(blockIndex, amount = 1) {
-      if (!hasRoomFor(blockIndex, amount)) return false;
+    // 持ち物に入れる（入りきらなければ何もせず false）。ホットバーから先に埋まる
+    function addItem(id, amount = 1) {
+      if (!ITEMS[id] || !hasRoomFor(id, amount)) return false;
       for (let i = 0; i < amount; i++) {
-        const stack = inventory.find(item => item && item.block === blockIndex && item.count < MAX_STACK);
+        const stack = inventory.find(item => item && item.id === id && item.count < maxStack(id));
         if (stack) stack.count++;
-        else inventory[inventory.indexOf(null)] = { block: blockIndex, count: 1 };
+        else inventory[inventory.indexOf(null)] = { id, count: 1 };
       }
-      renderHotbar();
+      renderInventory();
       return true;
     }
 
-    function removeBlockItems(blockIndex, amount) {
+    function removeItems(id, amount) {
       for (let i = inventory.length - 1; i >= 0 && amount > 0; i--) {
         const item = inventory[i];
-        if (!item || item.block !== blockIndex) continue;
+        if (!item || item.id !== id) continue;
         const take = Math.min(item.count, amount);
         item.count -= take;
         amount -= take;
         if (item.count === 0) inventory[i] = null;
       }
-      renderHotbar();
+      renderInventory();
     }
 
-    function materialCount(need) {
-      return need.block ? countBlockItems(need.block) : ORES[need.ore].count;
+    function consumeHeldItem() {
+      const held = inventory[selectedSlot];
+      if (!held) return;
+      held.count--;
+      if (held.count <= 0) inventory[selectedSlot] = null;
+      renderInventory();
     }
 
-    function materialName(need) {
-      return need.block ? BLOCK_ITEMS[need.block].name : ORES[need.ore].name;
+    // ツルハシと防具は、持ち物のどこかに持っていれば効果がある（一番いいものが使われる）
+    function pickaxeTier() {
+      return inventory.reduce((best, item) => Math.max(best, item && ITEMS[item.id].tier ? ITEMS[item.id].tier : 0), 0);
     }
+
+    function bestArmor() {
+      return inventory.reduce((best, item) => {
+        const def = item && ITEMS[item.id];
+        return def && def.protection && (!best || def.protection > best.protection) ? def : best;
+      }, null);
+    }
+
+    function armorProtection() {
+      const armor = bestArmor();
+      return armor ? armor.protection : 0;
+    }
+
+    function bestPickaxe() {
+      const tier = pickaxeTier();
+      return tier ? PICKAXE_NAMES[tier] : null;
+    }
+
+    // 剣は手に持っているときだけ強くなる
+    function heldAttackDamage() {
+      const held = inventory[selectedSlot];
+      return held && ITEMS[held.id].damage ? ITEMS[held.id].damage : FIST_DAMAGE;
+    }
+
+    /* --- Crafting (クラフト) --- */
+    // table: true は作業台の近くでしか作れない
+    const RECIPES = [
+      { result: 'table', needs: [['wood', 4]] },
+      { result: 'torch', count: 4, needs: [['wood', 1], ['coal', 1]] },
+      { result: 'torch', count: 2, needs: [['wood', 1], ['slimeball', 1]] },
+      { result: 'wood_pickaxe', table: true, needs: [['wood', 3]] },
+      { result: 'wood_sword', table: true, needs: [['wood', 3]] },
+      { result: 'stone_pickaxe', table: true, needs: [['stone', 3], ['wood', 1]] },
+      { result: 'stone_sword', table: true, needs: [['stone', 3], ['wood', 1]] },
+      { result: 'iron_pickaxe', table: true, needs: [['iron', 3], ['wood', 1]] },
+      { result: 'iron_sword', table: true, needs: [['iron', 3], ['wood', 1]] },
+      { result: 'diamond_sword', table: true, needs: [['diamond', 3], ['wood', 1]] },
+      { result: 'iron_armor', table: true, needs: [['iron', 5], ['string', 2]] },
+      { result: 'diamond_armor', table: true, needs: [['diamond', 5], ['string', 2]] },
+      { result: 'golden_apple', table: true, needs: [['apple', 1], ['gold', 4]] },
+      { result: 'brick', count: 4, table: true, needs: [['dirt', 2], ['coal', 1]] },
+      { result: 'glass', count: 4, table: true, needs: [['stone', 2], ['coal', 1]] }
+    ];
 
     // 近く（横4マス・上下3マス以内）に作業台が置いてあるか
     function isNearCraftingTable() {
       const px = Math.round(camera.position.x);
-      const py = Math.round(camera.position.y - player.height / 2);
+      const py = Math.round(camera.position.y - player.eye + 0.9);
       const pz = Math.round(camera.position.z);
       for (let x = px - 4; x <= px + 4; x++) {
         for (let y = py - 3; y <= py + 3; y++) {
           for (let z = pz - 4; z <= pz + 4; z++) {
-            if (worldData.get(getBlockKey(x, y, z)) === CRAFTING_TABLE) return true;
+            if (getBlock(x, y, z) === CRAFTING_TABLE) return true;
           }
         }
       }
@@ -2054,35 +2636,109 @@
     }
 
     function canCraft(recipe, nearTable = isNearCraftingTable()) {
-      return recipe.needs.every(need => materialCount(need) >= need.count) && (!recipe.table || nearTable);
+      return recipe.needs.every(([id, count]) => countItem(id) >= count) && (!recipe.table || nearTable);
     }
 
     function craft(recipe) {
+      const count = recipe.count || 1;
       if (!canCraft(recipe)) return;
-      const fits = recipe.result.sword ? inventory.includes(null) : hasRoomFor(recipe.result.block, recipe.result.count);
-      if (!fits) {
+      if (!hasRoomFor(recipe.result, count)) {
         showToast('⚠️ 持ち物がいっぱいです');
         return;
       }
-      recipe.needs.forEach(need => {
-        if (need.block) removeBlockItems(need.block, need.count);
-        else ORES[need.ore].count -= need.count;
-      });
-      if (recipe.result.sword) inventory[inventory.indexOf(null)] = { sword: recipe.result.sword };
-      else addBlockItem(recipe.result.block, recipe.result.count);
-
-      updateOreUI();
-      renderHotbar();
-      renderCraftPanel();
+      recipe.needs.forEach(([id, n]) => removeItems(id, n));
+      addItem(recipe.result, count);
       playSound('ore');
-      showToast(`🛠️ ${recipe.name} を作った！`);
+      showToast(`🛠️ ${ITEMS[recipe.result].name}${count > 1 ? ' ×' + count : ''} を作った！`);
     }
 
+    /* --- Inventory UI (ホットバー・カバン・クラフト画面) --- */
+    const hotbar = document.getElementById('hotbar');
+    const bagGrid = document.getElementById('bag-grid');
     const craftList = document.getElementById('craft-list');
-    // 押せないボタンのクリックで冒険が始まってしまわないように、パネル全体でクリックを止める
-    document.getElementById('craft-panel').addEventListener('click', e => e.stopPropagation());
-
     const craftHint = document.getElementById('craft-hint');
+    const gearDisplay = document.getElementById('gear-display');
+
+    // 押せないボタンやカバンのクリックで冒険が始まってしまわないように、パネル全体でクリックを止める
+    ['craft-panel', 'bag-panel'].forEach(id => {
+      document.getElementById(id).addEventListener('click', e => e.stopPropagation());
+    });
+
+    function makeSlotElement(label) {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.innerHTML = `<span class="slot-key">${label}</span><div class="slot-icon"></div><span class="slot-count"></span><span class="slot-name"></span>`;
+      return slot;
+    }
+
+    function fillSlot(el, item) {
+      const icon = el.querySelector('.slot-icon');
+      const def = item && ITEMS[item.id];
+      icon.classList.toggle('empty', !def);
+      icon.style.background = def ? def.color : 'transparent';
+      icon.textContent = def && (def.kind !== 'block' || def.block === TORCH) ? def.emoji : '';
+      el.querySelector('.slot-count').textContent = def && item.count > 1 ? item.count : '';
+      el.querySelector('.slot-name').textContent = !def ? '素手' : def.damage ? `${def.name}（攻撃 ${def.damage}）` : def.name;
+      el.title = def ? def.name : '';
+    }
+
+    const hotbarSlots = [];
+    for (let i = 0; i < HOTBAR_SIZE; i++) {
+      const slot = makeSlotElement(i + 1);
+      slot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectSlot(i);
+      });
+      hotbar.appendChild(slot);
+      hotbarSlots.push(slot);
+    }
+
+    // カバン: 1回目のクリックで選び、2回目のクリックで入れかえる（同じアイテムならまとめる）
+    let pickedSlot = null;
+    const bagSlots = [];
+    for (let i = 0; i < INVENTORY_SIZE; i++) {
+      const slot = makeSlotElement(i < HOTBAR_SIZE ? i + 1 : '');
+      if (i < HOTBAR_SIZE) slot.classList.add('hotbar-row');
+      slot.addEventListener('click', () => {
+        if (pickedSlot === null) {
+          if (inventory[i]) pickedSlot = i;
+        } else {
+          const a = inventory[pickedSlot];
+          const b = inventory[i];
+          if (a && b && a.id === b.id && pickedSlot !== i && b.count < maxStack(b.id)) {
+            const move = Math.min(a.count, maxStack(b.id) - b.count);
+            b.count += move;
+            a.count -= move;
+            if (a.count === 0) inventory[pickedSlot] = null;
+          } else {
+            inventory[pickedSlot] = b;
+            inventory[i] = a;
+          }
+          pickedSlot = null;
+        }
+        renderInventory();
+      });
+      bagGrid.appendChild(slot);
+      bagSlots.push(slot);
+    }
+
+    function renderInventory() {
+      hotbarSlots.forEach((el, i) => {
+        fillSlot(el, inventory[i]);
+        el.classList.toggle('active', i === selectedSlot);
+      });
+      bagSlots.forEach((el, i) => {
+        fillSlot(el, inventory[i]);
+        el.classList.toggle('picked', i === pickedSlot);
+      });
+
+      const held = inventory[selectedSlot];
+      playerHand.textContent = held ? ITEMS[held.id].emoji : '✊';
+
+      const armor = bestArmor();
+      const pickaxe = bestPickaxe();
+      gearDisplay.textContent = `🛡️ ${armor ? `${armor.name}（ダメージ -${Math.round(armor.protection * 100)}%）` : '防具なし'} ／ ⛏️ ${pickaxe || 'ツルハシなし'}`;
+    }
 
     function renderCraftPanel() {
       const nearTable = isNearCraftingTable();
@@ -2091,99 +2747,51 @@
         : '💡 🛠️ マークのものは、作業台の近く（4マス以内）でないと作れません。まずは木材4個で作業台を作って置こう！';
       craftList.innerHTML = '';
       RECIPES.forEach(recipe => {
+        const result = ITEMS[recipe.result];
         const btn = document.createElement('button');
         btn.className = 'craft-btn';
         btn.disabled = !canCraft(recipe, nearTable);
-        const needs = recipe.needs.map(need => `${materialName(need)} ${materialCount(need)}/${need.count}`).join(' + ');
-        btn.textContent = `${recipe.table ? '🛠️ ' : ''}${recipe.name}（${needs}）`;
-        btn.addEventListener('click', () => craft(recipe));
+        const needs = recipe.needs.map(([id, count]) => `${ITEMS[id].name} ${countItem(id)}/${count}`).join(' + ');
+        btn.textContent = `${recipe.table ? '🛠️ ' : ''}${result.emoji} ${result.name}${recipe.count > 1 ? '×' + recipe.count : ''}（${needs}）`;
+        btn.addEventListener('click', () => {
+          craft(recipe);
+          renderCraftPanel();
+        });
         craftList.appendChild(btn);
       });
     }
 
-    const hotbar = document.getElementById('hotbar');
-    const slotElements = [];
-    for (let i = 0; i < HOTBAR_SIZE; i++) {
-      const slot = document.createElement('div');
-      slot.className = 'slot';
-      slot.innerHTML = `<span class="slot-key">${i + 1}</span><div class="slot-icon"></div><span class="slot-count"></span><span class="slot-name"></span>`;
-      slot.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectSlot(i);
-      });
-      hotbar.appendChild(slot);
-      slotElements.push(slot);
-    }
-
-    function renderHotbar() {
-      inventory.forEach((item, i) => {
-        const el = slotElements[i];
-        const icon = el.querySelector('.slot-icon');
-        el.classList.toggle('active', i === selectedSlot);
-        icon.classList.toggle('empty', !item);
-        if (!item) {
-          icon.style.background = 'transparent';
-          icon.textContent = '';
-          el.querySelector('.slot-count').textContent = '';
-          el.querySelector('.slot-name').textContent = '素手';
-        } else if (item.sword) {
-          const sword = SWORDS[item.sword];
-          icon.style.background = sword.color;
-          icon.textContent = '🗡️';
-          el.querySelector('.slot-count').textContent = '';
-          el.querySelector('.slot-name').textContent = `${sword.name}（攻撃 ${sword.damage}）`;
-        } else {
-          const block = BLOCK_ITEMS[item.block];
-          icon.style.background = block.color;
-          icon.textContent = '';
-          el.querySelector('.slot-count').textContent = item.count;
-          el.querySelector('.slot-name').textContent = block.name;
-        }
-      });
-
-      const held = inventory[selectedSlot];
-      playerHand.textContent = !held ? '✊' : held.sword ? '🗡️' : BLOCK_ITEMS[held.block].emoji;
-    }
-
     function selectSlot(idx) {
       selectedSlot = idx;
-      renderHotbar();
+      renderInventory();
     }
 
-    renderHotbar();
+    renderInventory();
     renderCraftPanel();
 
-    /* --- Player Physics & Collision --- */
+    /* --- Player Physics --- */
     const GRAVITY = 22.0;
 
-    function checkVoxelCollision(pos) {
-      const minX = Math.floor(pos.x - player.radius);
-      const maxX = Math.floor(pos.x + player.radius);
-      // 小数の誤差（例: 4.6 - 1.6 = 2.9999999999999996）で足元のブロックに「めり込んでいる」と
-      // 判定されて横に動けなくなるのを防ぐため、ほんの少し足す
-      const minY = Math.floor(pos.y + 1e-6);
-      const maxY = Math.floor(pos.y + player.height);
-      const minZ = Math.floor(pos.z - player.radius);
-      const maxZ = Math.floor(pos.z + player.radius);
-
-      for (let x = minX; x <= maxX; x++) {
-        for (let y = minY; y <= maxY; y++) {
-          for (let z = minZ; z <= maxZ; z++) {
-            if (hasBlock(x, y, z)) {
-              return true;
-            }
-          }
-        }
-      }
-      return false;
+    // 1つの軸だけ動かす。壁にぶつかったら、壁の表面（ブロックの端から体の半径ぶん手前）まで寄せて止める
+    function moveAxis(axis, amount) {
+      if (amount === 0) return;
+      const old = camera.position[axis];
+      camera.position[axis] += amount;
+      if (!playerCollides()) return;
+      const edge = amount > 0
+        ? Math.floor(camera.position[axis] + player.radius + 0.5) - 0.5 - player.radius - 0.001
+        : Math.floor(camera.position[axis] - player.radius + 0.5) + 0.5 + player.radius + 0.001;
+      camera.position[axis] = edge;
+      if (playerCollides() || (amount > 0 ? edge < old : edge > old)) camera.position[axis] = old;
     }
 
     function updatePhysics(delta) {
       if (player.health <= 0) return;
 
       // ブロックに埋まっていたら（セーブ位置など）、空いている高さまで上に押し出す
-      for (let i = 0; i < 80 && checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z)); i++) {
-        camera.position.y = Math.floor(camera.position.y - player.height + 1e-6) + 1 + player.height;
+      for (let i = 0; i < 90 && playerCollides(); i++) {
+        const feetY = camera.position.y - player.eye;
+        camera.position.y = Math.floor(feetY + 0.5 + COLLISION_EPS) + 0.5 + player.eye;
         player.velocity.y = 0;
       }
 
@@ -2198,13 +2806,11 @@
         player.regenTimer += delta;
         if (player.regenTimer >= 2.5) {
           player.regenTimer = 0;
-          player.health += 1;
-          updateHealthUI();
+          healPlayer(1);
         }
       }
 
       // 見ている向き（水平成分）を基準に前後左右を決める
-      // ※ camera.rotation.y は後ろ側を向くと値が折り返して前後が逆になるため使わない
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
       forward.y = 0;
@@ -2227,41 +2833,35 @@
       player.velocity.x *= damping;
       player.velocity.z *= damping;
 
-      // X軸衝突
-      const oldX = camera.position.x;
-      camera.position.x += horizontalMovement.x;
-      if (checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z))) {
-        camera.position.x = oldX;
-      }
-
-      // Z軸衝突
-      const oldZ = camera.position.z;
-      camera.position.z += horizontalMovement.z;
-      if (checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z))) {
-        camera.position.z = oldZ;
-      }
+      // X軸・Z軸は別々に動かし、ぶつかったら壁の表面ぴったりで止める
+      moveAxis('x', horizontalMovement.x);
+      moveAxis('z', horizontalMovement.z);
 
       // ワールドの端から出られないようにする
       const limit = HALF_SIZE + 0.5 - player.radius;
       camera.position.x = THREE.MathUtils.clamp(camera.position.x, -limit, limit);
       camera.position.z = THREE.MathUtils.clamp(camera.position.z, -limit, limit);
 
-      // 重力 & 垂直移動
-      player.velocity.y -= GRAVITY * delta;
-      camera.position.y += player.velocity.y * delta;
-
-      const feetPos = new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z);
-      if (checkVoxelCollision(feetPos)) {
+      // 重力 & 垂直移動（速く落ちても床をすり抜けないように、小さく分けて動かす）
+      player.velocity.y = Math.max(player.velocity.y - GRAVITY * delta, -40);
+      const dy = player.velocity.y * delta;
+      const steps = Math.max(1, Math.ceil(Math.abs(dy) / 0.4));
+      player.onGround = false;
+      for (let i = 0; i < steps; i++) {
+        const oldY = camera.position.y;
+        camera.position.y += dy / steps;
+        if (!playerCollides()) continue;
         if (player.velocity.y < 0) {
-          camera.position.y = Math.floor(feetPos.y) + 1 + player.height;
-          player.velocity.y = 0;
+          // 足を下のブロックの上面にそろえる
+          const feetY = camera.position.y - player.eye;
+          camera.position.y = Math.floor(feetY + 0.5) + 0.5 + player.eye;
+          if (playerCollides()) camera.position.y = oldY;
           player.onGround = true;
-        } else if (player.velocity.y > 0) {
-          camera.position.y = Math.floor(camera.position.y) - 0.05;
-          player.velocity.y = 0;
+        } else {
+          camera.position.y = oldY; // 頭をぶつけた
         }
-      } else {
-        player.onGround = false;
+        player.velocity.y = 0;
+        break;
       }
 
       // 奈落落下時
@@ -2274,15 +2874,11 @@
     let lastTime = performance.now();
     let frameCount = 0;
     let lastFpsUpdate = lastTime;
+    let torchLightTimer = 0;
     const posDisplay = document.getElementById('pos-display');
     const blockCountDisplay = document.getElementById('block-count');
     const fpsDisplay = document.getElementById('fps-display');
     const depthDisplay = document.getElementById('depth-display');
-    const oreDisplay = document.getElementById('ore-display');
-
-    function updateOreUI() {
-      oreDisplay.textContent = '⛏️ ' + Object.values(ORES).map(o => `${o.name} ${o.count}`).join(' / ');
-    }
 
     // 地上は昼と夜をくり返し、地下に潜るほど暗くなる（暗いときはたいまつ光が強くなる）
     const DAY_SKY = new THREE.Color(0x78a7ff);
@@ -2312,9 +2908,9 @@
       timeOfDay = (timeOfDay + delta / DAY_CYCLE_SECONDS) % 1;
       daylight = daylightAt(timeOfDay);
 
-      const feetY = camera.position.y - player.height;
+      const feetY = camera.position.y - player.eye;
       const surfaceY = surfaceHeight(Math.round(camera.position.x), Math.round(camera.position.z));
-      const depth = Math.max(0, Math.floor(surfaceY + 1 - feetY));
+      const depth = Math.max(0, Math.floor(surfaceY + 0.5 - feetY));
       currentDepth = depth;
       deepestDepth = Math.max(deepestDepth, depth);
 
@@ -2332,6 +2928,22 @@
       timeDisplay.textContent = isDay
         ? `☀️ 昼（夜まで ${formatSeconds(secondsLeft)}）`
         : `🌙 夜（朝まで ${formatSeconds(secondsLeft)}）`;
+    }
+
+    // 近くの松明に光を割り当てる
+    function updateTorchLights() {
+      const nearest = [...torchMeshes.values()]
+        .map(group => ({ group, d: group.position.distanceToSquared(camera.position) }))
+        .filter(t => t.d < 30 * 30)
+        .sort((a, b) => a.d - b.d);
+      torchLights.forEach((light, i) => {
+        if (nearest[i]) {
+          light.position.copy(nearest[i].group.position);
+          light.intensity = 3;
+        } else {
+          light.intensity = 0;
+        }
+      });
     }
 
     function animate() {
@@ -2356,20 +2968,28 @@
         updateRaycast();
         updateAtmosphere(delta);
 
+        torchLightTimer -= delta;
+        if (torchLightTimer <= 0) {
+          torchLightTimer = 0.25;
+          updateTorchLights();
+        }
+
         if (time - lastAutoSave > 30000) {
           lastAutoSave = time;
           saveGame();
         }
 
         posDisplay.textContent = `XYZ: ${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)}`;
-        blockCountDisplay.textContent = `Blocks: ${worldData.size} (描画中 ${blocksMap.size})`;
+        blockCountDisplay.textContent = `Blocks: ${blockCount}`;
       }
 
+      updateSunPosition();
+      updateChunks();
       renderer.render(scene, camera);
     }
 
     /* --- Save / Load (localStorage) --- */
-    // 地形はシードから再生成できるので、保存するのはシードと変わったブロックの差分・プレイヤーの状態だけ
+    // 地形はシードから作り直せるので、保存するのはシードと変わったブロック・プレイヤーの状態だけ
     // （敵は保存せず、再開時に新しく湧く）
     let saveDisabled = false;
     let lastAutoSave = performance.now();
@@ -2389,7 +3009,7 @@
       saveToast.textContent = text;
       saveToast.hidden = false;
       clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => { saveToast.hidden = true; }, 1500);
+      showToast.timer = setTimeout(() => { saveToast.hidden = true; }, 1800);
     }
 
     function saveGame(showMessage = false) {
@@ -2403,10 +3023,9 @@
           quaternion: camera.quaternion.toArray(),
           health: player.health
         },
-        ores: Object.fromEntries(Object.entries(ORES).map(([id, ore]) => [id, ore.count])),
+        inventory,
         killCount,
         deepestDepth,
-        inventory,
         timeOfDay,
         savedAt: Date.now()
       };
@@ -2423,17 +3042,14 @@
       camera.quaternion.fromArray(data.player.quaternion);
       player.health = data.player.health;
       updateHealthUI();
-      Object.entries(data.ores).forEach(([id, count]) => {
-        if (ORES[id]) ORES[id].count = count;
-      });
-      updateOreUI();
-      killCount = data.killCount;
+      if (Array.isArray(data.inventory) && data.inventory.length === INVENTORY_SIZE) {
+        inventory = data.inventory.map(item => (item && ITEMS[item.id] && item.count > 0 ? item : null));
+      }
+      killCount = data.killCount || 0;
       killCountDisplay.textContent = `Kills: ${killCount}`;
-      deepestDepth = data.deepestDepth;
-      // 持ち物と時間は後から増えた項目なので、古いセーブに無ければ初期値のまま
-      if (Array.isArray(data.inventory) && data.inventory.length === HOTBAR_SIZE) inventory = data.inventory;
+      deepestDepth = data.deepestDepth || 0;
       if (typeof data.timeOfDay === 'number') timeOfDay = data.timeOfDay;
-      renderHotbar();
+      renderInventory();
       renderCraftPanel();
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
     }
@@ -2459,28 +3075,44 @@
 
     controls.addEventListener('unlock', () => {
       saveGame();
+      pickedSlot = null;
+      renderInventory();
       renderCraftPanel(); // 一時停止画面を開いたときに、今の材料で作れるものを表示
     });
+    window.addEventListener('beforeunload', () => saveGame());
 
     // テスト用: URL に ?debug を付けたときだけ、コンソールからゲームの中身を触れるようにする
     if (new URLSearchParams(location.search).has('debug')) {
       window.game = {
         mobs,
+        arrows,
         player,
         camera,
-        ORES,
-        addBlockItem,
-        hasBlock,
+        chunks,
+        addItem,
+        countItem,
+        getBlock,
+        addBlock,
         removeBlock,
         surfaceHeight,
+        findGroundY,
+        collidesBox,
+        hitMob,
+        killMob,
+        blockCount: () => blockCount,
+        spawnMob(type, x, y, z, size = 1) {
+          const mob = createMob(type, x, y, z, size);
+          applyMobStrength(mob);
+          return mob;
+        },
         get inventory() { return inventory; },
+        get targetBlock() { return targetBlock; },
         get timeOfDay() { return timeOfDay; },
         set timeOfDay(value) { timeOfDay = value; },
         get daylight() { return daylight; },
         get currentDepth() { return currentDepth; }
       };
     }
-    window.addEventListener('beforeunload', () => saveGame());
 
     animate();
 
