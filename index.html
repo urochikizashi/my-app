@@ -2,28 +2,46 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>3D Minecraft Web - Creeper & Zombie Edition</title>
   <style>
     * {
       box-sizing: border-box;
       user-select: none;
       -webkit-user-select: none;
-    }
-    body, html {
       margin: 0;
       padding: 0;
+    }
+    body, html {
       width: 100%;
       height: 100%;
       overflow: hidden;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: #78a7ff;
+      touch-action: none;
     }
     #canvas-container {
       width: 100%;
       height: 100%;
       display: block;
     }
+
+    /* エラー通知バー */
+    #error-bar {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: #ff3333;
+      color: white;
+      padding: 8px 12px;
+      font-size: 13px;
+      z-index: 1000;
+      text-align: center;
+      font-weight: bold;
+    }
+
     /* レティクル（クロスヘア） */
     #crosshair {
       position: absolute;
@@ -57,20 +75,23 @@
     /* ホットバー */
     #hotbar {
       position: absolute;
-      bottom: 24px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       gap: 6px;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       padding: 6px;
       border-radius: 8px;
       border: 2px solid #555;
       z-index: 10;
+      max-width: 95vw;
+      overflow-x: auto;
     }
     .slot {
-      width: 50px;
-      height: 50px;
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
       background: rgba(50, 50, 50, 0.7);
       border: 3px solid #888;
       border-radius: 6px;
@@ -80,13 +101,13 @@
       justify-content: center;
       cursor: pointer;
       position: relative;
-      transition: all 0.15s ease;
+      transition: all 0.12s ease;
     }
     .slot.active {
       border-color: #ffffff;
-      background: rgba(100, 100, 100, 0.85);
-      transform: scale(1.1);
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+      background: rgba(110, 110, 110, 0.9);
+      transform: scale(1.08);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
     }
     .slot-key {
       position: absolute;
@@ -97,8 +118,8 @@
       font-weight: bold;
     }
     .slot-icon {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       border-radius: 3px;
       box-shadow: inset 1px 1px 0 rgba(255,255,255,0.4), inset -1px -1px 0 rgba(0,0,0,0.4);
       display: flex;
@@ -112,8 +133,8 @@
       font-size: 11px;
       color: #fff;
       white-space: nowrap;
-      background: rgba(0,0,0,0.7);
-      padding: 1px 4px;
+      background: rgba(0,0,0,0.75);
+      padding: 1px 5px;
       border-radius: 3px;
       display: none;
     }
@@ -124,7 +145,7 @@
     /* プレイヤー体力ゲージ (ハート) */
     #health-bar {
       position: absolute;
-      bottom: 84px;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -143,20 +164,20 @@
     /* 情報オーバーレイ */
     #info-panel {
       position: absolute;
-      top: 16px;
-      left: 16px;
+      top: 14px;
+      left: 14px;
       color: white;
       text-shadow: 1px 1px 2px #000;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.5;
       z-index: 10;
-      background: rgba(0,0,0,0.4);
-      padding: 10px 14px;
+      background: rgba(0,0,0,0.45);
+      padding: 8px 12px;
       border-radius: 6px;
       pointer-events: none;
     }
 
-    /* ダメージを受けたときの画面フラッシュ */
+    /* ダメージフラッシュ */
     #damage-flash {
       position: absolute;
       top: 0;
@@ -172,17 +193,17 @@
     /* 手・武器の表示（HUD） */
     #player-hand {
       position: absolute;
-      bottom: -20px;
-      right: 15%;
-      width: 120px;
-      height: 150px;
+      bottom: -15px;
+      right: 12%;
+      width: 100px;
+      height: 130px;
       transform-origin: bottom right;
       pointer-events: none;
       z-index: 9;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 75px;
+      font-size: 65px;
       filter: drop-shadow(4px 4px 6px rgba(0,0,0,0.5));
       transition: transform 0.08s ease;
     }
@@ -195,52 +216,55 @@
       100% { transform: rotate(0deg) translate(0, 0); }
     }
 
-    /* タイトル・開始画面 */
+    /* タイトル・開始画面 & ゲームオーバー画面 */
     #instructions, #game-over-screen {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.8);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       color: white;
-      z-index: 20;
+      z-index: 30;
       cursor: pointer;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(5px);
+      padding: 20px;
+      text-align: center;
     }
     #game-over-screen {
       display: none;
-      background: rgba(130, 0, 0, 0.85);
+      background: rgba(140, 0, 0, 0.88);
     }
     #game-over-screen h1 {
       color: #ff3333;
-      font-size: 52px;
+      font-size: 50px;
       margin-bottom: 20px;
       text-shadow: 3px 3px 0 #000;
     }
     #instructions h1 {
-      font-size: 42px;
+      font-size: 40px;
       margin-bottom: 8px;
       letter-spacing: 2px;
       text-shadow: 2px 2px 0 #333;
       color: #55ff55;
     }
     #instructions .subtitle {
-      font-size: 18px;
+      font-size: 17px;
       color: #ffaa00;
       font-weight: bold;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
     #instructions .keys {
       background: rgba(255, 255, 255, 0.1);
-      padding: 16px 24px;
+      padding: 16px 22px;
       border-radius: 10px;
       border: 1px solid rgba(255, 255, 255, 0.2);
-      max-width: 520px;
+      max-width: 500px;
+      width: 100%;
       text-align: left;
       font-size: 14px;
       line-height: 1.7;
@@ -255,25 +279,66 @@
       color: #aaffaa;
     }
     .btn-main {
-      margin-top: 24px;
-      padding: 12px 36px;
-      font-size: 18px;
+      margin-top: 22px;
+      padding: 16px 42px;
+      font-size: 20px;
       font-weight: bold;
       color: #111;
       background: #55ff55;
       border: none;
-      border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(85, 255, 85, 0.4);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(85, 255, 85, 0.5);
       cursor: pointer;
       transition: transform 0.1s, background 0.2s;
     }
-    .btn-main:hover {
+    .btn-main:hover, .btn-main:active {
       background: #66ff66;
       transform: scale(1.05);
     }
+
+    /* モバイル・タッチ用バーチャル操作ボタン */
+    #mobile-controls {
+      display: none;
+      position: absolute;
+      bottom: 90px;
+      left: 16px;
+      z-index: 25;
+      gap: 6px;
+    }
+    .mob-btn {
+      width: 52px;
+      height: 52px;
+      background: rgba(255, 255, 255, 0.35);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 10px;
+      color: white;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+    }
+    #mobile-action-buttons {
+      display: none;
+      position: absolute;
+      bottom: 90px;
+      right: 16px;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .action-btn {
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #fff;
+      color: white;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 14px;
+    }
   </style>
 
-  <!-- Three.js Import Map -->
   <script type="importmap">
     {
       "imports": {
@@ -284,6 +349,7 @@
   </script>
 </head>
 <body>
+  <div id="error-bar"></div>
   <div id="canvas-container"></div>
   <div id="crosshair"></div>
   <div id="damage-flash"></div>
@@ -342,41 +408,68 @@
     </div>
   </div>
 
-  <!-- 開始案内画面 -->
+  <!-- モバイル用コントロールボタン -->
+  <div id="mobile-controls">
+    <button class="mob-btn" id="btn-jump">⬆</button>
+  </div>
+  <div id="mobile-action-buttons">
+    <button class="action-btn" id="btn-attack">⚔️ 攻撃/破壊</button>
+    <button class="action-btn" id="btn-place">🧱 設置</button>
+  </div>
+
   <div id="instructions">
     <h1>MINECRAFT 3D</h1>
     <div class="subtitle">⚔️ クリーパー & ゾンビ襲来エディション 🧟</div>
     <div class="keys">
-      <div><b>W, A, S, D</b> : 移動 ／ <b>SPACE</b> : ジャンプ</div>
-      <div><b>マウス移動</b> : 視点回転</div>
-      <div><b>左クリック</b> : 敵を攻撃！ (またはブロック破壊)</div>
-      <div><b>右クリック</b> : ブロック設置</div>
-      <div><b>数字キー 1〜8 / ホイール</b> : 剣 / ブロック切り替え</div>
+      <div><b>【PC操作】</b></div>
+      <div>・<b>W, A, S, D</b> : 移動 ／ <b>SPACE</b> : ジャンプ</div>
+      <div>・<b>マウス移動</b> : 視点回転（画面ドラッグでも可）</div>
+      <div>・<b>左クリック</b> : 敵を攻撃！ (またはブロック破壊)</div>
+      <div>・<b>右クリック</b> : ブロック設置</div>
+      <div>・<b>数字キー 1〜8 / ホイール</b> : 剣 / ブロック切り替え</div>
       <div class="mob-info">
-        ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！離れるか剣で仕留めよう！<br>
+        ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！<br>
         ⚠️ <b>ゾンビ (Zombie)</b>: 両手を伸ばして追いかけてきてパンチします！
       </div>
     </div>
-    <button class="btn-main">クリックして冒険を始める！</button>
+    <button class="btn-main" id="start-btn">▶ クリックして今すぐプレイ！</button>
   </div>
 
-  <!-- ゲームオーバー画面 -->
   <div id="game-over-screen">
     <h1>YOU DIED!</h1>
     <p style="font-size: 20px;">敵に倒されてしまいました…</p>
     <button class="btn-main" id="respawn-btn">リスポーン (復活する)</button>
   </div>
 
+  <script>
+    // エラーキャッチ用
+    window.addEventListener('error', function(e) {
+      const errBar = document.getElementById('error-bar');
+      if (errBar) {
+        errBar.style.display = 'block';
+        errBar.textContent = 'エラー: ' + (e.message || e);
+      }
+    });
+  </script>
+
   <script type="module">
     import * as THREE from 'three';
     import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
     /* --- Sound Synthesizer (Web Audio API) --- */
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playSound(type) {
-      if (audioCtx.state === 'suspended') {
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       const now = audioCtx.currentTime;
 
       if (type === 'break') {
@@ -416,7 +509,6 @@
         osc.start(now);
         osc.stop(now + 0.15);
       } else if (type === 'hit') {
-        // 敵への攻撃ヒット音
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
@@ -429,7 +521,6 @@
         osc.start(now);
         osc.stop(now + 0.1);
       } else if (type === 'hurt') {
-        // プレイヤー被ダメージ「ウッ！」音
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
@@ -442,7 +533,6 @@
         osc.start(now);
         osc.stop(now + 0.18);
       } else if (type === 'fuse') {
-        // クリーパーの起爆音「シューーー」
         const bufferSize = audioCtx.sampleRate * 0.4;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -462,7 +552,6 @@
         gain.connect(audioCtx.destination);
         noise.start(now);
       } else if (type === 'explosion') {
-        // クリーパーの大爆発！
         const bufferSize = audioCtx.sampleRate * 0.9;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -485,7 +574,7 @@
       }
     }
 
-    /* --- Procedural Textures (16x16 Pixel Art) --- */
+    /* --- Procedural Textures --- */
     function createPixelTexture(drawFn) {
       const canvas = document.createElement('canvas');
       canvas.width = 16;
@@ -593,7 +682,6 @@
         ctx.fillRect(2, 2, 2, 2);
         ctx.fillRect(3, 4, 1, 1);
       }),
-      // クリーパー顔
       creeperFace: createPixelTexture(ctx => {
         ctx.fillStyle = '#2fb034';
         ctx.fillRect(0, 0, 16, 16);
@@ -601,13 +689,12 @@
           ctx.fillStyle = Math.random() > 0.5 ? '#1f8524' : '#45c44a';
           ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
         }
-        // 目・口
         ctx.fillStyle = '#111111';
-        ctx.fillRect(3, 4, 3, 3); // 左目
-        ctx.fillRect(10, 4, 3, 3); // 右目
-        ctx.fillRect(6, 7, 4, 5); // 鼻
-        ctx.fillRect(4, 9, 2, 5); // 口左
-        ctx.fillRect(10, 9, 2, 5); // 口右
+        ctx.fillRect(3, 4, 3, 3);
+        ctx.fillRect(10, 4, 3, 3);
+        ctx.fillRect(6, 7, 4, 5);
+        ctx.fillRect(4, 9, 2, 5);
+        ctx.fillRect(10, 9, 2, 5);
       }),
       creeperSkin: createPixelTexture(ctx => {
         ctx.fillStyle = '#2fb034';
@@ -617,7 +704,6 @@
           ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
         }
       }),
-      // ゾンビ顔
       zombieFace: createPixelTexture(ctx => {
         ctx.fillStyle = '#497c36';
         ctx.fillRect(0, 0, 16, 16);
@@ -635,7 +721,7 @@
 
     /* --- Block Definitions --- */
     const BLOCK_TYPES = [
-      { id: 'sword', name: '鉄の剣 (Iron Sword)' }, // 0: 剣
+      { id: 'sword', name: '鉄の剣 (Iron Sword)' },
       {
         id: 0,
         name: 'Grass',
@@ -697,27 +783,91 @@
     sunLight.shadow.camera.bottom = -d;
     scene.add(sunLight);
 
-    /* --- Controls & Screens --- */
+    /* --- Game State & Controls --- */
+    let isGamePlaying = false;
     const controls = new PointerLockControls(camera, document.body);
     const instructions = document.getElementById('instructions');
+    const startBtn = document.getElementById('start-btn');
     const gameOverScreen = document.getElementById('game-over-screen');
     const respawnBtn = document.getElementById('respawn-btn');
     const playerHand = document.getElementById('player-hand');
     const damageFlash = document.getElementById('damage-flash');
 
-    instructions.addEventListener('click', () => {
-      controls.lock();
-    });
+    // タッチデバイス検出
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
+      const mobControls = document.getElementById('mobile-controls');
+      const mobActions = document.getElementById('mobile-action-buttons');
+      if (mobControls) mobControls.style.display = 'flex';
+      if (mobActions) mobActions.style.display = 'flex';
+    }
 
-    controls.addEventListener('lock', () => {
+    // ゲーム開始関数（確実な実行）
+    function startGame() {
+      isGamePlaying = true;
       instructions.style.display = 'none';
       gameOverScreen.style.display = 'none';
+      initAudio();
+
+      // PointerLock を試みる（PC環境用）
+      try {
+        controls.lock();
+      } catch (e) {
+        console.log("Pointer lock not available or rejected, using drag controls");
+      }
+    }
+
+    // イベント登録
+    startBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startGame();
     });
+    startBtn.addEventListener('touchend', (e) => {
+      e.stopPropagation();
+      startGame();
+    });
+    instructions.addEventListener('click', startGame);
 
     controls.addEventListener('unlock', () => {
-      if (player.health > 0) {
+      if (player.health > 0 && !isTouchDevice) {
+        isGamePlaying = false;
         instructions.style.display = 'flex';
       }
+    });
+
+    // ドラッグ / スワイプによる視点回転ハンドラ（PointerLock無効環境・スマホ用）
+    let isPointerDragging = false;
+    let prevPointerX = 0;
+    let prevPointerY = 0;
+
+    window.addEventListener('pointerdown', (e) => {
+      if (!isGamePlaying) return;
+      // UI要素のクリックなら除外
+      if (e.target.closest('#hotbar') || e.target.closest('#mobile-controls') || e.target.closest('#mobile-action-buttons')) return;
+
+      isPointerDragging = true;
+      prevPointerX = e.clientX;
+      prevPointerY = e.clientY;
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isGamePlaying) return;
+
+      // PointerLock が効いていない時の手動回転
+      if (!controls.isLocked && isPointerDragging) {
+        const deltaX = e.clientX - prevPointerX;
+        const deltaY = e.clientY - prevPointerY;
+        prevPointerX = e.clientX;
+        prevPointerY = e.clientY;
+
+        camera.rotation.y -= deltaX * 0.004;
+        const pitch = camera.rotation.x - deltaY * 0.004;
+        camera.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      isPointerDragging = false;
     });
 
     /* --- World & Block Management --- */
@@ -773,26 +923,25 @@
           const surfaceY = pseudoNoise(x, z);
 
           for (let y = 0; y < surfaceY - 2; y++) {
-            addBlock(x, y, z, 3); // Stone (index 3)
+            addBlock(x, y, z, 3);
           }
           for (let y = Math.max(0, surfaceY - 2); y < surfaceY; y++) {
-            addBlock(x, y, z, 2); // Dirt (index 2)
+            addBlock(x, y, z, 2);
           }
-          addBlock(x, surfaceY, z, 1); // Grass (index 1)
+          addBlock(x, surfaceY, z, 1);
 
-          // 木の生成
           if (x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
             if (Math.random() < 0.025 && surfaceY >= 2) {
               const trunkHeight = rand(3, 4);
               for (let ty = 1; ty <= trunkHeight; ty++) {
-                addBlock(x, surfaceY + ty, z, 4); // Wood (index 4)
+                addBlock(x, surfaceY + ty, z, 4);
               }
               const topY = surfaceY + trunkHeight;
               for (let lx = -2; lx <= 2; lx++) {
                 for (let lz = -2; lz <= 2; lz++) {
                   for (let ly = 0; ly <= 1; ly++) {
                     if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.4) continue;
-                    addBlock(x + lx, topY + ly, z + lz, 5); // Leaves (index 5)
+                    addBlock(x + lx, topY + ly, z + lz, 5);
                   }
                 }
               }
@@ -809,7 +958,7 @@
 
     generateWorld();
 
-    /* --- Particle System (Explosions & Hits) --- */
+    /* --- Particle System --- */
     const particles = [];
     const particleGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
 
@@ -850,7 +999,7 @@
       jumpVelocity: 8.5,
       velocity: new THREE.Vector3(),
       onGround: false,
-      health: 20, // 20 HP = 10 hearts
+      health: 20,
       maxHealth: 20,
       invulnerableTimer: 0
     };
@@ -858,9 +1007,8 @@
     camera.position.set(0, 10, 0);
 
     const keys = { forward: false, backward: false, left: false, right: false, jump: false };
-    let selectedSlot = 0; // 0: 剣, 1: 草, 2: 土...
+    let selectedSlot = 0;
 
-    // 体力ハートUI更新
     const healthBar = document.getElementById('health-bar');
     function updateHealthUI() {
       healthBar.innerHTML = '';
@@ -886,16 +1034,14 @@
     function damagePlayer(amount, knockbackDir = null) {
       if (player.invulnerableTimer > 0 || player.health <= 0) return;
       player.health = Math.max(0, player.health - amount);
-      player.invulnerableTimer = 0.5; // 0.5秒無敵
+      player.invulnerableTimer = 0.5;
       playSound('hurt');
 
-      // 画面赤フラッシュ
       damageFlash.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
       setTimeout(() => {
         damageFlash.style.backgroundColor = 'rgba(255, 0, 0, 0)';
       }, 120);
 
-      // ノックバック
       if (knockbackDir) {
         player.velocity.x += knockbackDir.x * 9;
         player.velocity.y += 5;
@@ -905,7 +1051,8 @@
       updateHealthUI();
 
       if (player.health <= 0) {
-        controls.unlock();
+        isGamePlaying = false;
+        try { controls.unlock(); } catch(e){}
         gameOverScreen.style.display = 'flex';
       }
     }
@@ -916,24 +1063,22 @@
       camera.position.set(0, 15, 0);
       player.velocity.set(0, 0, 0);
       gameOverScreen.style.display = 'none';
-      controls.lock();
+      startGame();
     });
 
     /* --- Enemies (Mobs: Creeper & Zombie) --- */
     const mobs = [];
     const mobCountDisplay = document.getElementById('mob-count');
 
-    // クリーパー作成
     function createCreeper(x, y, z) {
       const group = new THREE.Group();
 
-      // 頭
       const headMat = [
         new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
         new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
         new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
         new THREE.MeshLambertMaterial({ map: textures.creeperSkin }),
-        new THREE.MeshLambertMaterial({ map: textures.creeperFace }), // 前
+        new THREE.MeshLambertMaterial({ map: textures.creeperFace }),
         new THREE.MeshLambertMaterial({ map: textures.creeperSkin })
       ];
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
@@ -941,14 +1086,12 @@
       head.castShadow = true;
       group.add(head);
 
-      // 胴体
       const bodyMat = new THREE.MeshLambertMaterial({ map: textures.creeperSkin });
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), bodyMat);
       body.position.y = 0.65;
       body.castShadow = true;
       group.add(body);
 
-      // 4本足
       const legMat = new THREE.MeshLambertMaterial({ map: textures.creeperSkin });
       const legGeo = new THREE.BoxGeometry(0.18, 0.35, 0.18);
       const legs = [];
@@ -987,15 +1130,13 @@
       return mob;
     }
 
-    // ゾンビ作成
     function createZombie(x, y, z) {
       const group = new THREE.Group();
 
-      // 頭
       const headMat = [
         new THREE.MeshLambertMaterial({ color: 0x497c36 }),
         new THREE.MeshLambertMaterial({ color: 0x497c36 }),
-        new THREE.MeshLambertMaterial({ color: 0x22381b }), // 髪
+        new THREE.MeshLambertMaterial({ color: 0x22381b }),
         new THREE.MeshLambertMaterial({ color: 0x497c36 }),
         new THREE.MeshLambertMaterial({ map: textures.zombieFace }),
         new THREE.MeshLambertMaterial({ color: 0x22381b })
@@ -1005,14 +1146,12 @@
       head.castShadow = true;
       group.add(head);
 
-      // 胴体 (水色のシャツ)
       const bodyMat = new THREE.MeshLambertMaterial({ color: 0x248f8f });
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.65, 0.28), bodyMat);
       body.position.y = 0.85;
       body.castShadow = true;
       group.add(body);
 
-      // 腕 (前に突き出し)
       const armMat = new THREE.MeshLambertMaterial({ color: 0x497c36 });
       const armGeo = new THREE.BoxGeometry(0.18, 0.55, 0.18);
       const armL = new THREE.Mesh(armGeo, armMat);
@@ -1027,7 +1166,6 @@
       armR.castShadow = true;
       group.add(armR);
 
-      // 足 (青ズボン)
       const legMat = new THREE.MeshLambertMaterial({ color: 0x26337a });
       const legGeo = new THREE.BoxGeometry(0.2, 0.6, 0.22);
       const legL = new THREE.Mesh(legGeo, legMat);
@@ -1059,7 +1197,6 @@
       return mob;
     }
 
-    // 地形に合わせてモブをスポーン
     function spawnInitialMobs() {
       const spawnPoints = [
         { x: 8, z: 8, type: 'creeper' },
@@ -1070,7 +1207,6 @@
       ];
 
       spawnPoints.forEach(sp => {
-        // 地面の高さを探す
         let groundY = 3;
         for (let y = 15; y >= 0; y--) {
           if (blocksMap.has(getBlockKey(sp.x, y, sp.z))) {
@@ -1085,17 +1221,14 @@
 
     spawnInitialMobs();
 
-    // クリーパー大爆発の処理
     function triggerCreeperExplosion(mob) {
       playSound('explosion');
       const center = mob.group.position.clone().add(new THREE.Vector3(0, 0.5, 0));
 
-      // パーティクル
       spawnParticles(center, 0xffffff, 40, 9);
       spawnParticles(center, 0xff5500, 30, 8);
       spawnParticles(center, 0x444444, 25, 6);
 
-      // 地形破壊 (半径2.6ブロック以内のブロックを吹き飛ばす)
       const radius = 2.6;
       const minX = Math.floor(center.x - radius);
       const maxX = Math.ceil(center.x + radius);
@@ -1118,15 +1251,13 @@
         }
       }
 
-      // プレイヤーへの爆風ダメージ & ノックバック
       const distToPlayer = camera.position.distanceTo(center);
       if (distToPlayer < 5.0) {
-        const damage = Math.round((1.0 - distToPlayer / 5.0) * 18) + 2; // 最大20ダメージ
+        const damage = Math.round((1.0 - distToPlayer / 5.0) * 18) + 2;
         const knockback = camera.position.clone().sub(center).normalize();
         damagePlayer(damage, knockback);
       }
 
-      // モブ自身を消去
       removeMob(mob);
     }
 
@@ -1138,7 +1269,6 @@
       }
     }
 
-    /* --- Update Mobs AI & Animation --- */
     function updateMobs(delta) {
       const playerPos = camera.position.clone();
       playerPos.y -= player.height / 2;
@@ -1147,9 +1277,8 @@
         const mobPos = mob.group.position;
         const dist = mobPos.distanceTo(playerPos);
         const dir = new THREE.Vector3().subVectors(playerPos, mobPos);
-        dir.y = 0; // 水平追従
+        dir.y = 0;
 
-        // 被弾赤フラッシュの戻し
         if (mob.hitFlashTimer > 0) {
           mob.hitFlashTimer -= delta;
           if (mob.hitFlashTimer <= 0) {
@@ -1165,27 +1294,22 @@
           }
         }
 
-        // プレイヤーの方向を向く
         if (dir.length() > 0.1) {
           mob.group.rotation.y = Math.atan2(dir.x, dir.z);
         }
 
-        // 足元グラウンド判定（簡単な重力）
-        let blockUnderY = -10;
         const checkKey = getBlockKey(mobPos.x, Math.floor(mobPos.y), mobPos.z);
         if (blocksMap.has(checkKey)) {
           mobPos.y = Math.floor(mobPos.y) + 1;
         } else {
           const lowerKey = getBlockKey(mobPos.x, Math.floor(mobPos.y - 0.5), mobPos.z);
           if (!blocksMap.has(lowerKey)) {
-            mobPos.y -= 7.0 * delta; // 落下
+            mobPos.y -= 7.0 * delta;
           }
         }
 
         if (mob.type === 'creeper') {
-          // クリーパーAI
           if (dist < 3.0) {
-            // 起爆シーケンス中
             if (!mob.exploding) {
               mob.exploding = true;
               playSound('fuse');
@@ -1193,7 +1317,6 @@
             mob.fuseTimer += delta;
             mob.flashTimer += delta * 15;
 
-            // 白く点滅＆膨張
             const scale = 1.0 + (mob.fuseTimer / mob.fuseDuration) * 0.3;
             mob.group.scale.set(scale, scale, scale);
 
@@ -1213,19 +1336,16 @@
               triggerCreeperExplosion(mob);
             }
           } else {
-            // 遠ざかったら起爆キャンセル
             if (mob.exploding) {
               mob.exploding = false;
               mob.fuseTimer = 0;
               mob.group.scale.set(1, 1, 1);
             }
-            // 接近移動 (16ブロック以内)
             if (dist < 16.0 && dist >= 2.6) {
               dir.normalize();
               mobPos.x += dir.x * mob.speed * delta;
               mobPos.z += dir.z * mob.speed * delta;
 
-              // 足パタパタアニメーション
               const walkCycle = Math.sin(performance.now() * 0.008) * 0.35;
               mob.legs[0].rotation.x = walkCycle;
               mob.legs[1].rotation.x = -walkCycle;
@@ -1234,23 +1354,20 @@
             }
           }
         } else if (mob.type === 'zombie') {
-          // ゾンビAI
           if (dist < 18.0) {
             if (dist > 1.3) {
               dir.normalize();
               mobPos.x += dir.x * mob.speed * delta;
               mobPos.z += dir.z * mob.speed * delta;
 
-              // 足パタパタ
               const walkCycle = Math.sin(performance.now() * 0.007) * 0.45;
               mob.legs[0].rotation.x = walkCycle;
               mob.legs[1].rotation.x = -walkCycle;
             } else {
-              // 近接攻撃 (パンチ)
               if (mob.attackCooldown <= 0) {
                 mob.attackCooldown = 1.0;
                 const knockDir = dir.clone().normalize();
-                damagePlayer(4, knockDir); // 2ハートダメージ
+                damagePlayer(4, knockDir);
               }
             }
           }
@@ -1268,13 +1385,13 @@
     highlightMesh.visible = false;
     scene.add(highlightMesh);
 
-    /* --- Raycasting for Interaction (Blocks & Mobs) --- */
+    /* --- Raycasting for Interaction --- */
     const raycaster = new THREE.Raycaster();
     raycaster.far = 6.0;
     let targetBlockIntersection = null;
 
     function updateRaycast() {
-      if (!controls.isLocked) {
+      if (!isGamePlaying) {
         highlightMesh.visible = false;
         targetBlockIntersection = null;
         return;
@@ -1282,7 +1399,6 @@
 
       raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-      // ブロック判定
       const blockIntersects = raycaster.intersectObjects(blocksGroup.children);
       if (blockIntersects.length > 0) {
         targetBlockIntersection = blockIntersects[0];
@@ -1294,7 +1410,6 @@
       }
     }
 
-    // 敵モブへのヒット判定
     function checkMobHit() {
       raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
       for (const mob of mobs) {
@@ -1306,89 +1421,119 @@
       return null;
     }
 
-    // 腕・武器スイングアニメーション
     function swingHand() {
       playerHand.classList.remove('swing-animation');
-      void playerHand.offsetWidth; // リフロー強制
+      void playerHand.offsetWidth;
       playerHand.classList.add('swing-animation');
     }
 
-    /* --- Mouse Actions (Attack / Mine / Place) --- */
-    window.addEventListener('mousedown', (e) => {
-      if (!controls.isLocked || player.health <= 0) return;
+    /* --- Actions: Attack/Mine and Place --- */
+    function performAttackOrMine() {
+      if (!isGamePlaying || player.health <= 0) return;
+      swingHand();
 
-      if (e.button === 0) {
-        // 左クリック: 敵への攻撃 or ブロック破壊
-        swingHand();
+      const hit = checkMobHit();
+      if (hit) {
+        const mob = hit.mob;
+        const damage = selectedSlot === 0 ? 8 : 4;
+        mob.health -= damage;
+        mob.hitFlashTimer = 0.2;
+        playSound('hit');
 
-        const hit = checkMobHit();
-        if (hit) {
-          // モブに攻撃命中！
-          const mob = hit.mob;
-          const damage = selectedSlot === 0 ? 8 : 4; // 剣なら8ダメージ（約2〜3撃で倒せる）
-          mob.health -= damage;
-          mob.hitFlashTimer = 0.2;
-          playSound('hit');
-
-          // 赤く点滅
-          mob.group.traverse(child => {
-            if (child.isMesh && child.material) {
-              if (Array.isArray(child.material)) {
-                child.material.forEach(m => m.color.setRGB(1.5, 0.3, 0.3));
-              } else {
-                child.material.color.setRGB(1.5, 0.3, 0.3);
-              }
+        mob.group.traverse(child => {
+          if (child.isMesh && child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.color.setRGB(1.5, 0.3, 0.3));
+            } else {
+              child.material.color.setRGB(1.5, 0.3, 0.3);
             }
-          });
-
-          // ノックバック
-          const knockDir = mob.group.position.clone().sub(camera.position).normalize();
-          knockDir.y = 0.25;
-          mob.group.position.addScaledVector(knockDir, 0.9);
-
-          // ヒットパーティクル
-          spawnParticles(hit.point, 0xff2222, 10, 4);
-
-          // 撃破判定
-          if (mob.health <= 0) {
-            spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 24, 6);
-            removeMob(mob);
           }
-          return;
-        }
+        });
 
-        // 敵に当たらなければブロック破壊
-        if (targetBlockIntersection) {
-          removeBlock(targetBlockIntersection.object, true);
+        const knockDir = mob.group.position.clone().sub(camera.position).normalize();
+        knockDir.y = 0.25;
+        mob.group.position.addScaledVector(knockDir, 0.9);
+
+        spawnParticles(hit.point, 0xff2222, 10, 4);
+
+        if (mob.health <= 0) {
+          spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 24, 6);
+          removeMob(mob);
+        }
+        return;
+      }
+
+      if (targetBlockIntersection) {
+        removeBlock(targetBlockIntersection.object, true);
+        updateRaycast();
+      }
+    }
+
+    function performPlace() {
+      if (!isGamePlaying || player.health <= 0) return;
+      if (selectedSlot === 0) return;
+
+      if (targetBlockIntersection) {
+        const normal = targetBlockIntersection.face.normal;
+        const targetPos = targetBlockIntersection.object.position.clone().add(normal);
+
+        const pBox = new THREE.Box3().setFromCenterAndSize(
+          new THREE.Vector3(camera.position.x, camera.position.y - player.height / 2, camera.position.z),
+          new THREE.Vector3(player.radius * 2, player.height, player.radius * 2)
+        );
+        const bBox = new THREE.Box3().setFromCenterAndSize(
+          targetPos,
+          new THREE.Vector3(0.95, 0.95, 0.95)
+        );
+
+        if (!pBox.intersectsBox(bBox)) {
+          addBlock(targetPos.x, targetPos.y, targetPos.z, selectedSlot, true);
           updateRaycast();
         }
+      }
+    }
+
+    /* --- Mouse Input --- */
+    window.addEventListener('mousedown', (e) => {
+      if (!isGamePlaying || player.health <= 0) return;
+      if (e.target.closest('#hotbar') || e.target.closest('#instructions') || e.target.closest('#game-over-screen')) return;
+
+      if (e.button === 0) {
+        performAttackOrMine();
       } else if (e.button === 2) {
-        // 右クリック: ブロック設置
-        if (selectedSlot === 0) return; // 剣のときは設置不可
-
-        if (targetBlockIntersection) {
-          const normal = targetBlockIntersection.face.normal;
-          const targetPos = targetBlockIntersection.object.position.clone().add(normal);
-
-          // プレイヤーとの衝突判定
-          const pBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(camera.position.x, camera.position.y - player.height / 2, camera.position.z),
-            new THREE.Vector3(player.radius * 2, player.height, player.radius * 2)
-          );
-          const bBox = new THREE.Box3().setFromCenterAndSize(
-            targetPos,
-            new THREE.Vector3(0.95, 0.95, 0.95)
-          );
-
-          if (!pBox.intersectsBox(bBox)) {
-            addBlock(targetPos.x, targetPos.y, targetPos.z, selectedSlot, true);
-            updateRaycast();
-          }
-        }
+        performPlace();
       }
     });
 
     window.addEventListener('contextmenu', e => e.preventDefault());
+
+    // モバイルボタンイベント
+    const btnJump = document.getElementById('btn-jump');
+    const btnAttack = document.getElementById('btn-attack');
+    const btnPlace = document.getElementById('btn-place');
+
+    if (btnJump) {
+      btnJump.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        if (player.onGround && player.health > 0) {
+          player.velocity.y = player.jumpVelocity;
+          player.onGround = false;
+          playSound('jump');
+        }
+      });
+    }
+    if (btnAttack) {
+      btnAttack.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        performAttackOrMine();
+      });
+    }
+    if (btnPlace) {
+      btnPlace.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        performPlace();
+      });
+    }
 
     /* --- Keyboard Controls --- */
     window.addEventListener('keydown', (e) => {
@@ -1410,7 +1555,7 @@
           keys.right = true;
           break;
         case 'Space':
-          if (player.onGround && player.health > 0) {
+          if (player.onGround && player.health > 0 && isGamePlaying) {
             player.velocity.y = player.jumpVelocity;
             player.onGround = false;
             playSound('jump');
@@ -1452,9 +1597,8 @@
       }
     });
 
-    // ホイールでスロット選択
     window.addEventListener('wheel', (e) => {
-      if (!controls.isLocked) return;
+      if (!isGamePlaying) return;
       if (e.deltaY > 0) {
         selectSlot((selectedSlot + 1) % 8);
       } else if (e.deltaY < 0) {
@@ -1523,21 +1667,18 @@
       const speed = player.speed * delta;
       const horizontalMovement = moveDir.clone().multiplyScalar(speed);
 
-      // X軸衝突
       const oldX = camera.position.x;
       camera.position.x += horizontalMovement.x;
       if (checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z))) {
         camera.position.x = oldX;
       }
 
-      // Z軸衝突
       const oldZ = camera.position.z;
       camera.position.z += horizontalMovement.z;
       if (checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z))) {
         camera.position.z = oldZ;
       }
 
-      // 重力 & 垂直移動
       player.velocity.y -= GRAVITY * delta;
       camera.position.y += player.velocity.y * delta;
 
@@ -1555,7 +1696,6 @@
         player.onGround = false;
       }
 
-      // 奈落落下時
       if (camera.position.y < -15) {
         damagePlayer(20);
       }
@@ -1584,7 +1724,7 @@
         lastFpsUpdate = time;
       }
 
-      if (controls.isLocked) {
+      if (isGamePlaying) {
         updatePhysics(delta);
         updateMobs(delta);
         updateParticles(delta);
