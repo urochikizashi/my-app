@@ -299,7 +299,7 @@
     }
     #save-toast {
       position: absolute;
-      top: 16px;
+      top: 190px;
       right: 16px;
       padding: 8px 14px;
       color: #fff;
@@ -370,6 +370,68 @@
       border-color: #ffdd55;
       box-shadow: 0 0 10px #ffdd55;
     }
+    #minimap {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 162px;
+      height: 162px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 6px;
+      background: #000;
+      image-rendering: pixelated;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #map-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      z-index: 18;
+      pointer-events: none;
+    }
+    /* display: flex より hidden 属性を優先させる（これが無いとマップが閉じない） */
+    #map-overlay[hidden] {
+      display: none;
+    }
+    #world-map {
+      width: min(80vh, 90vw);
+      height: min(80vh, 90vw);
+      image-rendering: pixelated;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+    }
+    #boss-bar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(360px, 60vw);
+      text-align: center;
+      color: #fff;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px #000;
+      z-index: 12;
+      pointer-events: none;
+    }
+    #boss-health {
+      margin-top: 4px;
+      height: 12px;
+      background: #400;
+      border: 2px solid #fff;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #boss-health-fill {
+      height: 100%;
+      width: 100%;
+      background: #e33;
+    }
   </style>
 
   <!-- Three.js Import Map -->
@@ -387,6 +449,16 @@
   <div id="crosshair"></div>
   <div id="damage-flash"></div>
   <div id="save-toast" hidden></div>
+  <canvas id="minimap" width="162" height="162"></canvas>
+  <div id="map-overlay" hidden>
+    <div>🗺️ マップ（M キーで閉じる）</div>
+    <canvas id="world-map" width="644" height="644"></canvas>
+    <div>▲ あなた　🏠 スタート地点　💀 ダンジョン（ボス）</div>
+  </div>
+  <div id="boss-bar" hidden>
+    <div id="boss-name">🗿 ゴーレム</div>
+    <div id="boss-health"><div id="boss-health-fill"></div></div>
+  </div>
   <div id="player-hand">✊</div>
 
   <div id="health-bar"></div>
@@ -395,6 +467,7 @@
     <div><strong>3D Minecraft - Big World Edition</strong></div>
     <div id="pos-display">XYZ: 0.0, 0.0, 0.0</div>
     <div id="time-display">☀️ 昼</div>
+    <div id="biome-display">🌿 草原</div>
     <div id="depth-display">深さ: 0m (最深記録: 0m)</div>
     <div id="mob-count">Enemies: 0</div>
     <div id="kill-count">Kills: 0</div>
@@ -417,6 +490,7 @@
       <div><b>右クリック</b> : ブロックや松明を置く ／ 食べ物を食べる ／ 作業台を開く</div>
       <div><b>数字キー 1〜8 / ホイール</b> : 持ち物の切り替え</div>
       <div><b>E</b> : クラフトとカバン（持ち物の整理）</div>
+      <div><b>M</b> : マップを開く／閉じる</div>
       <div><b>ESC</b> : 一時停止（自動でセーブされます。30秒ごとにも自動セーブ）</div>
       <div class="mob-info">
         ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！離れるか剣で仕留めよう！<br>
@@ -430,7 +504,10 @@
         🎒 <b>持ち物</b>: 最初は空っぽ（素手）。木を掘って木材を集め、<b>作業台</b>（木材4個）を置いて、<b>ツルハシ</b>と<b>剣</b>を作ろう！石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます。<b>松明</b>を置くと明るくなって近くに敵が出なくなり、<b>防具</b>を持つと受けるダメージが減ります。りんごや肉を右クリックで食べると回復！
       </div>
       <div class="mob-info">
-        ⛏️ <b>地下探検</b>: ワールドは161×161ブロックの広さ。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。
+        ⛏️ <b>地下探検</b>: ワールドは161×161ブロックの広さ。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。<br>
+        🌍 <b>いろいろな地形</b>: 草原・森・砂漠（サボテンに注意）・雪原・山と湖。砂漠にはハスク、雪原にはストレイが出ます。<br>
+        🗿 <b>ボス</b>: 地下深くのダンジョンに巨大なゴーレムがいます。M キーのマップで 💀 の場所を探そう！地面をたたく衝撃波はジャンプでよけられる。倒すと宝箱が開きます。<br>
+        🕸️ <b>糸</b>はクモを倒すか、洞窟のクモの巣を掘ると手に入ります。
       </div>
     </div>
     <button class="btn-main">クリックして冒険を始める！</button>
@@ -607,6 +684,58 @@
         gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
         osc.start(now);
         osc.stop(now + 0.15);
+      } else if (type === 'roar') {
+        // ゴーレムのうなり声
+        const osc = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
+        osc.frequency.setValueAtTime(90, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.7);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.7);
+        osc.start(now);
+        osc.stop(now + 0.7);
+      } else if (type === 'slam') {
+        // 地面をたたく「ドーン」
+        const bufferSize = audioCtx.sampleRate * 0.5;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(300, now);
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start(now);
+      } else if (type === 'chest') {
+        // 宝箱が開く「ジャーン」
+        [523, 659, 784].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'triangle';
+          const start = now + i * 0.1;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.2, start);
+          gain.gain.linearRampToValueAtTime(0.01, start + 0.3);
+          osc.start(start);
+          osc.stop(start + 0.3);
+        });
       } else if (type === 'explosion') {
         // クリーパーの大爆発！
         const bufferSize = audioCtx.sampleRate * 0.9;
@@ -892,12 +1021,124 @@
       ctx.fillRect(7, 11, 2, 1);
     });
 
+    // 地形のバリエーション（砂漠・雪原・森・湖）とダンジョン用
+    function speckle(ctx, base, colors, count) {
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, 16, 16);
+      for (let i = 0; i < count; i++) {
+        ctx.fillStyle = colors[rand(0, colors.length - 1)];
+        ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+      }
+    }
+
+    textures.sand = createPixelTexture(ctx => speckle(ctx, '#dbcf8e', ['#cfc27f', '#e6dca0'], 60));
+    textures.snow = createPixelTexture(ctx => speckle(ctx, '#f4f8fb', ['#e3ebf2', '#ffffff'], 40));
+    textures.snowGrassSide = createPixelTexture(ctx => {
+      speckle(ctx, '#866043', ['#77543a', '#966c4c'], 40);
+      ctx.fillStyle = '#f4f8fb';
+      ctx.fillRect(0, 0, 16, 3);
+      for (let x = 0; x < 16; x++) ctx.fillRect(x, 0, 1, rand(2, 5));
+    });
+    textures.ice = createPixelTexture(ctx => {
+      ctx.fillStyle = '#9cc8f0';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#c8e4ff';
+      for (let i = 0; i < 5; i++) ctx.fillRect(rand(0, 12), rand(0, 15), rand(2, 4), 1);
+    });
+    textures.cactusSide = createPixelTexture(ctx => {
+      ctx.fillStyle = '#3f8a3a';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#2e6e2b';
+      [3, 8, 12].forEach(x => ctx.fillRect(x, 0, 1, 16));
+      ctx.fillStyle = '#d8e8b0';
+      for (let i = 0; i < 10; i++) ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+    });
+    textures.cactusTop = createPixelTexture(ctx => {
+      ctx.fillStyle = '#4f9a45';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.strokeStyle = '#2e6e2b';
+      ctx.strokeRect(2.5, 2.5, 11, 11);
+    });
+    textures.spruceSide = createPixelTexture(ctx => {
+      ctx.fillStyle = '#5a3e24';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#3e2a17';
+      for (let x = 1; x < 16; x += 3) ctx.fillRect(x, 0, 1, 16);
+    });
+    textures.spruceLeaves = createPixelTexture(ctx => speckle(ctx, '#2f4f36', ['#27432d', '#3a5e41'], 70));
+    textures.water = createPixelTexture(ctx => speckle(ctx, '#2f6fd6', ['#3a7fe8', '#2a62c0'], 50));
+    textures.stoneBrick = createPixelTexture(ctx => {
+      speckle(ctx, '#7d7d7d', ['#737373', '#888888'], 40);
+      ctx.fillStyle = '#5b5b5b';
+      ctx.fillRect(0, 7, 16, 1);
+      ctx.fillRect(0, 15, 16, 1);
+      ctx.fillRect(7, 0, 1, 7);
+      ctx.fillRect(3, 8, 1, 7);
+      ctx.fillRect(11, 8, 1, 7);
+    });
+    function chestTexture(withLatch) {
+      return createPixelTexture(ctx => {
+        ctx.fillStyle = '#9a6a2e';
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.strokeStyle = '#5a3a14';
+        ctx.strokeRect(0.5, 0.5, 15, 15);
+        ctx.fillStyle = '#5a3a14';
+        ctx.fillRect(1, 5, 14, 1);
+        if (withLatch) {
+          ctx.fillStyle = '#e0e0e0';
+          ctx.fillRect(7, 4, 2, 4);
+        }
+      });
+    }
+    textures.chestFront = chestTexture(true);
+    textures.chestTop = chestTexture(false);
+    textures.cobweb = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      ctx.strokeStyle = 'rgba(240, 240, 240, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(16, 16);
+      ctx.moveTo(16, 0); ctx.lineTo(0, 16);
+      ctx.moveTo(8, 0); ctx.lineTo(8, 16);
+      ctx.moveTo(0, 8); ctx.lineTo(16, 8);
+      ctx.stroke();
+      ctx.strokeRect(4.5, 4.5, 7, 7);
+    });
+
+    // ゴーレム・ハスク・ストレイの顔
+    textures.golemFace = createPixelTexture(ctx => {
+      speckle(ctx, '#b8b8b0', ['#a8a8a0', '#c8c8c0', '#7f9a6a'], 60);
+      ctx.fillStyle = '#555550';
+      ctx.fillRect(2, 4, 12, 1);
+      ctx.fillStyle = '#ff5a2a';
+      ctx.fillRect(4, 6, 2, 2);
+      ctx.fillRect(10, 6, 2, 2);
+      ctx.fillStyle = '#9a9a90';
+      ctx.fillRect(7, 7, 2, 5);
+    });
+    textures.huskFace = createPixelTexture(ctx => {
+      speckle(ctx, '#b8a06a', ['#a89060', '#c8b07a'], 50);
+      ctx.fillStyle = '#2a2010';
+      ctx.fillRect(3, 6, 2, 2);
+      ctx.fillRect(11, 6, 2, 2);
+      ctx.fillRect(6, 10, 4, 2);
+    });
+    textures.strayFace = createPixelTexture(ctx => {
+      speckle(ctx, '#cfe0e8', ['#bcd0da', '#e2eef4'], 40);
+      ctx.fillStyle = '#1a2a33';
+      ctx.fillRect(3, 5, 3, 3);
+      ctx.fillRect(10, 5, 3, 3);
+      ctx.fillRect(7, 9, 2, 2);
+      ctx.fillRect(4, 12, 8, 1);
+    });
+
     /* --- Block Definitions & Texture Atlas --- */
     // 地形はチャンク（16×16列）ごとに「見えている面」だけをまとめて描く。
     // そのために全ブロックの絵を1枚の画像（アトラス）に並べ、面ごとにどの絵を使うかを決める
     const ATLAS_TILES = [
       'grassTop', 'grassSide', 'dirt', 'stone', 'woodSide', 'woodTop', 'leaves', 'brick',
-      'glass', 'bedrock', 'coalOre', 'ironOre', 'goldOre', 'diamondOre', 'craftingTableTop', 'craftingTableSide'
+      'glass', 'bedrock', 'coalOre', 'ironOre', 'goldOre', 'diamondOre', 'craftingTableTop', 'craftingTableSide',
+      'sand', 'snow', 'snowGrassSide', 'ice', 'cactusSide', 'cactusTop', 'spruceSide', 'spruceLeaves',
+      'water', 'stoneBrick', 'chestFront', 'chestTop', 'cobweb'
     ];
     const ATLAS_COLS = 4;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -914,27 +1155,40 @@
     atlasTexture.generateMipmaps = false;
 
     const tile = name => ATLAS_TILES.indexOf(name);
+    const same = name => [tile(name), tile(name), tile(name)];
 
     // tiles: [上, 下, 横] の絵
     // tier: 掘るのに必要なツルハシ（0: 素手でOK, 1: 木, 2: 石, 3: 鉄, 99: 壊せない）
     // drop: 掘ったときに持ち物に入るアイテム
     // seeThrough: 向こうが透けて見える（隣のブロックの面を隠さない）
-    // solid: false なら通り抜けられる
+    // solid: false なら通り抜けられる / render: 'glass' か 'water' は半透明で描く
+    // map: マップに表示する色
     const BLOCKS = {
-      1: { name: '草', tiles: [tile('grassTop'), tile('dirt'), tile('grassSide')], tier: 0, drop: 'grass' },
-      2: { name: '土', tiles: [tile('dirt'), tile('dirt'), tile('dirt')], tier: 0, drop: 'dirt' },
-      3: { name: '石', tiles: [tile('stone'), tile('stone'), tile('stone')], tier: 1, drop: 'stone' },
-      4: { name: '木材', tiles: [tile('woodTop'), tile('woodTop'), tile('woodSide')], tier: 0, drop: 'wood' },
-      5: { name: '葉', tiles: [tile('leaves'), tile('leaves'), tile('leaves')], tier: 0, drop: 'leaves', seeThrough: true },
-      6: { name: 'レンガ', tiles: [tile('brick'), tile('brick'), tile('brick')], tier: 1, drop: 'brick' },
-      7: { name: 'ガラス', tiles: [tile('glass'), tile('glass'), tile('glass')], tier: 0, drop: 'glass', seeThrough: true, glass: true },
-      8: { name: '岩盤', tiles: [tile('bedrock'), tile('bedrock'), tile('bedrock')], tier: 99 },
-      9: { name: '石炭の鉱石', tiles: [tile('coalOre'), tile('coalOre'), tile('coalOre')], tier: 1, drop: 'coal' },
-      10: { name: '鉄の鉱石', tiles: [tile('ironOre'), tile('ironOre'), tile('ironOre')], tier: 2, drop: 'iron' },
-      11: { name: '金の鉱石', tiles: [tile('goldOre'), tile('goldOre'), tile('goldOre')], tier: 3, drop: 'gold' },
-      12: { name: 'ダイヤの鉱石', tiles: [tile('diamondOre'), tile('diamondOre'), tile('diamondOre')], tier: 3, drop: 'diamond' },
-      13: { name: '作業台', tiles: [tile('craftingTableTop'), tile('woodTop'), tile('craftingTableSide')], tier: 0, drop: 'table' },
-      14: { name: '松明', torch: true, seeThrough: true, solid: false, tier: 0, drop: 'torch' }
+      1: { name: '草', tiles: [tile('grassTop'), tile('dirt'), tile('grassSide')], tier: 0, drop: 'grass', map: '#5c8e32' },
+      2: { name: '土', tiles: same('dirt'), tier: 0, drop: 'dirt', map: '#866043' },
+      3: { name: '石', tiles: same('stone'), tier: 1, drop: 'stone', map: '#808080' },
+      4: { name: '木材', tiles: [tile('woodTop'), tile('woodTop'), tile('woodSide')], tier: 0, drop: 'wood', map: '#8f683d' },
+      5: { name: '葉', tiles: same('leaves'), tier: 0, drop: 'leaves', seeThrough: true, map: '#2d6d1b' },
+      6: { name: 'レンガ', tiles: same('brick'), tier: 1, drop: 'brick', map: '#9c4233' },
+      7: { name: 'ガラス', tiles: same('glass'), tier: 0, drop: 'glass', seeThrough: true, render: 'glass', map: '#a8d0e8' },
+      8: { name: '岩盤', tiles: same('bedrock'), tier: 99, map: '#333333' },
+      9: { name: '石炭の鉱石', tiles: same('coalOre'), tier: 1, drop: 'coal', map: '#555555' },
+      10: { name: '鉄の鉱石', tiles: same('ironOre'), tier: 2, drop: 'iron', map: '#a08870' },
+      11: { name: '金の鉱石', tiles: same('goldOre'), tier: 3, drop: 'gold', map: '#c8a830' },
+      12: { name: 'ダイヤの鉱石', tiles: same('diamondOre'), tier: 3, drop: 'diamond', map: '#44cccc' },
+      13: { name: '作業台', tiles: [tile('craftingTableTop'), tile('woodTop'), tile('craftingTableSide')], tier: 0, drop: 'table', map: '#a57c4a' },
+      14: { name: '松明', torch: true, seeThrough: true, solid: false, tier: 0, drop: 'torch', map: '#ffcc33' },
+      15: { name: '砂', tiles: same('sand'), tier: 0, drop: 'sand', map: '#dbcf8e' },
+      16: { name: '雪', tiles: same('snow'), tier: 0, drop: 'snow', map: '#f4f8fb' },
+      17: { name: '雪の草', tiles: [tile('snow'), tile('dirt'), tile('snowGrassSide')], tier: 0, drop: 'dirt', map: '#e8eef2' },
+      18: { name: '氷', tiles: same('ice'), tier: 0, drop: 'ice', map: '#9cc8f0' },
+      19: { name: 'サボテン', tiles: [tile('cactusTop'), tile('cactusTop'), tile('cactusSide')], tier: 0, drop: 'cactus', hurts: true, map: '#3f8a3a' },
+      20: { name: 'トウヒの木', tiles: [tile('woodTop'), tile('woodTop'), tile('spruceSide')], tier: 0, drop: 'wood', map: '#5a3e24' },
+      21: { name: 'トウヒの葉', tiles: same('spruceLeaves'), tier: 0, drop: 'leaves', seeThrough: true, map: '#2f4f36' },
+      22: { name: '水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, render: 'water', map: '#2f6fd6' },
+      23: { name: '石レンガ', tiles: same('stoneBrick'), tier: 1, drop: 'stone_bricks', map: '#6a6a6a' },
+      24: { name: '宝箱', tiles: [tile('chestTop'), tile('chestTop'), tile('chestFront')], tier: 99, chest: true, map: '#9a6a2e' },
+      25: { name: 'クモの巣', tiles: same('cobweb'), tier: 0, drop: 'string', seeThrough: true, solid: false, web: true, render: 'glass', map: '#dddddd' }
     };
     const GRASS = 1;
     const DIRT = 2;
@@ -948,15 +1202,35 @@
     const DIAMOND_ORE = 12;
     const CRAFTING_TABLE = 13;
     const TORCH = 14;
+    const SAND = 15;
+    const SNOW = 16;
+    const SNOW_GRASS = 17;
+    const ICE = 18;
+    const CACTUS = 19;
+    const SPRUCE_LOG = 20;
+    const SPRUCE_LEAVES = 21;
+    const WATER = 22;
+    const STONE_BRICKS = 23;
+    const CHEST = 24;
+    const COBWEB = 25;
 
-    // 地形のメッシュ用の材質（不透明なもの / ガラス）
+    // 地形のメッシュ用の材質（不透明なもの / ガラスとクモの巣 / 水）
     const opaqueMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture, vertexColors: true });
     const glassMaterial = new THREE.MeshLambertMaterial({
       map: atlasTexture,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
+      alphaTest: 0.1,
       depthWrite: false
+    });
+    const waterMaterial = new THREE.MeshLambertMaterial({
+      map: atlasTexture,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false,
+      side: THREE.DoubleSide
     });
 
     /* --- Scene, Camera, Renderer --- */
@@ -1044,7 +1318,7 @@
     const SIZE_Y = MAX_Y - BEDROCK_Y + 1;
     const SIZE_Z = WORLD_SIZE + 1;
     const SAVE_KEY = 'minecraft3d-save';
-    const SAVE_VERSION = 3; // 地形生成を変えたら上げる（古いセーブは読み込まない）
+    const SAVE_VERSION = 4; // 地形生成を変えたら上げる（古いセーブは読み込まない）
 
     // 全ブロックを1本の数字の列に入れる（0 は空気）
     const world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
@@ -1177,6 +1451,7 @@
     function buildChunk(chunk) {
       const opaque = newFaceBuffer();
       const glass = newFaceBuffer();
+      const water = newFaceBuffer();
       const x0 = -HALF_SIZE + chunk.cx * CHUNK_SIZE;
       const z0 = -HALF_SIZE + chunk.cz * CHUNK_SIZE;
       const x1 = Math.min(HALF_SIZE, x0 + CHUNK_SIZE - 1);
@@ -1189,10 +1464,11 @@
             if (id === 0) continue;
             const def = BLOCKS[id];
             if (def.torch) continue; // 松明は別に描く
-            const buf = def.glass ? glass : opaque;
+            const buf = def.render === 'water' ? water : def.render === 'glass' ? glass : opaque;
             for (const face of FACES) {
               const n = neighborForMesh(x + face.dir[0], y + face.dir[1], z + face.dir[2]);
               if (n !== 0 && !BLOCKS[n].seeThrough) continue; // 隣がふさがっていて見えない
+              if (def.water && n !== 0 && BLOCKS[n].solid !== false) continue; // 水はブロックに接した面を描かない
               if (n === id && def.seeThrough) continue;      // 葉と葉、ガラスとガラスの間は描かない
               addFace(buf, x, y, z, face, def.tiles[face.side]);
             }
@@ -1200,7 +1476,7 @@
         }
       }
 
-      for (const key of ['opaqueMesh', 'glassMesh']) {
+      for (const key of ['opaqueMesh', 'glassMesh', 'waterMesh']) {
         if (chunk[key]) {
           terrainGroup.remove(chunk[key]);
           chunk[key].geometry.dispose();
@@ -1209,8 +1485,10 @@
       }
       chunk.opaqueMesh = makeChunkMesh(opaque, opaqueMaterial);
       chunk.glassMesh = makeChunkMesh(glass, glassMaterial);
+      chunk.waterMesh = makeChunkMesh(water, waterMaterial);
       if (chunk.opaqueMesh) terrainGroup.add(chunk.opaqueMesh);
       if (chunk.glassMesh) terrainGroup.add(chunk.glassMesh);
+      if (chunk.waterMesh) terrainGroup.add(chunk.waterMesh);
       chunk.dirty = false;
     }
 
@@ -1224,6 +1502,7 @@
             centerZ: -HALF_SIZE + cz * CHUNK_SIZE + CHUNK_SIZE / 2,
             opaqueMesh: null,
             glassMesh: null,
+            waterMesh: null,
             dirty: false
           };
           chunks.push(chunk);
@@ -1252,6 +1531,7 @@
         const far = Math.hypot(chunk.centerX - camera.position.x, chunk.centerZ - camera.position.z) > VIEW_DISTANCE;
         if (chunk.opaqueMesh) chunk.opaqueMesh.visible = !far;
         if (chunk.glassMesh) chunk.glassMesh.visible = !far;
+        if (chunk.waterMesh) chunk.waterMesh.visible = !far;
       }
     }
 
@@ -1300,13 +1580,14 @@
       z = Math.round(z);
       if (!inBounds(x, y, z)) return false;
       const i = cellIndex(x, y, z);
-      if (world[i] !== 0) return false;
+      if (world[i] !== 0 && world[i] !== WATER) return false; // 水の中には置ける（水と入れかわる）
 
+      if (world[i] === 0) blockCount++;
       world[i] = id;
-      blockCount++;
       blockChanges.set(blockKey(x, y, z), id);
       if (BLOCKS[id].torch) addTorchMesh(x, y, z);
-      else markDirty(x, z);
+      markDirty(x, z);
+      markMapDirty(x, z);
 
       if (playSoundFlag) playSound('place');
       return true;
@@ -1327,81 +1608,10 @@
       blockChanges.set(blockKey(x, y, z), 0);
       if (BLOCKS[id].torch) removeTorchMesh(x, y, z);
       else markDirty(x, z);
+      markMapDirty(x, z);
 
       if (playSoundFlag) playSound('break');
       return id;
-    }
-
-    /* --- Procedural Terrain --- */
-    // シードから地形のずらし量を決めて、ワールドごとに違う形にする
-    let terrainOffsetX = 0;
-    let terrainOffsetZ = 0;
-
-    function surfaceHeight(x, z) {
-      x += terrainOffsetX;
-      z += terrainOffsetZ;
-      const hills = 3 * Math.sin(x * 0.05) * Math.cos(z * 0.045) +
-                    2.2 * Math.sin(x * 0.12 + z * 0.09) +
-                    1.2 * Math.cos(x * 0.21 - z * 0.17);
-      const mountains = 9 * Math.max(0, Math.sin(x * 0.018 + 1.3) * Math.cos(z * 0.021 - 0.7) - 0.3);
-      return Math.floor(4 + hills + mountains);
-    }
-
-    // 深いほどレアな鉱石が出る
-    function undergroundBlock(y) {
-      const r = worldRandom();
-      if (y < -28 && r < 0.012) return DIAMOND_ORE;
-      if (y < -18 && r < 0.03) return GOLD_ORE;
-      if (y < -6 && r < 0.06) return IRON_ORE;
-      if (r < 0.08) return COAL_ORE;
-      return STONE;
-    }
-
-    function generateWorld() {
-      terrainOffsetX = (worldSeed % 10007) * 1.37;
-      terrainOffsetZ = (Math.floor(worldSeed / 10007) % 10007) * 1.91;
-
-      for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
-        for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) {
-          const surfaceY = surfaceHeight(x, z);
-
-          setBlockData(x, BEDROCK_Y, z, BEDROCK);
-          for (let y = BEDROCK_Y + 1; y < surfaceY - 2; y++) {
-            setBlockData(x, y, z, undergroundBlock(y));
-          }
-          for (let y = surfaceY - 2; y < surfaceY; y++) {
-            setBlockData(x, y, z, DIRT);
-          }
-          setBlockData(x, surfaceY, z, GRASS);
-
-          // 木の生成（スタート地点のまわりには生やさない）
-          const nearSpawn = Math.abs(x) <= 3 && Math.abs(z) <= 3;
-          if (!nearSpawn && x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
-            if (worldRandom() < 0.025 && surfaceY >= 2) {
-              const trunkHeight = worldRandInt(3, 4);
-              for (let ty = 1; ty <= trunkHeight; ty++) {
-                setBlockData(x, surfaceY + ty, z, WOOD);
-              }
-              const topY = surfaceY + trunkHeight;
-              for (let lx = -2; lx <= 2; lx++) {
-                for (let lz = -2; lz <= 2; lz++) {
-                  for (let ly = 0; ly <= 1; ly++) {
-                    if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && worldRandom() > 0.4) continue;
-                    setBlockData(x + lx, topY + ly, z + lz, LEAVES);
-                  }
-                }
-              }
-              for (let lx = -1; lx <= 1; lx++) {
-                for (let lz = -1; lz <= 1; lz++) {
-                  setBlockData(x + lx, topY + 2, z + lz, LEAVES);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      generateCaves();
     }
 
     /* --- Cave Generation --- */
@@ -1415,7 +1625,8 @@
             if (Math.hypot(x - cx, y - cy, z - cz) > r) continue;
             if (Math.abs(x) <= 2 && Math.abs(z) <= 2 && y >= spawnSurface - 5) continue;
             const id = getBlock(x, y, z);
-            if (id === 0 || id === BEDROCK || id === WOOD || id === LEAVES) continue;
+            if (id === 0 || id === BEDROCK || id === WOOD || id === LEAVES || id === WATER ||
+                id === SPRUCE_LOG || id === SPRUCE_LEAVES || id === CACTUS) continue;
             clearBlockData(x, y, z);
           }
         }
@@ -1479,6 +1690,8 @@
       Object.entries(changes).forEach(([key, id]) => {
         const [x, y, z] = key.split(',').map(Number);
         if (!inBounds(x, y, z)) return;
+        const old = getBlock(x, y, z);
+        if (old && BLOCKS[old].torch) removeTorchMesh(x, y, z); // ダンジョンの松明などを壊していた
         clearBlockData(x, y, z);
         if (id > 0) {
           setBlockData(x, y, z, id);
@@ -1496,6 +1709,265 @@
       return BEDROCK_Y + 0.5;
     }
 
+
+    /* --- Biomes & Terrain (地形の種類と高さ) --- */
+    const WATER_LEVEL = 2; // 湖の水面の高さ
+    // シードから地形のずらし量を決めて、ワールドごとに違う形にする
+    let terrainOffsetX = 0;
+    let terrainOffsetZ = 0;
+    let biomeOffsetX = 0;
+    let biomeOffsetZ = 0;
+
+    const BIOME_INFO = {
+      plains: { name: '草原', emoji: '🌿' },
+      forest: { name: '森', emoji: '🌲' },
+      desert: { name: '砂漠', emoji: '🏜️' },
+      snow: { name: '雪原', emoji: '❄️' },
+      mountain: { name: '山', emoji: '⛰️' }
+    };
+
+    // ゆっくり変わる「暑さ」「しめり気」「山の高さ」「湖のくぼみ」
+    function biomeValues(x, z) {
+      const bx = x + biomeOffsetX;
+      const bz = z + biomeOffsetZ;
+      return {
+        temperature: Math.sin(bx * 0.021) * Math.cos(bz * 0.017) + 0.5 * Math.sin((bx + bz) * 0.011 + 2),
+        moisture: Math.cos(bx * 0.019 - 1) * Math.sin(bz * 0.023 + 0.5) + 0.5 * Math.cos((bx - bz) * 0.013),
+        mountain: Math.max(0, Math.sin(bx * 0.018 + 1.3) * Math.cos(bz * 0.021 - 0.7) - 0.3),
+        lake: Math.max(0, Math.sin(bx * 0.043 + 0.4) * Math.cos(bz * 0.039 + 1.1) - 0.6)
+      };
+    }
+
+    const nearStart = (x, z) => Math.hypot(x, z) < 14; // スタート地点のまわりは草原
+
+    function biomeAt(x, z) {
+      if (nearStart(x, z)) return 'plains';
+      const b = biomeValues(x, z);
+      if (b.mountain > 0.25) return 'mountain';
+      if (b.temperature > 0.55) return 'desert';
+      if (b.temperature < -0.55) return 'snow';
+      if (b.moisture > 0.35) return 'forest';
+      return 'plains';
+    }
+
+    function surfaceHeight(x, z) {
+      const hx = x + terrainOffsetX;
+      const hz = z + terrainOffsetZ;
+      let hills = 3 * Math.sin(hx * 0.05) * Math.cos(hz * 0.045) +
+                  2.2 * Math.sin(hx * 0.12 + hz * 0.09) +
+                  1.2 * Math.cos(hx * 0.21 - hz * 0.17);
+      if (nearStart(x, z)) return Math.floor(4 + hills);
+      const b = biomeValues(x, z);
+      hills *= 1 - 0.5 * THREE.MathUtils.smoothstep(b.temperature, 0.45, 0.65); // 砂漠はなだらか
+      return Math.floor(4 + hills + 22 * b.mountain - 30 * b.lake);
+    }
+
+    // 深いほどレアな鉱石が出る
+    function undergroundBlock(y) {
+      const r = worldRandom();
+      if (y < -28 && r < 0.012) return DIAMOND_ORE;
+      if (y < -18 && r < 0.03) return GOLD_ORE;
+      if (y < -6 && r < 0.06) return IRON_ORE;
+      if (r < 0.08) return COAL_ORE;
+      return STONE;
+    }
+
+    function placeOakTree(x, surfaceY, z, trunkHeight) {
+      for (let ty = 1; ty <= trunkHeight; ty++) {
+        setBlockData(x, surfaceY + ty, z, WOOD);
+      }
+      const topY = surfaceY + trunkHeight;
+      for (let lx = -2; lx <= 2; lx++) {
+        for (let lz = -2; lz <= 2; lz++) {
+          for (let ly = 0; ly <= 1; ly++) {
+            if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && worldRandom() > 0.4) continue;
+            setBlockData(x + lx, topY + ly, z + lz, LEAVES);
+          }
+        }
+      }
+      for (let lx = -1; lx <= 1; lx++) {
+        for (let lz = -1; lz <= 1; lz++) {
+          setBlockData(x + lx, topY + 2, z + lz, LEAVES);
+        }
+      }
+    }
+
+    // とがった形の木（雪原・山）
+    function placeSpruceTree(x, surfaceY, z) {
+      const height = worldRandInt(5, 7);
+      for (let ty = 1; ty <= height; ty++) {
+        setBlockData(x, surfaceY + ty, z, SPRUCE_LOG);
+      }
+      const top = surfaceY + height;
+      setBlockData(x, top + 1, z, SPRUCE_LEAVES);
+      for (let dy = 0; dy < height - 1; dy++) {
+        const radius = dy === 0 ? 1 : (dy % 2 === 1 ? 1 : 2);
+        for (let lx = -radius; lx <= radius; lx++) {
+          for (let lz = -radius; lz <= radius; lz++) {
+            if (Math.abs(lx) + Math.abs(lz) > radius + 1) continue;
+            setBlockData(x + lx, top - dy, z + lz, SPRUCE_LEAVES);
+          }
+        }
+      }
+    }
+
+    function placeCactus(x, surfaceY, z) {
+      const height = worldRandInt(1, 3);
+      for (let ty = 1; ty <= height; ty++) {
+        setBlockData(x, surfaceY + ty, z, CACTUS);
+      }
+    }
+
+    function generateWorld() {
+      terrainOffsetX = (worldSeed % 10007) * 1.37;
+      terrainOffsetZ = (Math.floor(worldSeed / 10007) % 10007) * 1.91;
+      biomeOffsetX = (worldSeed % 7919) * 2.3;
+      biomeOffsetZ = (Math.floor(worldSeed / 7919) % 7919) * 1.7;
+
+      for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
+        for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) {
+          const surfaceY = surfaceHeight(x, z);
+          const biome = biomeAt(x, z);
+          const underwater = surfaceY < WATER_LEVEL;
+
+          // 地面の一番上と、その下の2段
+          let top = GRASS;
+          let filler = DIRT;
+          if (underwater || biome === 'desert') {
+            top = SAND;
+            filler = SAND;
+          } else if (biome === 'snow') {
+            top = SNOW_GRASS;
+          } else if (biome === 'mountain' && surfaceY >= 15) {
+            top = SNOW;
+            filler = STONE;
+          } else if (biome === 'mountain' && surfaceY >= 9) {
+            top = STONE;
+            filler = STONE;
+          }
+
+          setBlockData(x, BEDROCK_Y, z, BEDROCK);
+          for (let y = BEDROCK_Y + 1; y < surfaceY - 2; y++) {
+            setBlockData(x, y, z, undergroundBlock(y));
+          }
+          for (let y = surfaceY - 2; y < surfaceY; y++) {
+            setBlockData(x, y, z, filler);
+          }
+          setBlockData(x, surfaceY, z, top);
+
+          // 湖（雪原では水面が凍る）
+          for (let y = surfaceY + 1; y <= WATER_LEVEL; y++) {
+            setBlockData(x, y, z, biome === 'snow' && y === WATER_LEVEL ? ICE : WATER);
+          }
+
+          // 木やサボテン（スタート地点のまわりと水の中には生やさない）
+          const nearSpawn = Math.abs(x) <= 3 && Math.abs(z) <= 3;
+          const inside = x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3;
+          if (nearSpawn || !inside || underwater) continue;
+          const r = worldRandom();
+          if (biome === 'forest' && r < 0.1) placeOakTree(x, surfaceY, z, worldRandInt(4, 6));
+          else if (biome === 'plains' && r < 0.02) placeOakTree(x, surfaceY, z, worldRandInt(3, 4));
+          else if (biome === 'snow' && r < 0.04) placeSpruceTree(x, surfaceY, z);
+          else if (biome === 'mountain' && surfaceY < 12 && r < 0.03) placeSpruceTree(x, surfaceY, z);
+          else if (biome === 'desert' && r < 0.012) placeCactus(x, surfaceY, z);
+        }
+      }
+
+      generateCaves();
+      placeCobwebs();
+      generateDungeon();
+    }
+
+    // 洞窟の天井にクモの巣（掘ると糸が手に入る）
+    function placeCobwebs() {
+      let placed = 0;
+      for (let attempt = 0; attempt < 40000 && placed < 260; attempt++) {
+        const x = worldRandInt(-HALF_SIZE + 1, HALF_SIZE - 1);
+        const z = worldRandInt(-HALF_SIZE + 1, HALF_SIZE - 1);
+        const y = worldRandInt(BEDROCK_Y + 2, -6);
+        if (getBlock(x, y, z) === 0 && isSolid(x, y + 1, z) && getBlock(x, y - 1, z) === 0) {
+          setBlockData(x, y, z, COBWEB);
+          placed++;
+        }
+      }
+    }
+
+    /* --- Dungeon (ボスのいる地下の部屋) --- */
+    const DUNGEON = { x: 0, z: 0, floorY: -30, half: 7, height: 7, dirX: 1, chest: null, entrance: null };
+
+    // 生成用: 何があっても上書きする
+    function forceBlock(x, y, z, id) {
+      if (!inBounds(x, y, z)) return;
+      const i = cellIndex(x, y, z);
+      if (world[i] !== 0) blockCount--;
+      world[i] = id;
+      if (id !== 0) blockCount++;
+    }
+
+    function forceTorch(x, y, z) {
+      forceBlock(x, y, z, TORCH);
+      addTorchMesh(x, y, z);
+    }
+
+    function generateDungeon() {
+      // スタート地点から 45〜60 マス離れた、地下深くに作る
+      const angle = worldRandom() * Math.PI * 2;
+      const distance = 45 + worldRandom() * 15;
+      const cx = Math.round(THREE.MathUtils.clamp(Math.cos(angle) * distance, -HALF_SIZE + 12, HALF_SIZE - 12));
+      const cz = Math.round(THREE.MathUtils.clamp(Math.sin(angle) * distance, -HALF_SIZE + 12, HALF_SIZE - 12));
+      const { floorY: fy, half: h, height } = DUNGEON;
+      const dirX = cx > 0 ? -1 : 1; // 階段はワールドの中心の方へのびる
+      Object.assign(DUNGEON, { x: cx, z: cz, dirX });
+
+      // 部屋: 石レンガの床・壁・天井。中は空気
+      for (let dx = -h - 1; dx <= h + 1; dx++) {
+        for (let dz = -h - 1; dz <= h + 1; dz++) {
+          for (let dy = -1; dy <= height; dy++) {
+            const wall = Math.abs(dx) === h + 1 || Math.abs(dz) === h + 1 || dy === -1 || dy === height;
+            forceBlock(cx + dx, fy + dy, cz + dz, wall ? STONE_BRICKS : 0);
+          }
+        }
+      }
+      // 柱
+      for (const [px, pz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
+        for (let dy = 0; dy < height; dy++) forceBlock(cx + px, fy + dy, cz + pz, STONE_BRICKS);
+      }
+      // 四隅の松明
+      for (const [px, pz] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) forceTorch(cx + px, fy, cz + pz);
+      // 宝箱（階段の反対側の壁ぎわ）
+      DUNGEON.chest = { x: cx - dirX * (h - 1), y: fy, z: cz };
+      forceBlock(DUNGEON.chest.x, DUNGEON.chest.y, DUNGEON.chest.z, CHEST);
+
+      // 入口の階段: 部屋の壁から、1マス進むごとに1段ずつ上がって地上へ
+      let x = cx + dirX * (h + 1);
+      let y = fy;
+      for (let step = 0; step < 90; step++) {
+        const groundTop = findGroundY(x, cz) - 0.5;
+        if (y > groundTop && step > 0) break;
+        for (let dz = -1; dz <= 1; dz++) {
+          for (let dy = 0; dy <= 2; dy++) forceBlock(x, y + dy, cz + dz, 0);
+          forceBlock(x, y - 1, cz + dz, STONE_BRICKS);
+        }
+        if (step % 6 === 3) forceTorch(x, y, cz + 1);
+        x += dirX;
+        y += 1;
+      }
+      // 入口の目印: 石レンガのアーチ
+      for (let dy = 0; dy <= 3; dy++) {
+        forceBlock(x, y + dy, cz - 2, STONE_BRICKS);
+        forceBlock(x, y + dy, cz + 2, STONE_BRICKS);
+      }
+      for (let dz = -2; dz <= 2; dz++) forceBlock(x, y + 4, cz + dz, STONE_BRICKS);
+      DUNGEON.entrance = { x, y, z: cz };
+    }
+
+    // プレイヤーがダンジョンの部屋の中にいるか
+    function isInDungeonRoom(px, feetY, pz) {
+      return Math.abs(px - DUNGEON.x) <= DUNGEON.half && Math.abs(pz - DUNGEON.z) <= DUNGEON.half &&
+        feetY >= DUNGEON.floorY - 1 && feetY <= DUNGEON.floorY + DUNGEON.height;
+    }
+
+    /* --- Build the World (ワールドを作る) --- */
     const savedGame = loadSave();
     worldSeed = savedGame ? savedGame.seed : Math.floor(Math.random() * 2 ** 31);
     worldRngState = worldSeed;
@@ -1549,7 +2021,8 @@
       maxHealth: 20,
       invulnerableTimer: 0,
       regenCooldown: 0, // ダメージ後、自然回復が始まるまでの秒数
-      regenTimer: 0
+      regenTimer: 0,
+      slowTimer: 0 // ストレイの矢に当たると少しのあいだ遅くなる
     };
 
     /* --- Collision (当たり判定) --- */
@@ -1658,6 +2131,12 @@
       updateHealthUI();
       placePlayerOnGround(0, 0);
       player.invulnerableTimer = 3; // 復活直後は3秒無敵
+      // ボス戦の途中で倒されたら、ボスは眠りにもどる（また部屋に入ると目覚める）
+      if (boss) {
+        removeMob(boss);
+        boss = null;
+        bossBar.hidden = true;
+      }
       // 復活地点の近くにいる敵は消す（後で離れた場所に湧き直す）
       [...mobs].forEach(mob => {
         if (Math.hypot(mob.group.position.x, mob.group.position.z) < 16) removeMob(mob);
@@ -1759,13 +2238,62 @@
       return { group, head: body, legs: [] };
     }
 
+    function buildHusk() {
+      const model = buildZombie();
+      const colors = [0xb8a06a, 0xb8a06a, 0x6a5a3a, 0xb8a06a, null, 0x6a5a3a];
+      model.head.material.forEach((m, i) => {
+        if (i === 4) m.map = textures.huskFace;
+        else m.color.setHex(colors[i]);
+      });
+      model.group.children.forEach(child => {
+        if (child === model.head) return;
+        const hex = child.material.color.getHex();
+        if (hex === 0x248f8f) child.material.color.setHex(0x8a7040); // 服
+        else if (hex === 0x497c36) child.material.color.setHex(0xb8a06a); // うで
+        else if (hex === 0x26337a) child.material.color.setHex(0x5a4a30); // ズボン
+      });
+      return model;
+    }
+
+    function buildStray() {
+      const model = buildSkeleton();
+      model.head.material.forEach((m, i) => {
+        if (i === 4) m.map = textures.strayFace;
+        else m.color.setHex(0xcfe0e8);
+      });
+      model.group.children.forEach(child => {
+        if (child !== model.head && child.material.color.getHex() === 0xd0d0d0) child.material.color.setHex(0xc4d8e2);
+      });
+      addBox(model.group, [0.46, 0.5, 0.26], new THREE.MeshLambertMaterial({ color: 0x6a8a96 }), [0, 1.05, 0]); // ぼろ布
+      return model;
+    }
+
+    function buildGolem() {
+      const group = new THREE.Group();
+      const stone = new THREE.MeshLambertMaterial({ color: 0xb8b8b0 });
+      const moss = new THREE.MeshLambertMaterial({ color: 0x5e8a3a });
+      addBox(group, [1.4, 1.5, 0.9], stone, [0, 2.05, 0]);
+      const head = addBox(group, [0.7, 0.7, 0.7], faceMaterials({ color: 0xb8b8b0 }, textures.golemFace), [0, 3.15, 0.05]);
+      const armL = addBox(group, [0.45, 1.8, 0.45], stone, [-0.95, 1.95, 0]);
+      const armR = addBox(group, [0.45, 1.8, 0.45], stone, [0.95, 1.95, 0]);
+      const legL = addBox(group, [0.55, 1.3, 0.55], stone, [-0.35, 0.65, 0]);
+      const legR = addBox(group, [0.55, 1.3, 0.55], stone, [0.35, 0.65, 0]);
+      addBox(group, [0.3, 0.9, 0.1], moss, [0.3, 2.1, 0.46]); // つた
+      addBox(group, [0.2, 0.6, 0.1], moss, [-0.95, 2.2, 0.24]);
+      return { group, head, legs: [legL, legR], arms: [armL, armR] };
+    }
+
     // 敵の種類ごとの強さ（地上の強さ。深い場所ではさらに強くなる）
+    // ai: melee（近づいて殴る）/ creeper / ranged（弓矢）/ slime / boss
     const MOB_DEFS = {
-      zombie: { name: 'ゾンビ', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
-      creeper: { name: 'クリーパー', health: 15, speed: 2.6, radius: 0.3, height: 1.4, sight: 16, build: buildCreeper },
-      spider: { name: 'クモ', health: 16, speed: 4.0, radius: 0.55, height: 0.8, sight: 18, damage: 2, climbs: true, drop: 'string', build: buildSpider },
-      skeleton: { name: 'スケルトン', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, ranged: true, build: buildSkeleton },
-      slime: { name: 'スライム', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, drop: 'slimeball', build: buildSlime }
+      zombie: { name: 'ゾンビ', ai: 'melee', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
+      husk: { name: 'ハスク', ai: 'melee', health: 22, speed: 2.5, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', noBurn: true, build: buildHusk },
+      creeper: { name: 'クリーパー', ai: 'creeper', health: 15, speed: 2.6, radius: 0.3, height: 1.4, sight: 16, build: buildCreeper },
+      spider: { name: 'クモ', ai: 'melee', health: 16, speed: 4.0, radius: 0.55, height: 0.8, sight: 18, damage: 2, climbs: true, drop: 'string', dropCount: [1, 3], build: buildSpider },
+      skeleton: { name: 'スケルトン', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, build: buildSkeleton },
+      stray: { name: 'ストレイ', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, slowArrows: true, build: buildStray },
+      slime: { name: 'スライム', ai: 'slime', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, drop: 'slimeball', build: buildSlime },
+      golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem }
     };
 
     // x, z は中心、y は足の高さ。size はスライムの大きさ（1: 大きい, 0.5: 小さい）
@@ -1844,8 +2372,10 @@
     let currentDepth = 0; // プレイヤーの今の深さ（updateAtmosphere で更新）
 
     // 出てくる敵の種類と出やすさ
-    const SURFACE_MOBS = [['zombie', 35], ['creeper', 25], ['spider', 25], ['skeleton', 15]];
-    const UNDERGROUND_MOBS = [['zombie', 25], ['creeper', 20], ['spider', 15], ['skeleton', 20], ['slime', 20]];
+    const SURFACE_MOBS = [['zombie', 30], ['creeper', 20], ['spider', 35], ['skeleton', 15]];
+    const UNDERGROUND_MOBS = [['zombie', 20], ['creeper', 15], ['spider', 25], ['skeleton', 20], ['slime', 20]];
+    // 地形によって入れかわる敵（砂漠のゾンビはハスク、雪原のスケルトンはストレイ）
+    const BIOME_VARIANTS = { desert: { zombie: 'husk' }, snow: { skeleton: 'stray' } };
 
     function pickWeighted(list) {
       let r = Math.random() * list.reduce((sum, [, w]) => sum + w, 0);
@@ -1885,7 +2415,10 @@
         const x = Math.round(camera.position.x + Math.cos(angle) * r);
         const z = Math.round(camera.position.z + Math.sin(angle) * r);
         if (!isInsideWorld(x, z)) continue;
-        if (spawnMobAt(pickWeighted(SURFACE_MOBS), x, findGroundY(x, z), z)) return true;
+        const groundY = findGroundY(x, z);
+        if (getBlock(x, groundY + 0.5, z) === WATER) continue; // 湖の底には出さない
+        const type = pickWeighted(SURFACE_MOBS);
+        if (spawnMobAt((BIOME_VARIANTS[biomeAt(x, z)] || {})[type] || type, x, groundY, z)) return true;
       }
       return false;
     }
@@ -2008,7 +2541,7 @@
       mesh.position.copy(from);
       mesh.lookAt(from.clone().add(vel));
       scene.add(mesh);
-      arrows.push({ mesh, vel, life: 4, damage: Math.round(mob.def.damage * mob.power) });
+      arrows.push({ mesh, vel, life: 4, damage: Math.round(mob.def.damage * mob.power), slow: !!mob.def.slowArrows });
       playSound('bow');
     }
 
@@ -2025,6 +2558,7 @@
         const hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.45 && Math.abs(pos.z - camera.position.z) < 0.45 &&
           pos.y > feetY && pos.y < feetY + player.bodyHeight;
         if (hitsPlayer) damagePlayer(a.damage, new THREE.Vector3(a.vel.x, 0, a.vel.z).normalize());
+        if (hitsPlayer && a.slow) player.slowTimer = 3; // ストレイの矢は体が冷えて遅くなる
         if (hitsPlayer || a.life <= 0 || isSolid(pos.x, pos.y, pos.z)) {
           scene.remove(a.mesh);
           arrows.splice(i, 1);
@@ -2071,9 +2605,11 @@
 
       // ノックバック（位置を直接動かさず、速さを与える → 壁にめり込まない）
       const away = new THREE.Vector3(mob.group.position.x - camera.position.x, 0, mob.group.position.z - camera.position.z).normalize();
-      mob.velocity.x += away.x * 7;
-      mob.velocity.z += away.z * 7;
-      mob.velocity.y = Math.max(mob.velocity.y, 4);
+      const knockback = mob.def.boss ? 1 : 7; // ボスはほとんど吹き飛ばない
+      mob.velocity.x += away.x * knockback;
+      mob.velocity.z += away.z * knockback;
+      if (!mob.def.boss) mob.velocity.y = Math.max(mob.velocity.y, 4);
+      if (mob.def.boss) updateBossBar(mob);
 
       if (mob.health <= 0) killMob(mob);
     }
@@ -2084,6 +2620,11 @@
       removeMob(mob);
       killCount++;
       killCountDisplay.textContent = `Kills: ${killCount}`;
+
+      if (mob.def.boss) {
+        onBossDefeated(mob);
+        return;
+      }
 
       // 大きいスライムは小さいスライムに分裂する
       if (mob.type === 'slime' && mob.size > 0.6) {
@@ -2097,8 +2638,9 @@
       }
 
       let drop = mob.def.drop;
-      if (mob.type === 'skeleton') drop = Math.random() < 0.6 ? 'coal' : 'iron';
-      if (drop && addItem(drop, 1)) showToast(`${ITEMS[drop].emoji} ${ITEMS[drop].name} を手に入れた`);
+      if (mob.def.ai === 'ranged') drop = Math.random() < 0.6 ? 'coal' : 'iron';
+      const count = mob.def.dropCount ? rand(mob.def.dropCount[0], mob.def.dropCount[1]) : 1;
+      if (drop && addItem(drop, count)) showToast(`${ITEMS[drop].emoji} ${ITEMS[drop].name}${count > 1 ? ' ×' + count : ''} を手に入れた`);
     }
 
     /* --- Enemies: AI (動き方) --- */
@@ -2131,7 +2673,7 @@
         if (flatDist > 0.01) toPlayer.divideScalar(flatDist);
 
         // 明るい場所（朝の地上）にいる敵は、少しずつ燃えて消える
-        if (!isDarkAt(p.x, p.y, p.z) && Math.random() < delta * 0.3) {
+        if (!mob.def.noBurn && !isDarkAt(p.x, p.y, p.z) && Math.random() < delta * 0.3) {
           spawnParticles(center, 0xff8800, 16, 3);
           spawnParticles(center, 0x333333, 10, 2);
           removeMob(mob);
@@ -2140,7 +2682,7 @@
 
         // 遠く離れた敵や、長いあいだ近づけない敵は消す（その分また湧く）
         mob.farTimer = dist > 12 ? mob.farTimer + delta : 0;
-        if (dist > 48 || mob.farTimer > 45) {
+        if (!mob.def.boss && (dist > 48 || mob.farTimer > 45)) {
           removeMob(mob);
           return;
         }
@@ -2162,7 +2704,7 @@
         };
         const meleeDamage = () => Math.max(1, Math.round(mob.def.damage * mob.power * (mob.type === 'slime' ? mob.size : 1)));
 
-        if (mob.type === 'creeper') {
+        if (mob.def.ai === 'creeper') {
           if (dist < 3.0) {
             // 起爆シーケンス中: 白く点滅＆膨張
             if (!mob.exploding) {
@@ -2187,14 +2729,14 @@
             }
             if (sees && flatDist >= 2.2) walkToward(1);
           }
-        } else if (mob.type === 'zombie' || mob.type === 'spider') {
+        } else if (mob.def.ai === 'melee') {
           const reach = mob.radius + 1.0;
           if (sees && flatDist > reach) walkToward(1);
           if (dist < reach + 0.4 && mob.attackCooldown <= 0) {
             mob.attackCooldown = mob.type === 'spider' ? 1.0 : 1.3;
             damagePlayer(meleeDamage(), toPlayer.clone());
           }
-        } else if (mob.type === 'skeleton') {
+        } else if (mob.def.ai === 'ranged') {
           // 近すぎたら下がり、遠すぎたら近づき、見えていれば矢を撃つ
           if (sees) {
             if (flatDist > 10) walkToward(1);
@@ -2206,7 +2748,7 @@
               shootArrow(mob, playerCenter);
             }
           }
-        } else if (mob.type === 'slime') {
+        } else if (mob.def.ai === 'slime') {
           // ぴょんぴょん跳ねて近づく
           if (mob.onGround) {
             mob.hopX = 0;
@@ -2228,11 +2770,203 @@
           }
         }
 
+        if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
+
         moveMob(mob, delta);
       });
 
       updateArrows(delta);
       mobCountDisplay.textContent = `Enemies: ${mobs.length}`;
+    }
+
+    /* --- Boss: Golem (ダンジョンのボス) --- */
+    let bossDefeated = false;
+    let chestLooted = false;
+    let boss = null;
+    const bossBar = document.getElementById('boss-bar');
+    const bossName = document.getElementById('boss-name');
+    const bossHealthFill = document.getElementById('boss-health-fill');
+
+    const shockwaves = [];
+    const shockwaveMat = new THREE.MeshBasicMaterial({ color: 0xffaa55, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+    const rocks = [];
+    const ROCK_GRAVITY = 12;
+    const rockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+    const rockMat = new THREE.MeshLambertMaterial({ color: 0x7d7d7d });
+
+    function updateBossBar(mob) {
+      bossBar.hidden = false;
+      bossName.textContent = mob.enraged ? '🗿 ゴーレム（怒り）' : '🗿 ゴーレム';
+      bossHealthFill.style.width = `${Math.max(0, (mob.health / mob.maxHealth) * 100)}%`;
+    }
+
+    // プレイヤーがダンジョンの部屋に入ったら、ボスが目を覚ます
+    function updateBossTrigger() {
+      if (bossDefeated || boss) return;
+      if (!isInDungeonRoom(camera.position.x, camera.position.y - player.eye, camera.position.z)) return;
+      boss = createMob('golem', DUNGEON.x, DUNGEON.floorY - 0.5, DUNGEON.z);
+      boss.maxHealth = boss.health;
+      boss.poundTimer = 4;
+      boss.windup = 0;
+      boss.throwTimer = 3;
+      boss.enraged = false;
+      playSound('roar');
+      showToast('🗿 ゴーレムが目を覚ました！');
+      updateBossBar(boss);
+    }
+
+    function updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter }) {
+      // 体力が半分を切ると怒って速くなる
+      if (!mob.enraged && mob.health < mob.maxHealth / 2) {
+        mob.enraged = true;
+        mob.speed = 2.6;
+        mob.tint = new THREE.Color(1.25, 0.7, 0.65);
+        setMobColor(mob, mob.tint);
+        playSound('roar');
+        showToast('🗿 ゴーレムが怒った！');
+        updateBossBar(mob);
+      }
+
+      // 地面たたき: 腕を振り上げてから（予備動作）、衝撃波を出す
+      if (mob.windup > 0) {
+        mob.windup -= delta;
+        const lift = 1 - Math.max(0, mob.windup) / 0.8;
+        mob.arms.forEach(arm => { arm.rotation.x = -2.4 * lift; });
+        if (mob.windup <= 0) {
+          mob.arms.forEach(arm => { arm.rotation.x = 0; });
+          startShockwave(mob);
+        }
+        return; // 予備動作中は動かない
+      }
+      mob.poundTimer -= delta;
+      if (mob.poundTimer <= 0 && dist < 12) {
+        mob.poundTimer = mob.enraged ? 4 : 6;
+        mob.windup = 0.8;
+        return;
+      }
+
+      // 近ければ殴り、遠ければ岩を投げる
+      if (flatDist > 2.4) {
+        mob.moveX = toPlayer.x * mob.speed;
+        mob.moveZ = toPlayer.z * mob.speed;
+        walkAnimation(mob, 0.6);
+      }
+      if (dist < 3.2 && mob.attackCooldown <= 0) {
+        mob.attackCooldown = 1.8;
+        damagePlayer(mob.def.damage, toPlayer.clone());
+        player.velocity.x += toPlayer.x * 8;
+        player.velocity.z += toPlayer.z * 8;
+        playSound('slam');
+      }
+      mob.throwTimer -= delta;
+      if (flatDist > 7 && mob.throwTimer <= 0) {
+        mob.throwTimer = mob.enraged ? 2.5 : 3.5;
+        throwRock(mob, playerCenter);
+      }
+    }
+
+    function startShockwave(mob) {
+      playSound('slam');
+      const center = mob.group.position.clone();
+      const mesh = new THREE.Mesh(new THREE.RingGeometry(0.85, 1.0, 40), shockwaveMat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(center.x, center.y + 0.1, center.z);
+      scene.add(mesh);
+      shockwaves.push({ mesh, center, radius: 1, hit: false });
+      spawnParticles(center.clone().add(new THREE.Vector3(0, 0.3, 0)), 0x8a7a6a, 30, 7);
+    }
+
+    function throwRock(mob, target) {
+      const p = mob.group.position;
+      const from = new THREE.Vector3(p.x, p.y + 3.2, p.z);
+      const dir = target.clone().sub(from);
+      const distance = dir.length();
+      const speed = 14;
+      const vel = dir.normalize().multiplyScalar(speed);
+      vel.y += 0.5 * ROCK_GRAVITY * (distance / speed);
+      const mesh = new THREE.Mesh(rockGeo, rockMat);
+      mesh.position.copy(from);
+      scene.add(mesh);
+      rocks.push({ mesh, vel, life: 5 });
+    }
+
+    function updateBossEffects(delta) {
+      const feetY = camera.position.y - player.eye;
+
+      // 衝撃波: 輪が広がり、地面に立っているプレイヤーに当たる（ジャンプでよけられる）
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const s = shockwaves[i];
+        s.radius += 8 * delta;
+        s.mesh.scale.setScalar(s.radius);
+        const d = Math.hypot(camera.position.x - s.center.x, camera.position.z - s.center.z);
+        if (!s.hit && Math.abs(d - s.radius) < 0.7 && player.onGround && Math.abs(feetY - s.center.y) < 1.2) {
+          s.hit = true;
+          damagePlayer(6, new THREE.Vector3(camera.position.x - s.center.x, 0, camera.position.z - s.center.z).normalize());
+        }
+        if (s.radius > 9) {
+          scene.remove(s.mesh);
+          s.mesh.geometry.dispose();
+          shockwaves.splice(i, 1);
+        }
+      }
+
+      // 投げた岩
+      for (let i = rocks.length - 1; i >= 0; i--) {
+        const r = rocks[i];
+        r.vel.y -= ROCK_GRAVITY * delta;
+        r.mesh.position.addScaledVector(r.vel, delta);
+        r.mesh.rotation.x += delta * 5;
+        r.life -= delta;
+        const pos = r.mesh.position;
+        const hitsPlayer = Math.abs(pos.x - camera.position.x) < 0.7 && Math.abs(pos.z - camera.position.z) < 0.7 &&
+          pos.y > feetY - 0.3 && pos.y < feetY + player.bodyHeight + 0.3;
+        if (hitsPlayer) damagePlayer(5, new THREE.Vector3(r.vel.x, 0, r.vel.z).normalize());
+        if (hitsPlayer || r.life <= 0 || isSolid(pos.x, pos.y, pos.z)) {
+          spawnParticles(pos.clone(), 0x7d7d7d, 10, 4);
+          scene.remove(r.mesh);
+          rocks.splice(i, 1);
+        }
+      }
+
+      if (boss && !mobs.includes(boss)) {
+        boss = null;
+        bossBar.hidden = true;
+      }
+    }
+
+    function onBossDefeated(mob) {
+      boss = null;
+      bossDefeated = true;
+      bossBar.hidden = true;
+      const center = mob.group.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+      spawnParticles(center, 0xffffff, 60, 10);
+      spawnParticles(center, 0xffd700, 40, 8);
+      playSound('explosion');
+      playSound('chest');
+      showToast('🏆 ゴーレムを倒した！ 部屋の宝箱を開けよう');
+      saveGame();
+    }
+
+    // ダンジョンの宝箱を右クリックしたとき
+    function openChest() {
+      if (!bossDefeated) {
+        showToast('🔒 ゴーレムを倒さないと開かない');
+        return;
+      }
+      if (chestLooted) {
+        showToast('📦 宝箱はからっぽ');
+        return;
+      }
+      const loot = [['golem_sword', 1], ['diamond', 5], ['golden_apple', 2], ['iron', 8]];
+      if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.filter(item => !item).length < loot.length) {
+        showToast('⚠️ 持ち物をあけてから開けよう');
+        return;
+      }
+      loot.forEach(([id, count]) => addItem(id, count));
+      chestLooted = true;
+      playSound('chest');
+      showToast('🎁 ゴーレムの剣・ダイヤ×5・金のりんご×2・鉄×8 を手に入れた！');
+      saveGame();
     }
 
     /* --- Block Highlight Box --- */
@@ -2269,7 +3003,7 @@
 
       while (t <= maxDistance) {
         const id = getBlock(ix, iy, iz);
-        if (id !== 0) return { x: ix, y: iy, z: iz, normal, id, distance: t };
+        if (id !== 0 && id !== WATER) return { x: ix, y: iy, z: iz, normal, id, distance: t }; // 水は通して見る
         if (tMaxX < tMaxY && tMaxX < tMaxZ) {
           ix += stepX;
           t = tMaxX;
@@ -2345,7 +3079,7 @@
           playSound('ore');
         }
       }
-      if (target.id === LEAVES && Math.random() < 0.12 && addItem('apple', 1)) {
+      if ((target.id === LEAVES || target.id === SPRUCE_LEAVES) && Math.random() < 0.12 && addItem('apple', 1)) {
         showToast('🍎 りんごを見つけた！');
       }
       updateRaycast();
@@ -2361,6 +3095,11 @@
       // 作業台を右クリックするとクラフト画面を開く
       if (targetBlock && targetBlock.id === CRAFTING_TABLE) {
         controls.unlock();
+        return;
+      }
+      // ダンジョンの宝箱
+      if (targetBlock && targetBlock.id === CHEST) {
+        openChest();
         return;
       }
       const held = inventory[selectedSlot];
@@ -2385,7 +3124,8 @@
       const tx = targetBlock.x + targetBlock.normal[0];
       const ty = targetBlock.y + targetBlock.normal[1];
       const tz = targetBlock.z + targetBlock.normal[2];
-      if (!isInsideWorld(tx, tz) || ty > MAX_Y || getBlock(tx, ty, tz) !== 0) return;
+      const existing = getBlock(tx, ty, tz);
+      if (!isInsideWorld(tx, tz) || ty > MAX_Y || (existing !== 0 && existing !== WATER)) return;
 
       if (BLOCKS[item.block].solid !== false) {
         const feetY = camera.position.y - player.eye;
@@ -2502,6 +3242,11 @@
       glass: { name: 'ガラス', kind: 'block', block: 7, color: '#5aa0cd', emoji: '🧊' },
       table: { name: '作業台', kind: 'block', block: CRAFTING_TABLE, color: '#a57c4a', emoji: '🛠️' },
       torch: { name: '松明', kind: 'block', block: TORCH, color: '#7a5530', emoji: '🔥' },
+      sand: { name: '砂', kind: 'block', block: SAND, color: '#dbcf8e', emoji: '🟨' },
+      snow: { name: '雪', kind: 'block', block: SNOW, color: '#f4f8fb', emoji: '⬜' },
+      ice: { name: '氷', kind: 'block', block: ICE, color: '#9cc8f0', emoji: '🧊' },
+      cactus: { name: 'サボテン', kind: 'block', block: CACTUS, color: '#3f8a3a', emoji: '🌵' },
+      stone_bricks: { name: '石レンガ', kind: 'block', block: STONE_BRICKS, color: '#6a6a6a', emoji: '🧱' },
       coal: { name: '石炭', kind: 'material', color: '#333333', emoji: '⚫', particle: 0x222222 },
       iron: { name: '鉄', kind: 'material', color: '#d8b08c', emoji: '🔩', particle: 0xd8b08c },
       gold: { name: '金', kind: 'material', color: '#ffd700', emoji: '🟡', particle: 0xffd700 },
@@ -2518,6 +3263,7 @@
       stone_sword: { name: '石の剣', kind: 'sword', damage: 7, color: '#8a8a8a', emoji: '🗡️', stack: 1 },
       iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1 },
       diamond_sword: { name: 'ダイヤの剣', kind: 'sword', damage: 14, color: '#44eedd', emoji: '🗡️', stack: 1 },
+      golem_sword: { name: 'ゴーレムの剣', kind: 'sword', damage: 20, color: '#c8a0ff', emoji: '⚔️', stack: 1 },
       iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🛡️', stack: 1 },
       diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🛡️', stack: 1 }
     };
@@ -2617,7 +3363,9 @@
       { result: 'diamond_armor', table: true, needs: [['diamond', 5], ['string', 2]] },
       { result: 'golden_apple', table: true, needs: [['apple', 1], ['gold', 4]] },
       { result: 'brick', count: 4, table: true, needs: [['dirt', 2], ['coal', 1]] },
-      { result: 'glass', count: 4, table: true, needs: [['stone', 2], ['coal', 1]] }
+      { result: 'glass', count: 4, table: true, needs: [['stone', 2], ['coal', 1]] },
+      { result: 'glass', count: 4, table: true, needs: [['sand', 4]] },
+      { result: 'stone_bricks', count: 4, table: true, needs: [['stone', 4]] }
     ];
 
     // 近く（横4マス・上下3マス以内）に作業台が置いてあるか
@@ -2769,8 +3517,185 @@
     renderInventory();
     renderCraftPanel();
 
+    /* --- Map (ミニマップと全体マップ) --- */
+    // ワールドを真上から見た絵を 1ブロック = 1ピクセル で作っておき、ブロックが変わった列だけ描き直す
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.width = SIZE_X;
+    mapCanvas.height = SIZE_Z;
+    const mapCtx = mapCanvas.getContext('2d');
+    const mapImage = mapCtx.createImageData(SIZE_X, SIZE_Z);
+    const minimap = document.getElementById('minimap');
+    const minimapCtx = minimap.getContext('2d');
+    const mapOverlay = document.getElementById('map-overlay');
+    const worldMap = document.getElementById('world-map');
+    const worldMapCtx = worldMap.getContext('2d');
+    const MINIMAP_RADIUS = 40; // ミニマップに見える範囲（まわり40ブロック）
+    const dirtyMapColumns = new Set();
+    let mapTimer = 0;
+
+    const mapRgb = {};
+    Object.entries(BLOCKS).forEach(([id, def]) => {
+      const hex = parseInt(def.map.slice(1), 16);
+      mapRgb[id] = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+    });
+
+    // その列の一番上のブロックの色。高い場所ほど明るく、低い場所ほど暗くする
+    function paintMapColumn(x, z) {
+      let y = MAX_Y;
+      while (y > BEDROCK_Y) {
+        const id = world[cellIndex(x, y, z)];
+        if (id !== 0 && id !== TORCH) break;
+        y--;
+      }
+      const rgb = mapRgb[world[cellIndex(x, y, z)]] || [0, 0, 0];
+      const shade = THREE.MathUtils.clamp(0.8 + y * 0.02, 0.45, 1.3);
+      const i = ((z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)) * 4;
+      mapImage.data[i] = Math.min(255, rgb[0] * shade);
+      mapImage.data[i + 1] = Math.min(255, rgb[1] * shade);
+      mapImage.data[i + 2] = Math.min(255, rgb[2] * shade);
+      mapImage.data[i + 3] = 255;
+    }
+
+    function buildMapImage() {
+      for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
+        for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) paintMapColumn(x, z);
+      }
+      mapCtx.putImageData(mapImage, 0, 0);
+    }
+
+    function markMapDirty(x, z) {
+      dirtyMapColumns.add(`${x},${z}`);
+    }
+
+    function flushMapChanges() {
+      if (dirtyMapColumns.size === 0) return;
+      dirtyMapColumns.forEach(key => {
+        const [x, z] = key.split(',').map(Number);
+        paintMapColumn(x, z);
+      });
+      dirtyMapColumns.clear();
+      mapCtx.putImageData(mapImage, 0, 0);
+    }
+
+    function drawEmoji(ctx, text, x, y, size) {
+      ctx.font = `${size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y);
+    }
+
+    // 見ている方向を指す矢印（マップの上が北 = -Z）
+    function drawPlayerArrow(ctx, x, y, size) {
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.atan2(dir.x, -dir.z));
+      ctx.beginPath();
+      ctx.moveTo(0, -size);
+      ctx.lineTo(size * 0.7, size * 0.8);
+      ctx.lineTo(0, size * 0.35);
+      ctx.lineTo(-size * 0.7, size * 0.8);
+      ctx.closePath();
+      ctx.fillStyle = '#ff3b3b';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function dungeonIcon() {
+      return bossDefeated ? '🏆' : '💀';
+    }
+
+    function drawMinimap() {
+      const size = minimap.width;
+      const span = MINIMAP_RADIUS * 2 + 1;
+      const scale = size / span;
+      const px = Math.round(camera.position.x);
+      const pz = Math.round(camera.position.z);
+      minimapCtx.imageSmoothingEnabled = false;
+      minimapCtx.fillStyle = '#000';
+      minimapCtx.fillRect(0, 0, size, size);
+      minimapCtx.drawImage(mapCanvas, px - MINIMAP_RADIUS + HALF_SIZE, pz - MINIMAP_RADIUS + HALF_SIZE, span, span, 0, 0, size, size);
+
+      const toMini = (wx, wz) => [(wx - px + MINIMAP_RADIUS + 0.5) * scale, (wz - pz + MINIMAP_RADIUS + 0.5) * scale];
+      const edge = v => THREE.MathUtils.clamp(v, 9, size - 9); // 範囲の外にあるものは端に表示
+
+      minimapCtx.fillStyle = '#ff4444';
+      mobs.forEach(mob => {
+        const [mx, my] = toMini(mob.group.position.x, mob.group.position.z);
+        if (mx >= 0 && my >= 0 && mx < size && my < size) minimapCtx.fillRect(mx - 1.5, my - 1.5, 3, 3);
+      });
+      const [hx, hy] = toMini(0, 0);
+      drawEmoji(minimapCtx, '🏠', edge(hx), edge(hy), 13);
+      const [dx, dy] = toMini(DUNGEON.x, DUNGEON.z);
+      drawEmoji(minimapCtx, dungeonIcon(), edge(dx), edge(dy), 14);
+      drawPlayerArrow(minimapCtx, size / 2, size / 2, 6);
+    }
+
+    function drawWorldMap() {
+      const size = worldMap.width;
+      const scale = size / SIZE_X;
+      worldMapCtx.imageSmoothingEnabled = false;
+      worldMapCtx.drawImage(mapCanvas, 0, 0, size, size);
+      const toMap = (wx, wz) => [(wx + HALF_SIZE + 0.5) * scale, (wz + HALF_SIZE + 0.5) * scale];
+      const [hx, hy] = toMap(0, 0);
+      drawEmoji(worldMapCtx, '🏠', hx, hy, 24);
+      const [dx, dy] = toMap(DUNGEON.x, DUNGEON.z);
+      drawEmoji(worldMapCtx, dungeonIcon(), dx, dy, 28);
+      if (DUNGEON.entrance) {
+        const [ex, ey] = toMap(DUNGEON.entrance.x, DUNGEON.entrance.z);
+        drawEmoji(worldMapCtx, '🚪', ex, ey, 20);
+      }
+      const [px, py] = toMap(camera.position.x, camera.position.z);
+      drawPlayerArrow(worldMapCtx, px, py, 11);
+    }
+
+    function toggleMap() {
+      mapOverlay.hidden = !mapOverlay.hidden;
+      if (!mapOverlay.hidden) {
+        flushMapChanges();
+        drawWorldMap();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyM') toggleMap();
+    });
+
+    function updateMap(delta) {
+      mapTimer -= delta;
+      if (mapTimer > 0) return;
+      mapTimer = 0.2;
+      flushMapChanges();
+      drawMinimap();
+      if (!mapOverlay.hidden) drawWorldMap();
+    }
+
+    buildMapImage();
+    drawMinimap();
+
     /* --- Player Physics --- */
     const GRAVITY = 22.0;
+
+    // 体（少しふくらませた範囲）にふれているブロックの中に、条件に合うものがあるか
+    function bodyTouches(test, grow = 0) {
+      const x = camera.position.x;
+      const z = camera.position.z;
+      const feetY = camera.position.y - player.eye;
+      const r = player.radius + grow;
+      for (let bx = Math.floor(x - r + 0.5); bx <= Math.floor(x + r + 0.5); bx++) {
+        for (let by = Math.floor(feetY - grow + 0.5); by <= Math.floor(feetY + player.bodyHeight + 0.5); by++) {
+          for (let bz = Math.floor(z - r + 0.5); bz <= Math.floor(z + r + 0.5); bz++) {
+            const id = getBlock(bx, by, bz);
+            if (id !== 0 && test(BLOCKS[id])) return true;
+          }
+        }
+      }
+      return false;
+    }
 
     // 1つの軸だけ動かす。壁にぶつかったら、壁の表面（ブロックの端から体の半径ぶん手前）まで寄せて止める
     function moveAxis(axis, amount) {
@@ -2782,7 +3707,18 @@
         ? Math.floor(camera.position[axis] + player.radius + 0.5) - 0.5 - player.radius - 0.001
         : Math.floor(camera.position[axis] - player.radius + 0.5) + 0.5 + player.radius + 0.001;
       camera.position[axis] = edge;
-      if (playerCollides() || (amount > 0 ? edge < old : edge > old)) camera.position[axis] = old;
+      if (!playerCollides() && Math.abs(edge - old) > 0.001 && (amount > 0 ? edge > old : edge < old)) return;
+      camera.position[axis] = old;
+
+      // 1段の段差は自動で上る（階段や坂を歩きやすく）
+      if (player.onGround) {
+        const oldY = camera.position.y;
+        camera.position.y = Math.floor(oldY - player.eye + 0.5 + COLLISION_EPS) + 0.5 + player.eye;
+        camera.position[axis] = old + amount;
+        if (!playerCollides()) return;
+        camera.position.y = oldY;
+        camera.position[axis] = old;
+      }
     }
 
     function updatePhysics(delta) {
@@ -2810,6 +3746,16 @@
         }
       }
 
+      // 水・クモの巣・サボテン・ストレイの矢
+      const inWater = bodyTouches(def => def.water);
+      const inWeb = bodyTouches(def => def.web);
+      if (bodyTouches(def => def.hurts, 0.05)) damagePlayer(1); // サボテンにさわると痛い
+      if (player.slowTimer > 0) player.slowTimer -= delta;
+      let speedFactor = 1;
+      if (inWater) speedFactor *= 0.5;
+      if (inWeb) speedFactor *= 0.3;
+      if (player.slowTimer > 0) speedFactor *= 0.6;
+
       // 見ている向き（水平成分）を基準に前後左右を決める
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
@@ -2824,7 +3770,7 @@
       if (keys.left) moveDir.sub(right);
       if (moveDir.lengthSq() > 0) moveDir.normalize();
 
-      const horizontalMovement = moveDir.multiplyScalar(player.speed * delta);
+      const horizontalMovement = moveDir.multiplyScalar(player.speed * speedFactor * delta);
 
       // ノックバック（攻撃を受けると吹き飛ばされ、すぐ減速する）
       horizontalMovement.x += player.velocity.x * delta;
@@ -2843,7 +3789,13 @@
       camera.position.z = THREE.MathUtils.clamp(camera.position.z, -limit, limit);
 
       // 重力 & 垂直移動（速く落ちても床をすり抜けないように、小さく分けて動かす）
-      player.velocity.y = Math.max(player.velocity.y - GRAVITY * delta, -40);
+      if (inWater || inWeb) {
+        // 水の中はゆっくり沈み、スペースを押しているあいだ浮かぶ
+        player.velocity.y = Math.max(player.velocity.y - GRAVITY * 0.25 * delta, inWeb ? -1 : -3);
+        if (keys.jump && inWater) player.velocity.y = 3.5;
+      } else {
+        player.velocity.y = Math.max(player.velocity.y - GRAVITY * delta, -40);
+      }
       const dy = player.velocity.y * delta;
       const steps = Math.max(1, Math.ceil(Math.abs(dy) / 0.4));
       player.onGround = false;
@@ -2891,6 +3843,7 @@
     let daylight = 1;              // 0: 夜 〜 1: 昼
     let deepestDepth = 0;
     const timeDisplay = document.getElementById('time-display');
+    const biomeDisplay = document.getElementById('biome-display');
 
     function daylightAt(t) {
       if (t < 0.05) return t / 0.05;                                  // 夜明け
@@ -2923,6 +3876,8 @@
       scene.fog.color.copy(scene.background);
 
       depthDisplay.textContent = `深さ: ${depth}m (最深記録: ${deepestDepth}m)`;
+      const biome = BIOME_INFO[biomeAt(Math.round(camera.position.x), Math.round(camera.position.z))];
+      biomeDisplay.textContent = `${biome.emoji} ${biome.name}`;
       const isDay = timeOfDay < NIGHT_START;
       const secondsLeft = ((isDay ? NIGHT_START : 1) - timeOfDay) * DAY_CYCLE_SECONDS;
       timeDisplay.textContent = isDay
@@ -2967,6 +3922,9 @@
         updateParticles(delta);
         updateRaycast();
         updateAtmosphere(delta);
+        updateBossTrigger();
+        updateBossEffects(delta);
+        updateMap(delta);
 
         torchLightTimer -= delta;
         if (torchLightTimer <= 0) {
@@ -3027,6 +3985,8 @@
         killCount,
         deepestDepth,
         timeOfDay,
+        bossDefeated,
+        chestLooted,
         savedAt: Date.now()
       };
       try {
@@ -3049,6 +4009,8 @@
       killCountDisplay.textContent = `Kills: ${killCount}`;
       deepestDepth = data.deepestDepth || 0;
       if (typeof data.timeOfDay === 'number') timeOfDay = data.timeOfDay;
+      bossDefeated = !!data.bossDefeated;
+      chestLooted = !!data.chestLooted;
       renderInventory();
       renderCraftPanel();
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
@@ -3100,6 +4062,11 @@
         hitMob,
         killMob,
         blockCount: () => blockCount,
+        DUNGEON,
+        biomeAt,
+        openChest,
+        get boss() { return boss; },
+        get bossDefeated() { return bossDefeated; },
         spawnMob(type, x, y, z, size = 1) {
           const mob = createMob(type, x, y, z, size);
           applyMobStrength(mob);
