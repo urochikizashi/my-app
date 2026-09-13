@@ -860,7 +860,7 @@
     const HALF_SIZE = Math.floor(WORLD_SIZE / 2);
     const BEDROCK_Y = -40; // 最下層（岩盤）の高さ
     const SAVE_KEY = 'minecraft3d-save';
-    const SAVE_VERSION = 1;
+    const SAVE_VERSION = 2; // 地形生成を変えたら上げる（古いセーブは読み込まない）
     const blockChanges = new Map(); // key -> blockIndex（-1 は破壊）。生成後に変わったブロック（セーブ用）
 
     const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -989,7 +989,9 @@
           setBlockData(x, surfaceY, z, 1); // Grass (index 1)
 
           // 木の生成
-          if (x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
+          // スタート地点のまわりには木を生やさない
+          const nearSpawn = Math.abs(x) <= 3 && Math.abs(z) <= 3;
+          if (!nearSpawn && x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
             if (worldRandom() < 0.025 && surfaceY >= 2) {
               const trunkHeight = worldRandInt(3, 4);
               for (let ty = 1; ty <= trunkHeight; ty++) {
@@ -1159,7 +1161,24 @@
       regenTimer: 0
     };
 
-    camera.position.set(0, 10, 0);
+    // 体が重なる列の中で一番高いブロックの上に立たせる（木や地面に埋まって動けなくならないように）
+    function placePlayerOnGround(x, z) {
+      let topY = BEDROCK_Y;
+      for (let cx = Math.floor(x - player.radius); cx <= Math.floor(x + player.radius); cx++) {
+        for (let cz = Math.floor(z - player.radius); cz <= Math.floor(z + player.radius); cz++) {
+          for (let y = 40; y > topY; y--) {
+            if (hasBlock(cx, y, cz)) {
+              topY = y;
+              break;
+            }
+          }
+        }
+      }
+      camera.position.set(x, topY + 1 + player.height, z);
+      player.velocity.set(0, 0, 0);
+    }
+
+    placePlayerOnGround(0, 0);
 
     const keys = { forward: false, backward: false, left: false, right: false, jump: false };
     let selectedSlot = 0; // 0: 剣, 1: 草, 2: 土...
@@ -1218,7 +1237,7 @@
     respawnBtn.addEventListener('click', () => {
       player.health = player.maxHealth;
       updateHealthUI();
-      camera.position.set(0, 15, 0);
+      placePlayerOnGround(0, 0);
       player.velocity.set(0, 0, 0);
       player.invulnerableTimer = 3; // 復活直後は3秒無敵
       // 復活地点の近くにいる敵は消す（後で離れた場所にリスポーンする）
@@ -1558,8 +1577,8 @@
               mob.fuseTimer = 0;
               mob.group.scale.set(1, 1, 1);
             }
-            // 接近移動 (12ブロック以内)
-            if (dist < 12.0 && dist >= 2.6) {
+            // 接近移動 (16ブロック以内)
+            if (dist < 16.0 && dist >= 2.6) {
               dir.normalize();
               mobPos.x += dir.x * mob.speed * delta;
               mobPos.z += dir.z * mob.speed * delta;
@@ -1574,7 +1593,7 @@
           }
         } else if (mob.type === 'zombie') {
           // ゾンビAI
-          if (dist < 12.0) {
+          if (dist < 20.0) {
             if (dist > 1.3) {
               dir.normalize();
               mobPos.x += dir.x * mob.speed * delta;
@@ -1838,7 +1857,9 @@
     function checkVoxelCollision(pos) {
       const minX = Math.floor(pos.x - player.radius);
       const maxX = Math.floor(pos.x + player.radius);
-      const minY = Math.floor(pos.y);
+      // 小数の誤差（例: 4.6 - 1.6 = 2.9999999999999996）で足元のブロックに「めり込んでいる」と
+      // 判定されて横に動けなくなるのを防ぐため、ほんの少し足す
+      const minY = Math.floor(pos.y + 1e-6);
       const maxY = Math.floor(pos.y + player.height);
       const minZ = Math.floor(pos.z - player.radius);
       const maxZ = Math.floor(pos.z + player.radius);
@@ -1857,6 +1878,12 @@
 
     function updatePhysics(delta) {
       if (player.health <= 0) return;
+
+      // ブロックに埋まっていたら（セーブ位置など）、空いている高さまで上に押し出す
+      for (let i = 0; i < 80 && checkVoxelCollision(new THREE.Vector3(camera.position.x, camera.position.y - player.height, camera.position.z)); i++) {
+        camera.position.y = Math.floor(camera.position.y - player.height + 1e-6) + 1 + player.height;
+        player.velocity.y = 0;
+      }
 
       if (player.invulnerableTimer > 0) {
         player.invulnerableTimer -= delta;
