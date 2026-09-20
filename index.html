@@ -122,6 +122,30 @@
     }
 
     /* プレイヤー体力ゲージ (ハート) */
+    /* display: flex より hidden 属性を優先させる */
+    #air-bar[hidden] {
+      display: none;
+    }
+    #air-bar {
+      position: absolute;
+      bottom: 106px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 3px;
+      z-index: 10;
+      font-size: 15px;
+      text-shadow: 0 0 3px #000;
+    }
+    /* 水の中にいるときに画面を青くする */
+    #water-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(30, 90, 180, 0.35);
+      pointer-events: none;
+      z-index: 5;
+      display: none;
+    }
     #health-bar {
       position: absolute;
       bottom: 84px;
@@ -619,6 +643,8 @@
   </div>
   <div id="player-hand">✊</div>
 
+  <div id="water-overlay"></div>
+  <div id="air-bar" hidden></div>
   <div id="health-bar"></div>
 
   <div id="info-panel">
@@ -1270,6 +1296,11 @@
     });
     textures.spruceLeaves = createPixelTexture(ctx => speckle(ctx, '#2f4f36', ['#27432d', '#3a5e41'], 70));
     textures.water = createPixelTexture(ctx => speckle(ctx, '#2f6fd6', ['#3a7fe8', '#2a62c0'], 50));
+    textures.lava = createPixelTexture(ctx => {
+      speckle(ctx, '#e04a10', ['#ff8a1a', '#c03208'], 60);
+      ctx.fillStyle = '#ffd24a'; // あついところ
+      for (let i = 0; i < 6; i++) ctx.fillRect(rand(0, 13), rand(0, 13), rand(1, 3), rand(1, 2));
+    });
     textures.stoneBrick = createPixelTexture(ctx => {
       speckle(ctx, '#7d7d7d', ['#737373', '#888888'], 40);
       ctx.fillStyle = '#5b5b5b';
@@ -1513,7 +1544,8 @@
       'water', 'stoneBrick', 'chestFront', 'chestTop', 'cobweb', 'planks', 'colorRed', 'colorYellow',
       'colorBlue', 'colorGreen', 'colorWhite', 'colorBlack', 'ladder', 'door', 'doorOpen', 'lamp',
       'tntSide', 'tntTop', 'bedTop', 'bedSide', 'furnaceFront', 'furnaceSide', 'farmland', 'wheat0',
-      'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue'
+      'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
+      'lava'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -1562,7 +1594,7 @@
       19: { name: 'サボテン', tiles: [tile('cactusTop'), tile('cactusTop'), tile('cactusSide')], tier: 0, drop: 'cactus', hurts: true, map: '#3f8a3a' },
       20: { name: 'トウヒの木', tiles: [tile('woodTop'), tile('woodTop'), tile('spruceSide')], tier: 0, drop: 'wood', map: '#5a3e24' },
       21: { name: 'トウヒの葉', tiles: same('spruceLeaves'), tier: 0, drop: 'leaves', seeThrough: true, map: '#2f4f36' },
-      22: { name: '水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, render: 'water', replaceable: true, map: '#2f6fd6' },
+      22: { name: '水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, fluid: 'water', render: 'water', replaceable: true, map: '#2f6fd6' },
       23: { name: '石レンガ', tiles: same('stoneBrick'), tier: 1, drop: 'stone_bricks', map: '#6a6a6a' },
       24: { name: 'ダンジョンの宝箱', tiles: [tile('chestTop'), tile('chestTop'), tile('chestFront')], tier: 99, dungeonChest: true, map: '#9a6a2e' },
       25: { name: 'クモの巣', tiles: same('cobweb'), tier: 0, drop: 'string', seeThrough: true, solid: false, web: true, render: 'glass', map: '#dddddd' },
@@ -1594,7 +1626,9 @@
       48: { name: '赤い花', tiles: same('flowerRed'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'red_flower', map: '#d8342c' },
       49: { name: '黄色い花', tiles: same('flowerYellow'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'yellow_flower', map: '#f4d42c' },
       50: { name: '青い花', tiles: same('flowerBlue'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'blue_flower', map: '#3c7ce8' },
-      51: { name: '流れる水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, render: 'water', replaceable: true, map: '#3f7fe0' }
+      51: { name: '流れる水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, fluid: 'water', render: 'water', replaceable: true, map: '#3f7fe0' },
+      52: { name: '溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff7a1a' },
+      53: { name: '流れる溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff9a3a' }
     };
     const GRASS = 1;
     const DIRT = 2;
@@ -1619,6 +1653,8 @@
     const SPRUCE_LEAVES = 21;
     const WATER = 22;
     const FLOW_WATER = 51; // 源から流れ出した水
+    const LAVA = 52;
+    const FLOW_LAVA = 53;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -1656,19 +1692,32 @@
       side: THREE.DoubleSide
     });
 
-    // 水面をゆっくり波打たせる（上を向いた面だけを、時間で上下にずらす）
+    // 液体の表面をゆっくり波打たせる（上を向いた面だけを、時間で上下にずらす）
     const waterUniforms = { uTime: { value: 0 } };
-    waterMaterial.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = waterUniforms.uTime;
-      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-         if (objectNormal.y > 0.5) {
-           transformed.y += sin(position.x * 0.9 + uTime * 1.6) * 0.035
-                          + sin(position.z * 1.15 + uTime * 1.25) * 0.035 - 0.05;
-         }`
-      );
-    };
+    function addWave(material, speed, height) {
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = waterUniforms.uTime;
+        shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+           if (objectNormal.y > 0.5) {
+             transformed.y += sin(position.x * 0.9 + uTime * ${speed.toFixed(2)}) * ${height.toFixed(3)}
+                            + sin(position.z * 1.15 + uTime * ${(speed * 0.8).toFixed(2)}) * ${height.toFixed(3)} - 0.05;
+           }`
+        );
+      };
+    }
+    addWave(waterMaterial, 1.6, 0.035);
+
+    // 溶岩は暗い地下でも自分で光って見えるように、emissive（自分で光る色）を使う
+    const lavaMaterial = new THREE.MeshLambertMaterial({
+      map: atlasTexture,
+      emissiveMap: atlasTexture,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.85,
+      vertexColors: true
+    });
+    addWave(lavaMaterial, 0.35, 0.05); // 溶岩はどろりとゆっくり
 
     /* --- Scene, Camera, Renderer --- */
     const scene = new THREE.Scene();
@@ -1894,6 +1943,7 @@
       const opaque = newFaceBuffer();
       const glass = newFaceBuffer();
       const water = newFaceBuffer();
+      const lava = newFaceBuffer();
       const x0 = -HALF_SIZE + chunk.cx * CHUNK_SIZE;
       const z0 = -HALF_SIZE + chunk.cz * CHUNK_SIZE;
       const x1 = Math.min(HALF_SIZE, x0 + CHUNK_SIZE - 1);
@@ -1911,20 +1961,21 @@
               CROSS_FACES.forEach(face => addFace(glass, x, y, z, face, def.tiles[2]));
               continue;
             }
-            const buf = def.render === 'water' ? water : def.render === 'glass' ? glass : opaque;
+            const buf = def.render === 'water' ? water : def.render === 'lava' ? lava
+                      : def.render === 'glass' ? glass : opaque;
             for (const face of FACES) {
               const n = neighborForMesh(x + face.dir[0], y + face.dir[1], z + face.dir[2]);
               if (n !== 0 && !BLOCKS[n].seeThrough) continue; // 隣がふさがっていて見えない
-              if (def.water && n !== 0 && BLOCKS[n].solid !== false) continue; // 水はブロックに接した面を描かない
+              if (def.fluid && n !== 0 && BLOCKS[n].solid !== false) continue; // 水や溶岩はブロックに接した面を描かない
               if (n === id && def.seeThrough) continue;      // 葉と葉、ガラスとガラスの間は描かない
-              if (def.water && BLOCKS[n] && BLOCKS[n].water) continue; // 水どうしの間も描かない
+              if (def.fluid && BLOCKS[n] && BLOCKS[n].fluid === def.fluid) continue; // 同じ液体どうしの間も描かない
               addFace(buf, x, y, z, face, def.tiles[face.side]);
             }
           }
         }
       }
 
-      for (const key of ['opaqueMesh', 'glassMesh', 'waterMesh']) {
+      for (const key of ['opaqueMesh', 'glassMesh', 'waterMesh', 'lavaMesh']) {
         if (chunk[key]) {
           terrainGroup.remove(chunk[key]);
           chunk[key].geometry.dispose();
@@ -1934,9 +1985,11 @@
       chunk.opaqueMesh = makeChunkMesh(opaque, opaqueMaterial);
       chunk.glassMesh = makeChunkMesh(glass, glassMaterial);
       chunk.waterMesh = makeChunkMesh(water, waterMaterial);
+      chunk.lavaMesh = makeChunkMesh(lava, lavaMaterial);
       if (chunk.opaqueMesh) terrainGroup.add(chunk.opaqueMesh);
       if (chunk.glassMesh) terrainGroup.add(chunk.glassMesh);
       if (chunk.waterMesh) terrainGroup.add(chunk.waterMesh);
+      if (chunk.lavaMesh) terrainGroup.add(chunk.lavaMesh);
       chunk.dirty = false;
     }
 
@@ -1951,6 +2004,7 @@
             opaqueMesh: null,
             glassMesh: null,
             waterMesh: null,
+            lavaMesh: null,
             dirty: false
           };
           chunks.push(chunk);
@@ -1980,6 +2034,7 @@
         if (chunk.opaqueMesh) chunk.opaqueMesh.visible = !far;
         if (chunk.glassMesh) chunk.glassMesh.visible = !far;
         if (chunk.waterMesh) chunk.waterMesh.visible = !far;
+        if (chunk.lavaMesh) chunk.lavaMesh.visible = !far;
       }
     }
 
@@ -2044,7 +2099,7 @@
       markMapDirty(x, z);
 
       if (playSoundFlag) playSound('place');
-      activateWater(x, y, z);
+      activateFluid(x, y, z);
       return true;
     }
 
@@ -2070,114 +2125,141 @@
       if (above && BLOCKS[above].render === 'cross') removeBlock(x, y + 1, z, false);
 
       if (playSoundFlag) playSound('break');
-      waterLevels.delete(blockKey(x, y, z));
-      activateWater(x, y, z);
+      fluidLevels.delete(blockKey(x, y, z));
+      activateFluid(x, y, z);
       return id;
     }
 
 
-    /* --- Flowing Water (水が流れる) --- */
-    // 水の「源」(WATER) から低い方へ広がる。広がった先は「流れる水」(FLOW_WATER)。
-    // level はいきおい（4 → 1）。1 まで弱ると、そこで止まる。
+    /* --- Flowing Fluids (水と溶岩が流れる) --- */
+    // 「源」(WATER / LAVA) から低い方へ広がる。広がった先は「流れる水・流れる溶岩」。
+    // level はいきおい。源からはなれるほど 1 ずつ減り、0 になると止まる。
     // 湖ぜんぶを毎秒計算すると重いので、プレイヤーがさわった所のまわりだけ調べる。
-    const WATER_MAX = 4;             // 源から横に4マスまで流れる
-    const WATER_TICK = 0.25;         // 何秒ごとに1マスずつ進むか
-    const waterLevels = new Map();   // "x,y,z" -> いきおい(1〜4)
-    const activeWater = new Set();   // これから調べるセル
-    let waterTickTimer = 0;
-    const WATER_AROUND = [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]];
+    const FLUID_TICK = 0.25;         // 何秒ごとに1マスずつ進むか
+    const fluidLevels = new Map();   // "x,y,z" -> いきおい
+    const activeFluid = new Set();   // これから調べるセル
+    let fluidTickTimer = 0;
+    let fluidTickCount = 0;
+    const FLUID_AROUND = [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]];
+    const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    // max: 源から横に何マスまで流れるか / every: 何回に1回動くか（溶岩はゆっくり）
+    const FLUIDS = {
+      [WATER]:      { source: WATER, flow: FLOW_WATER, max: 4, every: 1 },
+      [FLOW_WATER]: { source: WATER, flow: FLOW_WATER, max: 4, every: 1 },
+      [LAVA]:       { source: LAVA, flow: FLOW_LAVA, max: 2, every: 4 },
+      [FLOW_LAVA]:  { source: LAVA, flow: FLOW_LAVA, max: 2, every: 4 }
+    };
 
     const isWaterBlock = id => id === WATER || id === FLOW_WATER;
-    // 水が入っていけるか（空気・草花・水）
-    const canFloodInto = id => id === 0 || (BLOCKS[id] && (BLOCKS[id].replaceable || BLOCKS[id].render === 'cross'));
+    const isLavaBlock = id => id === LAVA || id === FLOW_LAVA;
+    // その液体が入っていけるか（空気・草花。ほかの液体やかたいものには入れない）
+    const canFloodInto = (id, def) =>
+      id === 0 || (!FLUIDS[id] && BLOCKS[id] && (BLOCKS[id].replaceable || BLOCKS[id].render === 'cross'));
 
     // そのセルとまわりを「あとで調べる」リストに入れる
-    function activateWater(x, y, z) {
-      for (const [dx, dy, dz] of WATER_AROUND) {
-        if (inBounds(x + dx, y + dy, z + dz)) activeWater.add(blockKey(x + dx, y + dy, z + dz));
+    function activateFluid(x, y, z) {
+      for (const [dx, dy, dz] of FLUID_AROUND) {
+        if (inBounds(x + dx, y + dy, z + dz)) activeFluid.add(blockKey(x + dx, y + dy, z + dz));
       }
     }
 
     // まわりから、どれだけのいきおいをもらえるか
-    function waterSupport(x, y, z) {
-      if (isWaterBlock(getBlock(x, y + 1, z))) return WATER_MAX; // 上から落ちてくる水は弱らない
+    function fluidSupport(x, y, z, def) {
+      const above = getBlock(x, y + 1, z);
+      if (above === def.source || above === def.flow) return def.max; // 上から落ちてくるぶんは弱らない
       let best = 0;
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dx, dz] of SIDES) {
         const id = getBlock(x + dx, y, z + dz);
-        if (id === WATER) best = Math.max(best, WATER_MAX - 1);
-        else if (id === FLOW_WATER) best = Math.max(best, (waterLevels.get(blockKey(x + dx, y, z + dz)) || 1) - 1);
+        if (id === def.source) best = Math.max(best, def.max - 1);
+        else if (id === def.flow) best = Math.max(best, (fluidLevels.get(blockKey(x + dx, y, z + dz)) || 1) - 1);
       }
       return best;
     }
 
-    // 流れる水を1マス作る（草花はおし流される）
-    function createFlow(x, y, z, level) {
+    // 流れる液体を1マス作る（草花はおし流される）
+    function createFlow(x, y, z, level, def) {
       if (level <= 0 || !inBounds(x, y, z)) return;
       const key = blockKey(x, y, z);
       const id = getBlock(x, y, z);
-      if (id === WATER) return;
-      if (id === FLOW_WATER) {
-        if ((waterLevels.get(key) || 0) >= level) return; // すでに同じか強い流れがある
-      } else if (!canFloodInto(id)) {
+      if (id === def.source) return;
+      if (id === def.flow) {
+        if ((fluidLevels.get(key) || 0) >= level) return; // すでに同じか強い流れがある
+      } else if (!canFloodInto(id, def)) {
         return;
       } else if (id !== 0) {
         removeBlock(x, y, z, false); // 草むらや花はおし流される
       }
-      waterLevels.set(key, level);
-      addBlock(x, y, z, FLOW_WATER, false);
+      fluidLevels.set(key, level);
+      addBlock(x, y, z, def.flow, false);
     }
 
     // 下に落ちられるなら落ちる（落ちたら横には広がらない）
-    function flowDown(x, y, z) {
+    function flowDown(x, y, z, def) {
       const below = getBlock(x, y - 1, z);
-      if (isWaterBlock(below)) return true;
-      if (!canFloodInto(below)) return false;
-      createFlow(x, y - 1, z, WATER_MAX);
+      if (below === def.source || below === def.flow) return true;
+      if (!canFloodInto(below, def)) return false;
+      createFlow(x, y - 1, z, def.max, def);
       return true;
     }
 
-    function spreadWater(x, y, z, level) {
-      if (flowDown(x, y, z) || level <= 1) return;
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) createFlow(x + dx, y, z + dz, level - 1);
+    function spreadFluid(x, y, z, level, def) {
+      if (flowDown(x, y, z, def) || level <= 1) return;
+      for (const [dx, dz] of SIDES) createFlow(x + dx, y, z + dz, level - 1, def);
     }
 
-    // 少しずつ水を広げる（または、もとがなくなった水を消す）
-    function updateWaterFlow(delta) {
-      waterTickTimer -= delta;
-      if (waterTickTimer > 0 || activeWater.size === 0) return;
-      waterTickTimer = WATER_TICK;
+    // 溶岩が水にふれたら石になる（ジュッと音がする）
+    function lavaMeetsWater(x, y, z) {
+      if (!FLUID_AROUND.some(([dx, dy, dz]) => isWaterBlock(getBlock(x + dx, y + dy, z + dz)))) return false;
+      fluidLevels.delete(blockKey(x, y, z));
+      removeBlock(x, y, z, false);
+      addBlock(x, y, z, STONE, false);
+      spawnParticles(new THREE.Vector3(x, y + 0.5, z), 0xdddddd, 8, 3);
+      playSound('fuse');
+      return true;
+    }
+
+    // 少しずつ液体を広げる（または、もとがなくなった分を消す）
+    function updateFluids(delta) {
+      fluidTickTimer -= delta;
+      if (fluidTickTimer > 0 || activeFluid.size === 0) return;
+      fluidTickTimer = FLUID_TICK;
+      fluidTickCount++;
 
       const batch = [];
-      for (const key of activeWater) {
+      for (const key of activeFluid) {
         batch.push(key);
         if (batch.length >= 300) break; // 1回に調べるのはこれだけ（重くならないように）
       }
-      batch.forEach(key => activeWater.delete(key));
+      batch.forEach(key => activeFluid.delete(key));
 
       for (const key of batch) {
         const [x, y, z] = key.split(',').map(Number);
         if (!inBounds(x, y, z)) continue;
         const id = getBlock(x, y, z);
-        if (id === WATER) {
-          spreadWater(x, y, z, WATER_MAX);
-        } else if (id === FLOW_WATER) {
-          const support = waterSupport(x, y, z);
-          if (support <= 0) {
-            waterLevels.delete(key);
-            removeBlock(x, y, z, false); // もとの水がなくなったので、この水も消える
-            continue;
-          }
-          const before = waterLevels.get(key);
-          if (before !== support) {
-            waterLevels.set(key, support);
-            activateWater(x, y, z); // いきおいが変わったら、まわりも調べ直す
-            // 弱くなった直後は広げない。こうしないと、引いた水をまた押し出してしまう
-            if (before !== undefined && support < before) continue;
-          }
-          spreadWater(x, y, z, support);
-        } else {
-          waterLevels.delete(key);
+        const def = FLUIDS[id];
+        if (!def) { fluidLevels.delete(key); continue; }
+        if (fluidTickCount % def.every !== 0) { activeFluid.add(key); continue; } // 溶岩はゆっくり動く
+        if (isLavaBlock(id) && lavaMeetsWater(x, y, z)) continue;
+
+        if (id === def.source) {
+          spreadFluid(x, y, z, def.max, def);
+          continue;
         }
+        const support = fluidSupport(x, y, z, def);
+        if (support <= 0) {
+          fluidLevels.delete(key);
+          removeBlock(x, y, z, false); // もとがなくなったので、この分も消える
+          continue;
+        }
+        const before = fluidLevels.get(key);
+        if (before !== support) {
+          fluidLevels.set(key, support);
+          activateFluid(x, y, z); // いきおいが変わったら、まわりも調べ直す
+          // 弱くなった直後は広げない。こうしないと、引いた水をまた押し出してしまう
+          if (before !== undefined && support < before) continue;
+        }
+        spreadFluid(x, y, z, support, def);
       }
     }
 
@@ -2447,9 +2529,49 @@
       }
 
       generateCaves();
+      placeLava();
       placeCobwebs();
       generateDungeon();
       generateStructures();
+    }
+
+    // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
+    function placeLava() {
+      for (let i = 0; i < 12; i++) {
+        const cx = worldRandInt(-HALF_SIZE + 10, HALF_SIZE - 10);
+        const cz = worldRandInt(-HALF_SIZE + 10, HALF_SIZE - 10);
+        const cy = worldRandInt(BEDROCK_Y + 1, BEDROCK_Y + 6);
+        const r = worldRandInt(4, 7);
+        for (let dx = -r; dx <= r; dx++) {
+          for (let dz = -r; dz <= r; dz++) {
+            const d = Math.hypot(dx, dz);
+            if (d > r) continue;
+            const air = Math.round(4 - (d / r) * 2); // まん中ほど天井が高い
+            for (let dy = 0; dy <= air; dy++) {
+              const y = cy + dy;
+              if (y <= BEDROCK_Y || getBlock(cx + dx, y, cz + dz) === BEDROCK) continue;
+              forceBlock(cx + dx, y, cz + dz, dy === 0 ? LAVA : 0);
+            }
+          }
+        }
+      }
+      // 洞窟の中の小さな溶岩だまり
+      let placed = 0;
+      for (let attempt = 0; attempt < 30000 && placed < 60; attempt++) {
+        const x = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
+        const z = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
+        const y = worldRandInt(BEDROCK_Y + 4, -20);
+        if (getBlock(x, y, z) !== 0 || !isSolid(x, y - 1, z)) continue;
+        const r = worldRandInt(1, 2);
+        for (let dx = -r; dx <= r; dx++) {
+          for (let dz = -r; dz <= r; dz++) {
+            if (getBlock(x + dx, y, z + dz) === 0 && isSolid(x + dx, y - 1, z + dz)) {
+              setBlockData(x + dx, y, z + dz, LAVA);
+            }
+          }
+        }
+        placed++;
+      }
     }
 
     // 洞窟の天井にクモの巣（掘ると糸が手に入る）
@@ -2857,7 +2979,10 @@
       regenCooldown: 0, // ダメージ後、自然回復が始まるまでの秒数
       regenTimer: 0,
       slowTimer: 0, // ストレイの矢に当たると少しのあいだ遅くなる
-      fallFrom: 0 // 落ち始めたときの足の高さ（落下ダメージの計算に使う）
+      fallFrom: 0, // 落ち始めたときの足の高さ（落下ダメージの計算に使う）
+      air: 10,     // 水の中でいきが続く秒数
+      maxAir: 10,
+      drownTimer: 0
     };
 
     /* --- Collision (当たり判定) --- */
@@ -2906,6 +3031,20 @@
 
     // 体力ハートUI更新
     const healthBar = document.getElementById('health-bar');
+    const airBar = document.getElementById('air-bar');
+    const waterOverlay = document.getElementById('water-overlay');
+    let airBarShown = -1;
+
+    // 水の中にいるあいだ、あわのゲージと青い画面を出す
+    function updateAirUI(underwater) {
+      waterOverlay.style.display = underwater ? 'block' : 'none';
+      const bubbles = Math.ceil((player.air / player.maxAir) * 10);
+      if (bubbles === airBarShown && airBar.hidden === (player.air >= player.maxAir)) return;
+      airBarShown = bubbles;
+      airBar.hidden = player.air >= player.maxAir;
+      airBar.textContent = '🫧'.repeat(bubbles) + '・'.repeat(10 - bubbles);
+    }
+
     function updateHealthUI() {
       healthBar.innerHTML = '';
       const totalHearts = player.maxHealth / 2;
@@ -2978,6 +3117,8 @@
         placePlayerOnGround(0, 0);
       }
       player.fallFrom = camera.position.y - player.eye;
+      player.air = player.maxAir;
+      player.drownTimer = 0;
       player.invulnerableTimer = 3; // 復活直後は3秒無敵
       // ボス戦の途中で倒されたら、ボスは眠りにもどる（また部屋に入ると目覚める）
       if (boss) {
@@ -3253,6 +3394,8 @@
     function spawnMobAt(type, x, y, z) {
       const def = MOB_DEFS[type];
       if (collidesBox(x, y, z, def.radius, def.height) || isNearTorch(x, y, z, 8)) return null;
+      // 液体の中には出さない（溶岩の上で立ち往生しないように）
+      if (FLUIDS[getBlock(Math.round(x), Math.round(y + 0.5), Math.round(z))]) return null;
       const mob = createMob(type, x, y, z);
       applyMobStrength(mob);
       spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9933ff, 16, 3);
@@ -3972,7 +4115,9 @@
 
       const pos = new THREE.Vector3(target.x, target.y, target.z);
       const give = (id, count = 1) => {
-        if (!addItem(id, count)) spawnDroppedItem(id, count, pos.clone());
+        if (addItem(id, count)) return;
+        spawnDroppedItem(id, count, pos.clone()); // 持ち物に入らなければ地面に落ちる
+        notifyInventoryFull();
       };
       if (def.crop !== undefined) {
         // 実った小麦は小麦と種、まだ育っていなければ種だけ
@@ -4035,19 +4180,20 @@
 
     // バケツ: 水をくむ / 水を置く
     function useBucket(item) {
-      if (!item.water) {
+      if (!item.water && !item.lava) {
         const hit = raycastBlock(camera.position, lookDirection, REACH, true);
-        if (hit && hit.id === WATER) {
+        const filled = hit && (hit.id === WATER ? 'water_bucket' : hit.id === LAVA ? 'lava_bucket' : null);
+        if (filled) {
           removeBlock(hit.x, hit.y, hit.z, false);
-          inventory[selectedSlot] = { id: 'water_bucket', count: 1 };
-          seenItems.add('water_bucket');
+          inventory[selectedSlot] = { id: filled, count: 1 };
+          seenItems.add(filled);
           playSound('place');
           renderInventory();
         }
         return;
       }
       const cell = targetPlaceCell();
-      if (cell && addBlock(cell.x, cell.y, cell.z, WATER, true)) {
+      if (cell && addBlock(cell.x, cell.y, cell.z, item.lava ? LAVA : WATER, true)) {
         inventory[selectedSlot] = { id: 'bucket', count: 1 };
         renderInventory();
         updateRaycast();
@@ -4285,6 +4431,7 @@
       shield: { name: '盾', kind: 'shield', color: '#9a6a36', emoji: '🛡️', stack: 1 },
       bucket: { name: 'バケツ', kind: 'bucket', color: '#b8b8b8', emoji: '🪣', stack: 1 },
       water_bucket: { name: '水入りバケツ', kind: 'bucket', water: true, color: '#2f6fd6', emoji: '💧', stack: 1 },
+      lava_bucket: { name: '溶岩入りバケツ', kind: 'bucket', lava: true, color: '#ff7a1a', emoji: '🌋', stack: 1 },
       big_bag: { name: '大きなカバン', kind: 'bag', color: '#8a5a2a', emoji: '🎒', stack: 1 }
     };
     // 色つきブロックと染料
@@ -4333,6 +4480,26 @@
       seenItems.add(id);
       renderInventory();
       return true;
+    }
+
+    // 入るぶんだけ持ち物に入れて、実際に入った数を返す（地面のアイテムを拾うときに使う）
+    function addItemPartial(id, amount) {
+      if (!ITEMS[id]) return 0;
+      const room = inventory.slice(0, usableSlots()).reduce((n, item) => {
+        if (!item) return n + maxStack(id);
+        return n + (item.id === id ? maxStack(id) - item.count : 0);
+      }, 0);
+      const take = Math.min(amount, room);
+      if (take > 0) addItem(id, take);
+      return take;
+    }
+
+    // 持ち物がいっぱいのときのお知らせ（出しすぎないように4秒に1回まで）
+    let lastFullNotice = 0;
+    function notifyInventoryFull() {
+      if (performance.now() - lastFullNotice < 4000) return;
+      lastFullNotice = performance.now();
+      showToast('🎒 持ち物がいっぱい！ E キーで整理するか、いらない物を捨てよう');
     }
 
     function removeItems(id, amount) {
@@ -5006,10 +5173,21 @@
         }
         d.mesh.rotation.y += delta * 2;
 
-        if (d.pickupDelay <= 0 && pos.distanceTo(center) < 1.6 && addItem(d.id, d.count)) {
-          playSound('place');
-          removeDropped(i);
-        } else if (d.life <= 0 || pos.y < BEDROCK_Y - 10) {
+        if (d.pickupDelay <= 0 && pos.distanceTo(center) < 1.8) {
+          // 入るぶんだけ拾う。全部入らなければ、残りは地面に残る
+          const taken = addItemPartial(d.id, d.count);
+          if (taken > 0) {
+            playSound('place');
+            d.count -= taken;
+            if (d.count <= 0) {
+              removeDropped(i);
+              continue;
+            }
+          } else {
+            notifyInventoryFull();
+          }
+        }
+        if (d.life <= 0 || pos.y < BEDROCK_Y - 10) {
           removeDropped(i);
         }
       }
@@ -5548,12 +5726,43 @@
 
       // 水・クモの巣・サボテン・ストレイの矢
       const inWater = bodyTouches(def => def.water);
+      const inLava = bodyTouches(def => def.lava);
+      if (inLava) {
+        damagePlayer(3); // 無敵時間があるので、だいたい0.8秒に1回ダメージ
+        if (Math.random() < delta * 10) {
+          spawnParticles(camera.position.clone().add(new THREE.Vector3(0, -0.8, 0)), 0xff8a1a, 3, 2);
+        }
+      }
       const inWeb = bodyTouches(def => def.web);
       const onLadder = bodyTouches(def => def.climbable);
       if (bodyTouches(def => def.hurts, 0.05)) damagePlayer(1); // サボテンにさわると痛い
       if (player.slowTimer > 0) player.slowTimer -= delta;
       let speedFactor = 1;
       if (inWater) speedFactor *= 0.5;
+      if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
+
+      // 息: 顔（カメラの位置）が水につかっているあいだだけ減る
+      const headUnderwater = isWaterBlock(getBlock(
+        Math.round(camera.position.x), Math.round(camera.position.y), Math.round(camera.position.z)));
+      if (headUnderwater) {
+        player.air -= delta;
+        if (player.air <= 0) {
+          player.air = 0;
+          player.drownTimer -= delta;
+          if (player.drownTimer <= 0) {
+            player.drownTimer = 1.5;
+            damagePlayer(2); // おぼれる
+            showToast('😵 いきが続かない！ 水面に出よう');
+          }
+        } else if (Math.random() < delta * 3) {
+          spawnParticles(camera.position.clone(), 0xbfe6ff, 1, 1); // あわ
+        }
+      } else if (player.air < player.maxAir) {
+        player.air = Math.min(player.maxAir, player.air + delta * 4); // 顔を出すとすぐ戻る
+        player.drownTimer = 0;
+      }
+      player.headUnderwater = headUnderwater;
+      updateAirUI(headUnderwater);
       if (inWeb) speedFactor *= 0.3;
       if (player.slowTimer > 0) speedFactor *= 0.6;
       if (isBlocking()) speedFactor *= 0.4; // 盾で守っているあいだはゆっくり
@@ -5594,6 +5803,10 @@
       if (onLadder) {
         // はしご: 前かスペースで登り、離すとゆっくり下りる
         player.velocity.y = keys.forward || keys.jump ? 3 : -1.5;
+      } else if (inLava) {
+        // 溶岩の中はゆっくり沈む。スペースを押し続ければ、なんとか上がれる
+        player.velocity.y = Math.max(player.velocity.y - GRAVITY * 0.15 * delta, -1.5);
+        if (keys.jump) player.velocity.y = 2.2;
       } else if (inWater || inWeb) {
         // 水の中はゆっくり沈み、スペースを押しているあいだ浮かぶ
         player.velocity.y = Math.max(player.velocity.y - GRAVITY * 0.25 * delta, inWeb ? -1 : -3);
@@ -5623,7 +5836,7 @@
 
       // 落下ダメージ: 3マスより高いところから落ちると、1マスにつきハート半分
       const feetY = camera.position.y - player.eye;
-      if (!player.onGround && !onLadder && !inWater && !inWeb) {
+      if (!player.onGround && !onLadder && !inWater && !inWeb && !inLava) {
         player.fallFrom = Math.max(player.fallFrom, feetY);
       } else {
         const fallen = player.fallFrom - feetY;
@@ -5654,6 +5867,9 @@
     const DAY_SKY = new THREE.Color(0x78a7ff);
     const NIGHT_SKY = new THREE.Color(0x0a0f2a);
     const CAVE_DARK = new THREE.Color(0x07070c);
+    const UNDERWATER_COLOR = new THREE.Color(0x14548c);
+    const FOG_NEAR = 30;
+    const FOG_FAR = 75;
     const skyColor = new THREE.Color();
     const DAY_CYCLE_SECONDS = 300; // 1日 = 5分（昼 約3分 + 夜 約2分）
     const NIGHT_START = 0.6;       // 1日のうち、ここから夜
@@ -5692,6 +5908,16 @@
       skyColor.lerpColors(NIGHT_SKY, DAY_SKY, daylight);
       scene.background.lerpColors(skyColor, CAVE_DARK, underground);
       scene.fog.color.copy(scene.background);
+      // 水の中では、青くてぼんやりした景色にする（水の中にいる感じを出す）
+      if (player.headUnderwater) {
+        scene.background.copy(UNDERWATER_COLOR);
+        scene.fog.color.copy(UNDERWATER_COLOR);
+        scene.fog.near = 0.5;
+        scene.fog.far = 14;
+      } else {
+        scene.fog.near = FOG_NEAR;
+        scene.fog.far = FOG_FAR;
+      }
 
       depthDisplay.textContent = `深さ: ${depth}m (最深記録: ${deepestDepth}m)`;
       const biome = BIOME_INFO[biomeAt(Math.round(camera.position.x), Math.round(camera.position.z))];
@@ -5771,7 +5997,7 @@
       }
 
       // 水はポーズ中も止めない（かまどと同じ）
-      updateWaterFlow(delta);
+      updateFluids(delta);
       waterUniforms.uTime.value += delta;
 
       // かまどは持ち物画面を開いているあいだも焼き続ける
@@ -5827,7 +6053,7 @@
         bagSize,
         seenItems: [...seenItems],
         storageChests: Object.fromEntries(storageChests),
-        waterLevels: Object.fromEntries(waterLevels),
+        fluidLevels: Object.fromEntries(fluidLevels),
         furnaces: Object.fromEntries(furnaces),
         spawnPoint,
         explored: encodeExplored(),
@@ -5862,7 +6088,7 @@
         storageChests.set(key, slots.map(item => (item && ITEMS[item.id] ? item : null)));
       });
       Object.entries(data.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
-      Object.entries(data.waterLevels || {}).forEach(([key, level]) => waterLevels.set(key, level));
+      Object.entries(data.fluidLevels || data.waterLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
       spawnPoint = data.spawnPoint || null;
       decodeExplored(data.explored);
       dungeonFound = !!data.dungeonFound;
@@ -5926,8 +6152,8 @@
         spawnDroppedItem,
         droppedItems,
         storageChests,
-        waterLevels,
-        activeWater,
+        fluidLevels,
+        activeFluid,
         getFurnace,
         growingBlocks,
         RECIPES,
