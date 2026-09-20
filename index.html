@@ -715,7 +715,7 @@
       <div class="mob-info">
         ⛏️ <b>地下探検</b>: ワールドは161×161ブロックの広さ。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。<br>
         🌍 <b>いろいろな地形</b>: 草原・森・砂漠（サボテンに注意）・雪原・山と湖。砂漠にはハスク、雪原にはストレイが出ます。<br>
-        🗿 <b>ボス</b>: 地下深くのダンジョンに巨大なゴーレムがいます。ワールドを探検して、石レンガの入口を見つけよう（見つけるとマップに 💀 が出ます）。地面をたたく衝撃波はジャンプでよけられる。倒すと宝箱が開きます。<br>
+        🗿 <b>ボス</b>: 地下深くのダンジョンに <b>3体のボス</b>がいます。まずは 🗿 ゴーレム。倒すと 🔥 マグマゴーレム、💀 やみのゴーレムが別の場所で目を覚まし、その部屋がマップに出ます（奥のボスほど深くて強い）。地面をたたく衝撃波はジャンプでよけ、背中の光るコアをねらおう。倒すと部屋の宝箱が開きます。<br>
         🕸️ <b>糸</b>はクモを倒すか、洞窟のクモの巣を掘ると手に入ります。
       </div>
     </div>
@@ -2611,8 +2611,35 @@
       }
     }
 
-    /* --- Dungeon (ボスのいる地下の部屋) --- */
-    const DUNGEON = { x: 0, z: 0, floorY: -30, half: 7, height: 7, dirX: 1, chest: null, entrance: null };
+    /* --- Dungeons (ボスのいる地下の部屋) --- */
+    // ボスは3体。前のボスを倒すと、次のボスが目を覚ます。奥のボスほど遠く・深く・強い。
+    // pound / throw は [ふだん, 怒ったとき] の間かく（秒）
+    const BOSS_TIERS = [
+      {
+        type: 'golem', emoji: '🗿', floorY: -30, minDistance: 45,
+        pound: [6, 4], throw: [3.5, 2.5], rockDamage: 5, waveDamage: 6, weakToWater: true,
+        enragedSpeed: 2.6, tint: [1.25, 0.7, 0.65],
+        loot: [['golem_sword', 1], ['diamond', 5], ['golden_apple', 2], ['iron', 8]]
+      },
+      {
+        type: 'magma_golem', emoji: '🔥', floorY: -34, minDistance: 52,
+        pound: [4.5, 3], throw: [2.8, 2], rockDamage: 8, waveDamage: 8, rockColor: 0xff6a1a, weakToWater: true,
+        enragedSpeed: 3.0, tint: [1.4, 0.75, 0.5],
+        loot: [['magma_sword', 1], ['diamond', 8], ['golden_apple', 3], ['iron_armor', 1]]
+      },
+      {
+        type: 'shadow_golem', emoji: '💀', floorY: -38, minDistance: 58,
+        pound: [4, 2.6], throw: [2.4, 1.8], rockDamage: 9, waveDamage: 10, rockColor: 0x6a4ac0, weakToWater: false,
+        summons: ['zombie', 'spider', 'skeleton'], summonSeconds: 14, maxMinions: 3,
+        enragedSpeed: 3.2, tint: [1.1, 0.7, 1.3],
+        loot: [['shadow_sword', 1], ['shadow_armor', 1], ['diamond', 12], ['golden_apple', 4]]
+      }
+    ];
+
+    const DUNGEONS = BOSS_TIERS.map((tier, i) => ({
+      tier: i, x: 0, z: 0, floorY: tier.floorY, half: 7, height: 7, dirX: 1, chest: null, entrance: null
+    }));
+    const DUNGEON = DUNGEONS[0]; // 1つめ（テスト用フック用の短い名前）
 
     // 生成用: 何があっても上書きする
     function forceBlock(x, y, z, id) {
@@ -2629,14 +2656,21 @@
     }
 
     function generateDungeon() {
-      // スタート地点から 45〜60 マス離れた、地下深くに作る
-      const angle = worldRandom() * Math.PI * 2;
-      const distance = 45 + worldRandom() * 15;
+      // ボスの数だけ作る。方角をずらして、別々の場所になるようにする
+      const baseAngle = worldRandom() * Math.PI * 2;
+      DUNGEONS.forEach(dungeon => buildDungeonRoom(dungeon, baseAngle));
+    }
+
+    function buildDungeonRoom(dungeon, baseAngle) {
+      const tier = BOSS_TIERS[dungeon.tier];
+      // スタート地点から離れた、地下深くに作る（奥のボスほど遠い）
+      const angle = baseAngle + (dungeon.tier * Math.PI * 2) / DUNGEONS.length + (worldRandom() - 0.5) * 0.7;
+      const distance = tier.minDistance + worldRandom() * 14;
       const cx = Math.round(THREE.MathUtils.clamp(Math.cos(angle) * distance, -HALF_SIZE + 12, HALF_SIZE - 12));
       const cz = Math.round(THREE.MathUtils.clamp(Math.sin(angle) * distance, -HALF_SIZE + 12, HALF_SIZE - 12));
-      const { floorY: fy, half: h, height } = DUNGEON;
+      const { floorY: fy, half: h, height } = dungeon;
       const dirX = cx > 0 ? -1 : 1; // 階段はワールドの中心の方へのびる
-      Object.assign(DUNGEON, { x: cx, z: cz, dirX });
+      Object.assign(dungeon, { x: cx, z: cz, dirX });
 
       // 部屋: 石レンガの床・壁・天井。中は空気
       for (let dx = -h - 1; dx <= h + 1; dx++) {
@@ -2654,8 +2688,8 @@
       // 四隅の松明
       for (const [px, pz] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) forceTorch(cx + px, fy, cz + pz);
       // 宝箱（階段の反対側の壁ぎわ）
-      DUNGEON.chest = { x: cx - dirX * (h - 1), y: fy, z: cz };
-      forceBlock(DUNGEON.chest.x, DUNGEON.chest.y, DUNGEON.chest.z, CHEST);
+      dungeon.chest = { x: cx - dirX * (h - 1), y: fy, z: cz };
+      forceBlock(dungeon.chest.x, dungeon.chest.y, dungeon.chest.z, CHEST);
 
       // 入口の階段: 部屋の壁から、1マス進むごとに1段ずつ上がって地上へ
       let x = cx + dirX * (h + 1);
@@ -2677,7 +2711,7 @@
         forceBlock(x, y + dy, cz + 2, STONE_BRICKS);
       }
       for (let dz = -2; dz <= 2; dz++) forceBlock(x, y + 4, cz + dz, STONE_BRICKS);
-      DUNGEON.entrance = { x, y, z: cz };
+      dungeon.entrance = { x, y, z: cz };
     }
 
 
@@ -2926,7 +2960,7 @@
         const cz = worldRandInt(-HALF_SIZE + 12, HALF_SIZE - 12);
         if (Math.hypot(cx, cz) < 22) continue;                       // スタート地点のまわりは空けておく
         if (worldRandom() > 0.3) continue;                           // めったに建たない
-        if (Math.hypot(cx - DUNGEON.entrance.x, cz - DUNGEON.entrance.z) < 18) continue;
+        if (DUNGEONS.some(d => d.entrance && Math.hypot(cx - d.entrance.x, cz - d.entrance.z) < 18)) continue;
         if (structuresPlaced.some(s => Math.hypot(cx - s.x, cz - s.z) < 28)) continue;
         const list = STRUCTURE_TYPES[biomeAt(cx, cz)];
         if (!list) continue;
@@ -2940,10 +2974,10 @@
       }
     }
 
-    // プレイヤーがダンジョンの部屋の中にいるか
-    function isInDungeonRoom(px, feetY, pz) {
-      return Math.abs(px - DUNGEON.x) <= DUNGEON.half && Math.abs(pz - DUNGEON.z) <= DUNGEON.half &&
-        feetY >= DUNGEON.floorY - 1 && feetY <= DUNGEON.floorY + DUNGEON.height;
+    // プレイヤーが入っているダンジョンの部屋（どこにも入っていなければ null）
+    function dungeonAt(px, feetY, pz) {
+      return DUNGEONS.find(d => Math.abs(px - d.x) <= d.half && Math.abs(pz - d.z) <= d.half &&
+        feetY >= d.floorY - 1 && feetY <= d.floorY + d.height) || null;
     }
 
     /* --- Build the World (ワールドを作る) --- */
@@ -3283,12 +3317,20 @@
       return model;
     }
 
-    function buildGolem() {
+    // ボスは同じ形で、色だけ変える（石・マグマ・やみ）
+    const GOLEM_SKINS = {
+      stone:  { body: 0xb8b8b0, trim: 0x5e8a3a, face: 0xffffff, core: 0xff6a3a },
+      magma:  { body: 0x4a2a24, trim: 0xff7a1a, face: 0xff8a4a, core: 0xffd23a },
+      shadow: { body: 0x2e2748, trim: 0x8a5ad0, face: 0x9a8ad0, core: 0x8affff }
+    };
+
+    function buildGolem(size = 1, skin = GOLEM_SKINS.stone) {
       const group = new THREE.Group();
-      const stone = new THREE.MeshLambertMaterial({ color: 0xb8b8b0 });
-      const moss = new THREE.MeshLambertMaterial({ color: 0x5e8a3a });
+      const stone = new THREE.MeshLambertMaterial({ color: skin.body });
+      const moss = new THREE.MeshLambertMaterial({ color: skin.trim });
       addBox(group, [1.4, 1.5, 0.9], stone, [0, 2.05, 0]);
-      const head = addBox(group, [0.7, 0.7, 0.7], faceMaterials({ color: 0xb8b8b0 }, textures.golemFace), [0, 3.15, 0.05]);
+      const head = addBox(group, [0.7, 0.7, 0.7], faceMaterials({ color: skin.body }, textures.golemFace), [0, 3.15, 0.05]);
+      head.material[4].color.setHex(skin.face); // 顔の絵に色をかける
       const armL = addBox(group, [0.45, 1.8, 0.45], stone, [-0.95, 1.95, 0]);
       const armR = addBox(group, [0.45, 1.8, 0.45], stone, [0.95, 1.95, 0]);
       const legL = addBox(group, [0.55, 1.3, 0.55], stone, [-0.35, 0.65, 0]);
@@ -3296,9 +3338,9 @@
       addBox(group, [0.3, 0.9, 0.1], moss, [0.3, 2.1, 0.46]); // つた
       addBox(group, [0.2, 0.6, 0.1], moss, [-0.95, 2.2, 0.24]);
       // 背中の光るコア（弱点）。色を変えられたくないので noTint を付ける
-      const core = addBox(group, [0.55, 0.55, 0.15], new THREE.MeshBasicMaterial({ color: 0xff6a3a }), [0, 2.15, -0.5]);
+      const core = addBox(group, [0.55, 0.55, 0.15], new THREE.MeshBasicMaterial({ color: skin.core }), [0, 2.15, -0.5]);
       core.userData.noTint = true;
-      return { group, head, legs: [legL, legR], arms: [armL, armR], core };
+      return { group, head, legs: [legL, legR], arms: [armL, armR], core, coreColor: new THREE.Color(skin.core) };
     }
 
     // 敵の種類ごとの強さ（地上の強さ。深い場所ではさらに強くなる）
@@ -3353,6 +3395,8 @@
       stray: { name: 'ストレイ', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, slowArrows: true, build: buildStray },
       slime: { name: 'スライム', ai: 'slime', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, drop: 'slimeball', build: buildSlime },
       golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem },
+      magma_golem: { name: 'マグマゴーレム', ai: 'boss', health: 450, speed: 2.0, radius: 0.85, height: 3.5, sight: 34, damage: 11, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.magma) },
+      shadow_golem: { name: 'やみのゴーレム', ai: 'boss', health: 650, speed: 2.2, radius: 0.9, height: 3.6, sight: 38, damage: 14, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.shadow) },
       // 動物（おそってこない。小麦であげると増える）
       pig: { name: 'ブタ', emoji: '🐷', ai: 'passive', passive: true, noBurn: true, health: 10, speed: 1.4, radius: 0.35, height: 1.0, sight: 10, drop: 'raw_meat', dropCount: [1, 2], build: buildPig },
       cow: { name: 'ウシ', emoji: '🐮', ai: 'passive', passive: true, noBurn: true, health: 12, speed: 1.2, radius: 0.4, height: 1.3, sight: 10, drop: 'raw_meat', dropCount: [2, 3], build: buildCow },
@@ -3986,9 +4030,9 @@
       mobCountDisplay.textContent = `Enemies: ${countMobs(false)}`;
     }
 
-    /* --- Boss: Golem (ダンジョンのボス) --- */
-    let bossDefeated = false;
-    let chestLooted = false;
+    /* --- Bosses (ダンジョンのボス。倒すごとに次が目を覚ます) --- */
+    let bossesDefeated = BOSS_TIERS.map(() => false);
+    let chestsLooted = BOSS_TIERS.map(() => false);
     let boss = null;
     const bossBar = document.getElementById('boss-bar');
     const bossName = document.getElementById('boss-name');
@@ -3999,44 +4043,69 @@
     const rocks = [];
     const ROCK_GRAVITY = 12;
     const rockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x7d7d7d });
+    const rockMats = {}; // 投げる岩の色（ボスごと）
+    const rockMaterial = color => (rockMats[color] || (rockMats[color] = new THREE.MeshLambertMaterial({ color })));
+
+    // ボスの種類から、何体目のボスかを調べる
+    const bossTierIndex = mob => Math.max(0, BOSS_TIERS.findIndex(t => t.type === mob.type));
+    const bossTierOf = mob => BOSS_TIERS[bossTierIndex(mob)];
+
+    // 体力バーに出す名前（ボスの種類・怒り・水でしびれている状態）
+    function bossLabel(mob) {
+      const tier = bossTierOf(mob);
+      const state = mob.wetTimer > 0 ? ' 💧よわっている' : mob.enraged ? '（怒り）' : '';
+      return `${tier.emoji} ${mob.def.name}${state}`;
+    }
 
     function updateBossBar(mob) {
       bossBar.hidden = false;
-      bossName.textContent = mob.enraged ? '🗿 ゴーレム（怒り）' : '🗿 ゴーレム';
+      bossName.textContent = bossLabel(mob);
       bossHealthFill.style.width = `${Math.max(0, (mob.health / mob.maxHealth) * 100)}%`;
     }
 
-    // プレイヤーがダンジョンの部屋に入ったら、ボスが目を覚ます
+    // プレイヤーがダンジョンの部屋に入ったら、その部屋のボスが目を覚ます
     function updateBossTrigger() {
-      if (bossDefeated || boss) return;
-      if (!isInDungeonRoom(camera.position.x, camera.position.y - player.eye, camera.position.z)) return;
-      boss = createMob('golem', DUNGEON.x, DUNGEON.floorY - 0.5, DUNGEON.z);
+      if (boss) return;
+      const dungeon = dungeonAt(camera.position.x, camera.position.y - player.eye, camera.position.z);
+      if (!dungeon || bossesDefeated[dungeon.tier]) return;
+      // 前のボスを倒すまで、次のボスは眠ったまま
+      if (dungeon.tier > 0 && !bossesDefeated[dungeon.tier - 1]) {
+        if (performance.now() - (dungeon.lockNotice || 0) > 8000) {
+          dungeon.lockNotice = performance.now();
+          showToast(`🔒 ${MOB_DEFS[BOSS_TIERS[dungeon.tier - 1].type].name}を倒すまで、このボスは眠っている`);
+        }
+        return;
+      }
+      const tier = BOSS_TIERS[dungeon.tier];
+      boss = createMob(tier.type, dungeon.x, dungeon.floorY - 0.5, dungeon.z);
       boss.maxHealth = boss.health;
       boss.poundTimer = 4;
       boss.windup = 0;
       boss.throwTimer = 3;
+      boss.summonTimer = 6;
       boss.enraged = false;
       playSound('roar');
-      showToast('🗿 ゴーレムが目を覚ました！');
+      showToast(`${tier.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
     }
 
     function updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter }) {
+      const tier = bossTierOf(mob);
       // 背中のコアはゆっくり光る（弱点が見つけやすいように）
       const p = mob.group.position;
       if (mob.core) {
         const glow = 0.6 + 0.4 * Math.sin(performance.now() / 180);
-        mob.core.material.color.setRGB(1, 0.3 * glow + 0.1, 0.15 * glow);
+        mob.core.material.color.copy(mob.coreColor).multiplyScalar(0.55 + 0.45 * glow);
         mob.core.scale.setScalar(1 + 0.12 * glow);
       }
 
-      // 水に弱い: 水にふれると5秒しびれて、動きも攻撃もにぶくなる（バケツの水が効く）
-      const wetNow = getBlock(Math.round(p.x), Math.round(p.y + 0.5), Math.round(p.z)) === WATER ||
-                     getBlock(Math.round(p.x), Math.round(p.y + 1.5), Math.round(p.z)) === WATER;
+      // 水に弱いボス: 水にふれると5秒しびれて、動きも攻撃もにぶくなる（バケツの水が効く）
+      const wetNow = tier.weakToWater &&
+                    (getBlock(Math.round(p.x), Math.round(p.y + 0.5), Math.round(p.z)) === WATER ||
+                     getBlock(Math.round(p.x), Math.round(p.y + 1.5), Math.round(p.z)) === WATER);
       if (wetNow && mob.wetTimer <= 0) {
         playSound('hurt');
-        showToast('💧 水をあびてゴーレムが弱った！');
+        showToast(`💧 水をあびて${mob.def.name}が弱った！`);
       }
       if (wetNow) mob.wetTimer = 5;
       if (mob.wetTimer > 0) {
@@ -4046,18 +4115,27 @@
         }
       }
       const wet = mob.wetTimer > 0;
-      bossName.textContent = wet ? '🗿 ゴーレム 💧よわっている' : '🗿 ゴーレム';
+      bossName.textContent = bossLabel(mob);
       const slow = wet ? 0.45 : 1;
 
       // 体力が半分を切ると怒って速くなる
       if (!mob.enraged && mob.health < mob.maxHealth / 2) {
         mob.enraged = true;
-        mob.speed = 2.6;
-        mob.tint = new THREE.Color(1.25, 0.7, 0.65);
+        mob.speed = tier.enragedSpeed;
+        mob.tint = new THREE.Color(...tier.tint);
         setMobColor(mob, mob.tint);
         playSound('roar');
-        showToast('🗿 ゴーレムが怒った！');
+        showToast(`${tier.emoji} ${mob.def.name}が怒った！`);
         updateBossBar(mob);
+      }
+
+      // 仲間を呼ぶボス（やみのゴーレム）
+      if (tier.summons) {
+        mob.summonTimer -= delta;
+        if (mob.summonTimer <= 0) {
+          mob.summonTimer = tier.summonSeconds * (mob.enraged ? 0.7 : 1);
+          summonMinions(mob, tier);
+        }
       }
 
       // 地面たたき: 腕を振り上げてから（予備動作）、衝撃波を出す
@@ -4073,7 +4151,7 @@
       }
       mob.poundTimer -= delta;
       if (mob.poundTimer <= 0 && dist < 12 && !wet) {
-        mob.poundTimer = mob.enraged ? 4 : 6;
+        mob.poundTimer = tier.pound[mob.enraged ? 1 : 0];
         mob.windup = 0.8;
         return;
       }
@@ -4093,8 +4171,32 @@
       }
       mob.throwTimer -= delta;
       if (flatDist > 7 && mob.throwTimer <= 0 && !wet) { // ぬれているあいだは岩を投げられない
-        mob.throwTimer = mob.enraged ? 2.5 : 3.5;
-        throwRock(mob, playerCenter);
+        mob.throwTimer = tier.throw[mob.enraged ? 1 : 0];
+        throwRock(mob, playerCenter, tier);
+      }
+    }
+
+    // やみのゴーレムが仲間を呼ぶ（部屋の中の、あいている場所に出す）
+    function summonMinions(mob, tier) {
+      const alive = mobs.filter(m => m.minionOf === mob).length;
+      let spawned = 0;
+      for (let attempt = 0; attempt < 16 && alive + spawned < tier.maxMinions; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 3 + Math.random() * 3.5;
+        const x = mob.group.position.x + Math.cos(angle) * radius;
+        const z = mob.group.position.z + Math.sin(angle) * radius;
+        const y = mob.group.position.y;
+        const type = tier.summons[Math.floor(Math.random() * tier.summons.length)];
+        const def = MOB_DEFS[type];
+        if (collidesBox(x, y, z, def.radius, def.height)) continue;
+        const minion = createMob(type, x, y, z);
+        minion.minionOf = mob;
+        spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9a5ad0, 14, 3);
+        spawned++;
+      }
+      if (spawned > 0) {
+        playSound('roar');
+        showToast(`${tier.emoji} ${mob.def.name}が仲間を呼んだ！`);
       }
     }
 
@@ -4105,11 +4207,11 @@
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(center.x, center.y + 0.1, center.z);
       scene.add(mesh);
-      shockwaves.push({ mesh, center, radius: 1, hit: false });
+      shockwaves.push({ mesh, center, radius: 1, hit: false, damage: bossTierOf(mob).waveDamage });
       spawnParticles(center.clone().add(new THREE.Vector3(0, 0.3, 0)), 0x8a7a6a, 30, 7);
     }
 
-    function throwRock(mob, target) {
+    function throwRock(mob, target, tier) {
       const p = mob.group.position;
       const from = new THREE.Vector3(p.x, p.y + 3.2, p.z);
       const dir = target.clone().sub(from);
@@ -4117,10 +4219,10 @@
       const speed = 14;
       const vel = dir.normalize().multiplyScalar(speed);
       vel.y += 0.5 * ROCK_GRAVITY * (distance / speed);
-      const mesh = new THREE.Mesh(rockGeo, rockMat);
+      const mesh = new THREE.Mesh(rockGeo, rockMaterial(tier.rockColor || 0x7d7d7d));
       mesh.position.copy(from);
       scene.add(mesh);
-      rocks.push({ mesh, vel, life: 5 });
+      rocks.push({ mesh, vel, life: 5, damage: tier.rockDamage, color: tier.rockColor || 0x7d7d7d });
     }
 
     function updateBossEffects(delta) {
@@ -4134,7 +4236,7 @@
         const d = Math.hypot(camera.position.x - s.center.x, camera.position.z - s.center.z);
         if (!s.hit && Math.abs(d - s.radius) < 0.7 && player.onGround && Math.abs(feetY - s.center.y) < 1.2) {
           s.hit = true;
-          damagePlayer(6, new THREE.Vector3(camera.position.x - s.center.x, 0, camera.position.z - s.center.z).normalize());
+          damagePlayer(s.damage, new THREE.Vector3(camera.position.x - s.center.x, 0, camera.position.z - s.center.z).normalize());
         }
         if (s.radius > 9) {
           scene.remove(s.mesh);
@@ -4160,9 +4262,9 @@
             pos.y > feetY - 0.3 && pos.y < feetY + player.bodyHeight + 0.3;
           blocked = isSolid(pos.x, pos.y, pos.z);
         }
-        if (hitsPlayer) damagePlayer(5, new THREE.Vector3(r.vel.x, 0, r.vel.z).normalize());
+        if (hitsPlayer) damagePlayer(r.damage, new THREE.Vector3(r.vel.x, 0, r.vel.z).normalize());
         if (hitsPlayer || blocked || r.life <= 0) {
-          spawnParticles(pos.clone(), 0x7d7d7d, 10, 4);
+          spawnParticles(pos.clone(), r.color, 10, 4);
           scene.remove(r.mesh);
           rocks.splice(i, 1);
         }
@@ -4175,37 +4277,50 @@
     }
 
     function onBossDefeated(mob) {
+      const index = bossTierIndex(mob);
       boss = null;
-      bossDefeated = true;
+      bossesDefeated[index] = true;
       bossBar.hidden = true;
+      // 呼ばれた仲間もいっしょに消える
+      mobs.filter(m => m.minionOf === mob).forEach(m => killMob(m));
       const center = mob.group.position.clone().add(new THREE.Vector3(0, 1.5, 0));
       spawnParticles(center, 0xffffff, 60, 10);
       spawnParticles(center, 0xffd700, 40, 8);
       playSound('explosion');
       playSound('chest');
-      showToast('🏆 ゴーレムを倒した！ 部屋の宝箱を開けよう');
+      showToast(`🏆 ${mob.def.name}を倒した！ 部屋の宝箱を開けよう`);
+      // 次のボスの部屋が、マップに出る
+      const next = DUNGEONS[index + 1];
+      if (next) {
+        dungeonsFound[index + 1] = true;
+        setTimeout(() => showToast(`${BOSS_TIERS[index + 1].emoji} 遠くで ${MOB_DEFS[BOSS_TIERS[index + 1].type].name} が目を覚ました！ マップに印がついた`), 2000);
+      } else {
+        setTimeout(() => showToast('👑 すべてのボスを倒した！'), 2000);
+      }
       saveGame();
     }
 
-    // ダンジョンの宝箱を右クリックしたとき
-    function openChest() {
-      if (!bossDefeated) {
-        showToast('🔒 ゴーレムを倒さないと開かない');
+    // ダンジョンの宝箱を右クリックしたとき（どの部屋の宝箱かで中身が変わる）
+    function openChest(x, y, z) {
+      const dungeon = DUNGEONS.find(d => d.chest && d.chest.x === x && d.chest.y === y && d.chest.z === z) || DUNGEONS[0];
+      const tier = BOSS_TIERS[dungeon.tier];
+      if (!bossesDefeated[dungeon.tier]) {
+        showToast(`🔒 ${MOB_DEFS[tier.type].name}を倒さないと開かない`);
         return;
       }
-      if (chestLooted) {
+      if (chestsLooted[dungeon.tier]) {
         showToast('📦 宝箱はからっぽ');
         return;
       }
-      const loot = [['golem_sword', 1], ['diamond', 5], ['golden_apple', 2], ['iron', 8]];
+      const loot = tier.loot;
       if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.slice(0, usableSlots()).filter(item => !item).length < loot.length) {
         showToast('⚠️ 持ち物をあけてから開けよう');
         return;
       }
       loot.forEach(([id, count]) => addItem(id, count));
-      chestLooted = true;
+      chestsLooted[dungeon.tier] = true;
       playSound('chest');
-      showToast('🎁 ゴーレムの剣・ダイヤ×5・金のりんご×2・鉄×8 を手に入れた！');
+      showToast(`🎁 ${loot.map(([id, count]) => `${ITEMS[id].name}${count > 1 ? '×' + count : ''}`).join('・')} を手に入れた！`);
       saveGame();
     }
 
@@ -4506,7 +4621,7 @@
         if (def.furnace) return openInventoryScreen({ type: 'furnace', key });
         if (def.door) return toggleDoor(t.x, t.y, t.z);
         if (def.bed) return useBed(t.x, t.y, t.z);
-        if (t.id === CHEST) return openChest();
+        if (t.id === CHEST) return openChest(t.x, t.y, t.z);
         if (def.tnt && held && held.id === 'torch') return igniteTnt(t.x, t.y, t.z);
       }
       if (!item) return;
@@ -4734,6 +4849,9 @@
       iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1, durability: 260 },
       diamond_sword: { name: 'ダイヤの剣', kind: 'sword', damage: 14, color: '#44eedd', emoji: '🗡️', stack: 1, durability: 800 },
       golem_sword: { name: 'ゴーレムの剣', kind: 'sword', damage: 20, color: '#c8a0ff', emoji: '⚔️', stack: 1, durability: 1000 },
+      magma_sword: { name: 'マグマの剣', kind: 'sword', damage: 26, color: '#ff7a1a', emoji: '⚔️', stack: 1, durability: 1200 },
+      shadow_sword: { name: 'やみの剣', kind: 'sword', damage: 34, color: '#8a5ad0', emoji: '⚔️', stack: 1, durability: 1600 },
+      shadow_armor: { name: 'やみのよろい', kind: 'armor', protection: 0.65, color: '#7a4ad0', emoji: '🦺', stack: 1, durability: 800 },
       iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🦺', stack: 1, durability: 200 },
       diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🦺', stack: 1, durability: 500 },
       hoe: { name: 'クワ', kind: 'hoe', color: '#a07449', emoji: '🔱', stack: 1, durability: 80 },
@@ -5935,7 +6053,7 @@
     // 行ったことのある場所だけマップに出す（最初はまっくら）
     const EXPLORE_RADIUS = 24;
     const explored = new Uint8Array(SIZE_X * SIZE_Z);
-    let dungeonFound = false; // ダンジョンの入口を見つけたらマップに 💀 が出る
+    let dungeonsFound = BOSS_TIERS.map(() => false); // 入口を見つけた部屋だけ、マップに印が出る
     const isExplored = (x, z) => explored[(z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)] === 1;
 
     function exploreAround(px, pz) {
@@ -5951,13 +6069,15 @@
           }
         }
       }
-      if (!dungeonFound && DUNGEON.entrance) {
-        const feetY = camera.position.y - player.eye;
-        if (Math.hypot(px - DUNGEON.entrance.x, pz - DUNGEON.entrance.z) < 10 || isInDungeonRoom(px, feetY, pz)) {
-          dungeonFound = true;
-          showToast('💀 ダンジョンの入口を見つけた！ マップに印がついた');
+      const feetY = camera.position.y - player.eye;
+      const here = dungeonAt(px, feetY, pz);
+      DUNGEONS.forEach((d, i) => {
+        if (dungeonsFound[i] || !d.entrance) return;
+        if (Math.hypot(px - d.entrance.x, pz - d.entrance.z) < 10 || here === d) {
+          dungeonsFound[i] = true;
+          showToast(`${BOSS_TIERS[i].emoji} ダンジョンの入口を見つけた！ マップに印がついた`);
         }
-      }
+      });
     }
 
     // セーブ用: 行った場所を 1マス1ビットにつめて文字にする
@@ -6063,8 +6183,8 @@
       ctx.restore();
     }
 
-    function dungeonIcon() {
-      return bossDefeated ? '🏆' : '💀';
+    function dungeonIcon(index) {
+      return bossesDefeated[index] ? '🏆' : BOSS_TIERS[index].emoji;
     }
 
     function drawMinimap() {
@@ -6088,10 +6208,11 @@
       });
       const [hx, hy] = toMini(0, 0);
       drawEmoji(minimapCtx, '🏠', edge(hx), edge(hy), 13);
-      if (dungeonFound) {
-        const [dx, dy] = toMini(DUNGEON.x, DUNGEON.z);
-        drawEmoji(minimapCtx, dungeonIcon(), edge(dx), edge(dy), 14);
-      }
+      DUNGEONS.forEach((d, i) => {
+        if (!dungeonsFound[i]) return;
+        const [dx, dy] = toMini(d.x, d.z);
+        drawEmoji(minimapCtx, dungeonIcon(i), edge(dx), edge(dy), 14);
+      });
       drawPlayerArrow(minimapCtx, size / 2, size / 2, 6);
     }
 
@@ -6103,12 +6224,13 @@
       const toMap = (wx, wz) => [(wx + HALF_SIZE + 0.5) * scale, (wz + HALF_SIZE + 0.5) * scale];
       const [hx, hy] = toMap(0, 0);
       drawEmoji(worldMapCtx, '🏠', hx, hy, 24);
-      if (dungeonFound) {
-        const [dx, dy] = toMap(DUNGEON.x, DUNGEON.z);
-        drawEmoji(worldMapCtx, dungeonIcon(), dx, dy, 28);
-        const [ex, ey] = toMap(DUNGEON.entrance.x, DUNGEON.entrance.z);
+      DUNGEONS.forEach((d, i) => {
+        if (!dungeonsFound[i]) return;
+        const [dx, dy] = toMap(d.x, d.z);
+        drawEmoji(worldMapCtx, dungeonIcon(i), dx, dy, 28);
+        const [ex, ey] = toMap(d.entrance.x, d.entrance.z);
         drawEmoji(worldMapCtx, '🚪', ex, ey, 20);
-      }
+      });
       const [px, py] = toMap(camera.position.x, camera.position.z);
       drawPlayerArrow(worldMapCtx, px, py, 11);
     }
@@ -6533,8 +6655,8 @@
         killCount,
         deepestDepth,
         timeOfDay,
-        bossDefeated,
-        chestLooted,
+        bossesDefeated,
+        chestsLooted,
         bagSize,
         seenItems: [...seenItems],
         storageChests: Object.fromEntries(storageChests),
@@ -6542,7 +6664,7 @@
         furnaces: Object.fromEntries(furnaces),
         spawnPoint,
         explored: encodeExplored(),
-        dungeonFound,
+        dungeonsFound,
         savedAt: Date.now()
       };
       try {
@@ -6565,8 +6687,10 @@
       killCountDisplay.textContent = `Kills: ${killCount}`;
       deepestDepth = data.deepestDepth || 0;
       if (typeof data.timeOfDay === 'number') timeOfDay = data.timeOfDay;
-      bossDefeated = !!data.bossDefeated;
-      chestLooted = !!data.chestLooted;
+      // 版 5 の古いセーブ（ボスが1体だけだったころ）は、1つめのボスの記録として読む
+      const flags = (list, old) => BOSS_TIERS.map((_, i) => (Array.isArray(list) ? !!list[i] : i === 0 && !!old));
+      bossesDefeated = flags(data.bossesDefeated, data.bossDefeated);
+      chestsLooted = flags(data.chestsLooted, data.chestLooted);
       if (data.bagSize === BAG_LARGE) bagSize = BAG_LARGE;
       (data.seenItems || []).forEach(id => { if (ITEMS[id]) seenItems.add(id); });
       Object.entries(data.storageChests || {}).forEach(([key, slots]) => {
@@ -6576,7 +6700,7 @@
       Object.entries(data.fluidLevels || data.waterLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
       spawnPoint = data.spawnPoint || null;
       decodeExplored(data.explored);
-      dungeonFound = !!data.dungeonFound;
+      dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
       renderInventory();
       buildMapImage();
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
@@ -6631,6 +6755,9 @@
         killMob,
         blockCount: () => blockCount,
         DUNGEON,
+        DUNGEONS,
+        BOSS_TIERS,
+        dungeonAt,
         biomeAt,
         openChest,
         replaceBlock,
@@ -6658,10 +6785,10 @@
         isExplored,
         get craftSize() { return craftSize; },
         get bagSize() { return bagSize; },
-        get dungeonFound() { return dungeonFound; },
+        get dungeonsFound() { return dungeonsFound; },
         get spawnPoint() { return spawnPoint; },
         get boss() { return boss; },
-        get bossDefeated() { return bossDefeated; },
+        get bossesDefeated() { return bossesDefeated; },
         spawnAnimals: updateAnimalSpawning,
         spawnMob(type, x, y, z, size = 1) {
           const mob = createMob(type, x, y, z, size);
