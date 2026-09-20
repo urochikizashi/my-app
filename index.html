@@ -68,6 +68,10 @@
       border: 2px solid #555;
       z-index: 10;
     }
+    /* display: flex より hidden 属性を優先させる（2×2 のときに 3×3 のマスが見えてしまうのを防ぐ） */
+    .slot[hidden] {
+      display: none;
+    }
     .slot {
       width: 50px;
       height: 50px;
@@ -332,6 +336,25 @@
       font-size: 14px;
       z-index: 30;
       pointer-events: none;
+    }
+    /* 道具の残り（耐久）バー */
+    .slot-bar {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      bottom: 3px;
+      height: 3px;
+      background: #000;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .slot-bar[hidden] {
+      display: none;
+    }
+    .slot-bar i {
+      display: block;
+      height: 100%;
+      background: #4ad24a;
     }
     .slot-count {
       position: absolute;
@@ -3069,10 +3092,13 @@
     function damagePlayer(amount, knockbackDir = null) {
       if (player.invulnerableTimer > 0 || player.health <= 0) return;
       // 防具を持っていればダメージが減る。盾で守っていればさらに減る
-      let reduced = Math.max(1, Math.round(amount * (1 - armorProtection())));
+      const protection = armorProtection();
+      let reduced = Math.max(1, Math.round(amount * (1 - protection)));
+      if (protection > 0) wearItem(bestArmorIndex()); // よろいはダメージを受けるとへる
       if (isBlocking()) {
         reduced = Math.floor(reduced * 0.2);
         playSound('hit');
+        wearItem(selectedSlot); // 盾も受けるたびにへる
         if (reduced <= 0) return;
       }
       player.health = Math.max(0, player.health - reduced);
@@ -4018,6 +4044,38 @@
     highlightMesh.visible = false;
     scene.add(highlightMesh);
 
+    // 掘っているとちゅうの「ひび」。同じ線をだんだん増やして、深くなっていくように見せる
+    const CRACK_LINES = [];
+    for (let i = 0; i < 20; i++) {
+      const x = rand(1, 14);
+      const y = rand(1, 14);
+      CRACK_LINES.push([x, y, x + rand(-5, 5), y + rand(-5, 5)]);
+    }
+    const crackTextures = [0, 1, 2, 3, 4].map(stage => createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.lineWidth = 1;
+      const count = Math.round(((stage + 1) / 5) * CRACK_LINES.length);
+      for (let i = 0; i < count; i++) {
+        const [x0, y0, x1, y1] = CRACK_LINES[i];
+        ctx.beginPath();
+        ctx.moveTo(x0 + 0.5, y0 + 0.5);
+        ctx.lineTo(x1 + 0.5, y1 + 0.5);
+        ctx.stroke();
+      }
+    }));
+    const crackMaterial = new THREE.MeshBasicMaterial({
+      map: crackTextures[0],
+      transparent: true,
+      depthWrite: false,
+      alphaTest: 0.05,
+      polygonOffset: true,
+      polygonOffsetFactor: -2
+    });
+    const crackMesh = new THREE.Mesh(new THREE.BoxGeometry(1.002, 1.002, 1.002), crackMaterial);
+    crackMesh.visible = false;
+    scene.add(crackMesh);
+
     /* --- Voxel Raycast (見ているブロックを探す) --- */
     const REACH = 6;
     let targetBlock = null; // { x, y, z, normal: [nx, ny, nz], id, distance }
@@ -4068,6 +4126,66 @@
 
     const lookDirection = new THREE.Vector3();
 
+    /* --- Mining (掘るのに時間がかかる) --- */
+    // かたいブロックほど時間がかかり、良いツルハシほど速い。
+    // 掘っているあいだは、そのブロックにひびが入っていく。
+    let leftMouseDown = false;
+    let mining = null; // { key, x, y, z, progress, total }
+    let swingTimer = 0;
+
+    const HARDNESS = { 0: 0.5, 1: 1.6, 2: 2.6, 3: 3.6 }; // 素手のときの秒数（ツルハシの必要度ごと）
+
+    function miningSeconds(def) {
+      if (def.render === 'cross' || def.torch || def.web) return 0.1; // 草花・松明・クモの巣はすぐ取れる
+      const tier = pickaxeTier();
+      const base = HARDNESS[def.tier] !== undefined ? HARDNESS[def.tier] : 0.5;
+      // ツルハシが要るブロックはツルハシで大きく速く、土や木は少しだけ速くなる
+      return base / (1 + tier * (def.tier >= 1 ? 0.9 : 0.25));
+    }
+
+    function stopMining() {
+      mining = null;
+      crackMesh.visible = false;
+    }
+
+    function updateMining(delta) {
+      if (!leftMouseDown || inventoryOpen || player.health <= 0 || !targetBlock) {
+        stopMining();
+        return;
+      }
+      const def = BLOCKS[targetBlock.id];
+      if (def.tier >= 99 || def.tier > pickaxeTier()) { // 壊せない・ツルハシが足りない
+        stopMining();
+        return;
+      }
+      const key = blockKey(targetBlock.x, targetBlock.y, targetBlock.z);
+      if (!mining || mining.key !== key) {
+        // 別のブロックを見たら、ひびは最初から
+        mining = { key, x: targetBlock.x, y: targetBlock.y, z: targetBlock.z, progress: 0, total: miningSeconds(def) };
+        swingTimer = 0;
+      }
+      mining.progress += delta;
+
+      swingTimer -= delta;
+      if (swingTimer <= 0) {
+        swingTimer = 0.35;
+        swingHand();
+      }
+
+      // ひびを進める（5段階）
+      const stage = Math.min(4, Math.floor((mining.progress / mining.total) * 5));
+      crackMaterial.map = crackTextures[stage];
+      crackMaterial.needsUpdate = true;
+      crackMesh.position.set(mining.x, mining.y, mining.z);
+      crackMesh.visible = true;
+
+      if (mining.progress >= mining.total) {
+        const target = targetBlock;
+        stopMining();
+        mineBlock(target);
+      }
+    }
+
     function updateRaycast() {
       if (!controls.isLocked) {
         highlightMesh.visible = false;
@@ -4111,6 +4229,7 @@
         return;
       }
       if (def.storage || def.furnace) spillContainer(target.x, target.y, target.z);
+      if (def.tier >= 1) wearItem(bestPickaxeIndex()); // ツルハシが要るブロックを掘るとへる
       removeBlock(target.x, target.y, target.z, true);
 
       const pos = new THREE.Vector3(target.x, target.y, target.z);
@@ -4241,6 +4360,7 @@
         if ([GRASS, DIRT, SNOW_GRASS].includes(t.id) && getBlock(t.x, t.y + 1, t.z) === 0) {
           replaceBlock(t.x, t.y, t.z, FARMLAND);
           playSound('place');
+          wearItem(selectedSlot);
         }
         return;
       }
@@ -4271,14 +4391,23 @@
       if (!controls.isLocked || player.health <= 0) return;
 
       if (e.button === 0) {
-        // 左クリック: 敵への攻撃 or ブロックを掘る
+        // 左クリック: 敵への攻撃 or ブロックを掘りはじめる（押しているあいだ掘り続ける）
         swingHand();
         const hit = checkMobHit();
         if (hit) {
           hitMob(hit.mob, heldAttackDamage(), hit.point);
+          const weapon = heldItemDef();
+          if (weapon && weapon.kind === 'sword') wearItem(selectedSlot);
           return;
         }
-        if (targetBlock) mineBlock(targetBlock);
+        leftMouseDown = true;
+        // ツルハシが足りないときは、掘り始める前に教える
+        if (targetBlock) {
+          const def = BLOCKS[targetBlock.id];
+          if (def.tier < 99 && def.tier > pickaxeTier()) {
+            showToast(`⛏️ ${def.name}を掘るには ${PICKAXE_NAMES[def.tier]} が必要です`);
+          }
+        }
       } else if (e.button === 2) {
         // 右クリック: 置く・食べる・道具を使う・ブロックを使う
         rightMouseDown = true;
@@ -4416,19 +4545,19 @@
       cooked_meat: { name: '焼いた肉', kind: 'food', heal: 8, color: '#a0602a', emoji: '🍗' },
       bread: { name: 'パン', kind: 'food', heal: 6, color: '#d8a050', emoji: '🍞' },
       golden_apple: { name: '金のりんご', kind: 'food', heal: 20, color: '#ffd700', emoji: '🍏' },
-      wood_pickaxe: { name: '木のツルハシ', kind: 'pickaxe', tier: 1, color: '#a07449', emoji: '⛏️', stack: 1 },
-      stone_pickaxe: { name: '石のツルハシ', kind: 'pickaxe', tier: 2, color: '#8a8a8a', emoji: '⛏️', stack: 1 },
-      iron_pickaxe: { name: '鉄のツルハシ', kind: 'pickaxe', tier: 3, color: '#d8d8d8', emoji: '⛏️', stack: 1 },
-      wood_sword: { name: '木の剣', kind: 'sword', damage: 5, color: '#a07449', emoji: '🗡️', stack: 1 },
-      stone_sword: { name: '石の剣', kind: 'sword', damage: 7, color: '#8a8a8a', emoji: '🗡️', stack: 1 },
-      iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1 },
-      diamond_sword: { name: 'ダイヤの剣', kind: 'sword', damage: 14, color: '#44eedd', emoji: '🗡️', stack: 1 },
-      golem_sword: { name: 'ゴーレムの剣', kind: 'sword', damage: 20, color: '#c8a0ff', emoji: '⚔️', stack: 1 },
-      iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🦺', stack: 1 },
-      diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🦺', stack: 1 },
-      hoe: { name: 'クワ', kind: 'hoe', color: '#a07449', emoji: '🔱', stack: 1 },
-      bow: { name: '弓', kind: 'bow', color: '#8a6236', emoji: '🏹', stack: 1 },
-      shield: { name: '盾', kind: 'shield', color: '#9a6a36', emoji: '🛡️', stack: 1 },
+      wood_pickaxe: { name: '木のツルハシ', kind: 'pickaxe', tier: 1, color: '#a07449', emoji: '⛏️', stack: 1, durability: 60 },
+      stone_pickaxe: { name: '石のツルハシ', kind: 'pickaxe', tier: 2, color: '#8a8a8a', emoji: '⛏️', stack: 1, durability: 130 },
+      iron_pickaxe: { name: '鉄のツルハシ', kind: 'pickaxe', tier: 3, color: '#d8d8d8', emoji: '⛏️', stack: 1, durability: 260 },
+      wood_sword: { name: '木の剣', kind: 'sword', damage: 5, color: '#a07449', emoji: '🗡️', stack: 1, durability: 60 },
+      stone_sword: { name: '石の剣', kind: 'sword', damage: 7, color: '#8a8a8a', emoji: '🗡️', stack: 1, durability: 130 },
+      iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1, durability: 260 },
+      diamond_sword: { name: 'ダイヤの剣', kind: 'sword', damage: 14, color: '#44eedd', emoji: '🗡️', stack: 1, durability: 800 },
+      golem_sword: { name: 'ゴーレムの剣', kind: 'sword', damage: 20, color: '#c8a0ff', emoji: '⚔️', stack: 1, durability: 1000 },
+      iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🦺', stack: 1, durability: 200 },
+      diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🦺', stack: 1, durability: 500 },
+      hoe: { name: 'クワ', kind: 'hoe', color: '#a07449', emoji: '🔱', stack: 1, durability: 80 },
+      bow: { name: '弓', kind: 'bow', color: '#8a6236', emoji: '🏹', stack: 1, durability: 200 },
+      shield: { name: '盾', kind: 'shield', color: '#9a6a36', emoji: '🛡️', stack: 1, durability: 180 },
       bucket: { name: 'バケツ', kind: 'bucket', color: '#b8b8b8', emoji: '🪣', stack: 1 },
       water_bucket: { name: '水入りバケツ', kind: 'bucket', water: true, color: '#2f6fd6', emoji: '💧', stack: 1 },
       lava_bucket: { name: '溶岩入りバケツ', kind: 'bucket', lava: true, color: '#ff7a1a', emoji: '🌋', stack: 1 },
@@ -4455,6 +4584,53 @@
     // 枠の中身: null（空）か { id: アイテム名, count: 個数 }
     let inventory = new Array(INVENTORY_SIZE).fill(null);
     const seenItems = new Set(); // 一度でも手に入れたアイテム（レシピ本に載る条件）
+
+    // --- 道具の耐久（使える残りの回数）---
+    // item.uses が無いときは新品あつかい。道具は1枠に1つなので、枠ごとに残りを持てる
+    const maxUses = id => (ITEMS[id] && ITEMS[id].durability) || 0;
+    const usesLeft = item => (item && maxUses(item.id) ? (item.uses === undefined ? maxUses(item.id) : item.uses) : 0);
+
+    // 道具を1回使う。0 になったら壊れて消える
+    function wearItem(index, amount = 1) {
+      const item = inventory[index];
+      if (!item || !maxUses(item.id)) return;
+      item.uses = usesLeft(item) - amount;
+      if (item.uses <= 0) {
+        inventory[index] = null;
+        showToast(`💥 ${ITEMS[item.id].name}が壊れた！`);
+        playSound('break');
+      } else if (item.uses === 10) {
+        showToast(`⚠️ ${ITEMS[item.id].name}がもうすぐ壊れる`);
+      }
+      renderInventory();
+    }
+
+    // いちばん良い道具が持ち物の何番目にあるか（-1 なら持っていない）
+    function bestIndexBy(valueOf) {
+      let best = -1;
+      let bestValue = 0;
+      for (let i = 0; i < usableSlots(); i++) {
+        const item = inventory[i];
+        const value = item && ITEMS[item.id] ? valueOf(ITEMS[item.id]) || 0 : 0;
+        if (value > bestValue) {
+          bestValue = value;
+          best = i;
+        }
+      }
+      return best;
+    }
+    const bestPickaxeIndex = () => bestIndexBy(def => (def.kind === 'pickaxe' ? def.tier : 0));
+    const bestArmorIndex = () => bestIndexBy(def => def.protection || 0);
+
+    // 空いている枠に、残り回数つきで道具を入れる（修理したときに使う）
+    function giveTool(id, uses) {
+      const slot = inventory.findIndex((item, i) => !item && i < usableSlots());
+      if (slot < 0) return false;
+      inventory[slot] = { id, count: 1, uses: Math.min(uses, maxUses(id)) };
+      seenItems.add(id);
+      renderInventory();
+      return true;
+    }
 
     function countItem(id) {
       return inventory.slice(0, usableSlots()).reduce((n, item) => n + (item && item.id === id ? item.count : 0), 0);
@@ -4529,14 +4705,13 @@
 
     // ツルハシと防具は、持ち物のどこかに持っていれば効果がある（一番いいものが使われる）
     function pickaxeTier() {
-      return inventory.reduce((best, item) => Math.max(best, item && ITEMS[item.id].tier ? ITEMS[item.id].tier : 0), 0);
+      const i = bestPickaxeIndex();
+      return i < 0 ? 0 : ITEMS[inventory[i].id].tier;
     }
 
     function bestArmor() {
-      return inventory.reduce((best, item) => {
-        const def = item && ITEMS[item.id];
-        return def && def.protection && (!best || def.protection > best.protection) ? def : best;
-      }, null);
+      const i = bestArmorIndex();
+      return i < 0 ? null : ITEMS[inventory[i].id];
     }
 
     function armorProtection() {
@@ -4658,8 +4833,21 @@
     function findRecipe() {
       const grid = trimmedGrid();
       if (!grid) return null;
+      const repair = findRepair();
+      if (repair) return repair;
       const ids = grid.flat().filter(Boolean);
       return RECIPES.find(r => (r.shape ? matchesShape(r, grid) : matchesShapeless(r, ids))) || null;
+    }
+
+    // 同じ道具を2つ並べると、残りを合わせて1つに直せる（少しおまけがつく）
+    function findRepair() {
+      const items = activeCells().map(i => craftGrid[i]).filter(Boolean);
+      if (items.length !== 2) return null;
+      const [a, b] = items;
+      if (a.id !== b.id || !maxUses(a.id)) return null;
+      const total = maxUses(a.id);
+      const uses = Math.min(total, usesLeft(a) + usesLeft(b) + Math.ceil(total * 0.05));
+      return { repair: true, result: a.id, count: 1, uses };
     }
 
     function setHint(text) {
@@ -4694,6 +4882,14 @@
       if (recipe.result !== 'big_bag' && !hasRoomFor(recipe.result, recipe.count)) {
         setHint('⚠️ 持ち物がいっぱいです');
         refreshScreen();
+        return;
+      }
+      if (recipe.repair) {
+        activeCells().forEach(i => { craftGrid[i] = null; }); // 2つとも使う
+        giveTool(recipe.result, recipe.uses);
+        showToast(`🔧 ${ITEMS[recipe.result].name}を直した！（残り ${recipe.uses}）`);
+        playSound('place');
+        renderInventory();
         return;
       }
       activeCells().forEach(i => {
@@ -4825,7 +5021,7 @@
     function makeSlotElement(label = '') {
       const slot = document.createElement('div');
       slot.className = 'slot';
-      slot.innerHTML = `<span class="slot-key">${label}</span><div class="slot-icon"></div><span class="slot-count"></span><span class="slot-name"></span>`;
+      slot.innerHTML = `<span class="slot-key">${label}</span><div class="slot-icon"></div><span class="slot-count"></span><div class="slot-bar" hidden><i></i></div><span class="slot-name"></span>`;
       slot.addEventListener('contextmenu', e => e.preventDefault());
       return slot;
     }
@@ -4837,7 +5033,21 @@
       icon.style.background = def ? def.color : 'transparent';
       icon.textContent = def ? def.emoji : '';
       el.querySelector('.slot-count').textContent = def && item.count > 1 ? item.count : '';
-      el.querySelector('.slot-name').textContent = !def ? '素手' : def.damage ? `${def.name}（攻撃 ${def.damage}）` : def.name;
+
+      // 道具は、残りの回数をバーで見せる（緑→黄→赤）
+      const bar = el.querySelector('.slot-bar');
+      const total = def ? maxUses(item.id) : 0;
+      if (bar) {
+        bar.hidden = !total;
+        if (total) {
+          const ratio = Math.max(0, usesLeft(item) / total);
+          bar.firstElementChild.style.width = `${ratio * 100}%`;
+          bar.firstElementChild.style.background = ratio > 0.5 ? '#4ad24a' : ratio > 0.2 ? '#e8c82c' : '#e04a3a';
+        }
+      }
+      const uses = total ? `（残り ${usesLeft(item)}）` : '';
+      el.querySelector('.slot-name').textContent = !def ? '素手'
+        : def.damage ? `${def.name}（攻撃 ${def.damage}）${uses}` : `${def.name}${uses}`;
       el.title = def ? def.name : '';
     }
 
@@ -4982,7 +5192,8 @@
       currentRecipe = openContainer ? null : findRecipe();
       fillSlot(resultEl, currentRecipe ? { id: currentRecipe.result, count: currentRecipe.count } : null);
       craftHint.textContent = hintText ||
-        (currentRecipe ? `✨ ${ITEMS[currentRecipe.result].name}${currentRecipe.count > 1 ? ' ×' + currentRecipe.count : ''} ができます（右の枠をクリック）`
+        (currentRecipe && currentRecipe.repair ? `🔧 ${ITEMS[currentRecipe.result].name}を直せます（残り ${currentRecipe.uses}・右の枠をクリック）`
+          : currentRecipe ? `✨ ${ITEMS[currentRecipe.result].name}${currentRecipe.count > 1 ? ' ×' + currentRecipe.count : ''} ができます（右の枠をクリック）`
           : trimmedGrid() ? '🤔 この並べ方では何もできません' : '💡 材料をマスに並べるか、レシピ本をクリック');
 
       if (openContainer && openContainer.type === 'chest') {
@@ -5372,6 +5583,7 @@
       scene.add(mesh);
       playerArrows.push({ mesh, vel, life: 3 });
       playSound('bow');
+      wearItem(selectedSlot);
     }
 
     function updatePlayerArrows(delta) {
@@ -5411,6 +5623,10 @@
 
     window.addEventListener('mouseup', (e) => {
       if (e.button === 2) rightMouseDown = false;
+      if (e.button === 0) {
+        leftMouseDown = false;
+        stopMining();
+      }
     });
 
     function useBed(x, y, z) {
@@ -5969,6 +6185,7 @@
 
       if (controls.isLocked) {
         updatePhysics(delta);
+        updateMining(delta);
         updateMobs(delta);
         updateParticles(delta);
         updateRaycast();
@@ -6140,6 +6357,9 @@
         findGroundY,
         collidesBox,
         hitMob,
+        mineBlock,
+        miningSeconds,
+        usesLeft,
         killMob,
         blockCount: () => blockCount,
         DUNGEON,
@@ -6160,6 +6380,7 @@
         craftGrid,
         seenItems,
         openInventoryScreen,
+        refreshScreen,
         closeInventoryScreen,
         isExplored,
         get craftSize() { return craftSize; },
@@ -6175,6 +6396,7 @@
         },
         get inventory() { return inventory; },
         get targetBlock() { return targetBlock; },
+        get mining() { return mining; },
         get timeOfDay() { return timeOfDay; },
         set timeOfDay(value) { timeOfDay = value; },
         get daylight() { return daylight; },
