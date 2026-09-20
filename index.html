@@ -709,7 +709,7 @@
         🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！
       </div>
       <div class="mob-info">
-        🎒 <b>持ち物とクラフト</b>: 最初は空っぽ（素手）。木を掘って<b>原木</b>を集め、E キーの画面で<b>木の板</b>→<b>作業台</b>を作ろう。材料をマスに並べる形で、できるものが変わります。作り方は<b>レシピ本</b>に載り、クリックすると材料を並べてくれます。石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます。<br>
+        🎒 <b>持ち物とクラフト</b>: 最初は空っぽ（素手）。木を掘って<b>原木</b>を集め、E キーの画面で<b>木の板</b>→<b>作業台</b>を作ろう。材料をマスに並べる形で、できるものが変わります。作り方は<b>レシピ本</b>に載り、クリックすると材料を並べてくれます。石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます（<b>ツルハシは手に持っているときだけ効きます</b>）。<br>
         🏠 <b>くらし</b>: チェストにしまう、かまどで焼く、ベッドで夜を飛ばす、畑で小麦を育てる、弓矢や盾で戦う、TNT で爆破…いろいろ作ってみよう！
       </div>
       <div class="mob-info">
@@ -4336,6 +4336,7 @@
         mining = { key, x: targetBlock.x, y: targetBlock.y, z: targetBlock.z, progress: 0, total: miningSeconds(def) };
         swingTimer = 0;
       }
+      mining.total = miningSeconds(def); // 途中でツルハシを持ちかえたら速さも変わる
       mining.progress += delta;
 
       swingTimer -= delta;
@@ -4397,11 +4398,11 @@
       const def = BLOCKS[target.id];
       if (def.tier >= 99) return; // 岩盤・ダンジョンの宝箱・水は壊せない
       if (def.tier > pickaxeTier()) {
-        showToast(`⛏️ ${def.name}を掘るには ${PICKAXE_NAMES[def.tier]} が必要です`);
+        showToast(pickaxeHint(def));
         return;
       }
       if (def.storage || def.furnace) spillContainer(target.x, target.y, target.z);
-      if (def.tier >= 1) wearItem(bestPickaxeIndex()); // ツルハシが要るブロックを掘るとへる
+      if (def.tier >= 1 && pickaxeTier() > 0) wearItem(selectedSlot); // 手に持っているツルハシだけへる
       removeBlock(target.x, target.y, target.z, true);
 
       const pos = new THREE.Vector3(target.x, target.y, target.z);
@@ -4583,7 +4584,7 @@
         if (targetBlock) {
           const def = BLOCKS[targetBlock.id];
           if (def.tier < 99 && def.tier > pickaxeTier()) {
-            showToast(`⛏️ ${def.name}を掘るには ${PICKAXE_NAMES[def.tier]} が必要です`);
+            showToast(pickaxeHint(def));
           }
         }
       } else if (e.button === 2) {
@@ -4883,10 +4884,10 @@
       return held ? ITEMS[held.id] : null;
     }
 
-    // ツルハシと防具は、持ち物のどこかに持っていれば効果がある（一番いいものが使われる）
+    // ツルハシは手に持っているときだけ効果がある（剣と同じ）。防具は持っていれば効く
     function pickaxeTier() {
-      const i = bestPickaxeIndex();
-      return i < 0 ? 0 : ITEMS[inventory[i].id].tier;
+      const def = heldItemDef();
+      return def && def.kind === 'pickaxe' ? def.tier : 0;
     }
 
     function bestArmor() {
@@ -4899,9 +4900,23 @@
       return armor ? armor.protection : 0;
     }
 
-    function bestPickaxe() {
+    function heldPickaxeName() {
       const tier = pickaxeTier();
       return tier ? PICKAXE_NAMES[tier] : null;
+    }
+
+    // 手に持ってはいないけれど、持ち物の中にあるいちばん良いツルハシ（お知らせ用）
+    function pocketPickaxe() {
+      const i = bestPickaxeIndex();
+      return i < 0 ? null : ITEMS[inventory[i].id];
+    }
+
+    // 掘れないときのお知らせ。足りるツルハシを持っているのに手に持っていないだけなら、そう教える
+    function pickaxeHint(blockDef) {
+      const pocket = pocketPickaxe();
+      return pocket && pocket.tier >= blockDef.tier
+        ? `⛏️ ${blockDef.name}を掘るには ${pocket.name} を手に持とう（数字キーで選べます）`
+        : `⛏️ ${blockDef.name}を掘るには ${PICKAXE_NAMES[blockDef.tier]} が必要です`;
     }
 
     // 剣は手に持っているときだけ強くなる
@@ -5361,8 +5376,10 @@
       const held = inventory[selectedSlot];
       playerHand.textContent = held ? ITEMS[held.id].emoji : '✊';
       const armor = bestArmor();
-      const pickaxe = bestPickaxe();
-      gearDisplay.textContent = `🛡️ ${armor ? `${armor.name}（ダメージ -${Math.round(armor.protection * 100)}%）` : '防具なし'} ／ ⛏️ ${pickaxe || 'ツルハシなし'}`;
+      const pickaxe = heldPickaxeName();
+      const pocket = pickaxe ? null : pocketPickaxe();
+      const pickaxeText = pickaxe || (pocket ? `${pocket.name}（手に持つと使える）` : 'ツルハシなし');
+      gearDisplay.textContent = `🛡️ ${armor ? `${armor.name}（ダメージ -${Math.round(armor.protection * 100)}%）` : '防具なし'} ／ ⛏️ ${pickaxeText}`;
 
       if (inventoryOpen) refreshScreen();
     }
