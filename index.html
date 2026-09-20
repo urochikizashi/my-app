@@ -5065,25 +5065,39 @@
       if (!addItem(id, count)) spawnDroppedItem(id, count, camera.position.clone().add(new THREE.Vector3(0, -1, 0)));
     }
 
+    // 枠の中身をそのまま持ち物に返す。道具は残り回数を保つ（新品にもどさない）
+    function giveItemBack(item) {
+      if (!item) return;
+      if (!maxUses(item.id)) {
+        giveOrDrop(item.id, item.count);
+        return;
+      }
+      const uses = usesLeft(item);
+      if (!giveTool(item.id, uses)) {
+        spawnDroppedItem(item.id, 1, camera.position.clone().add(new THREE.Vector3(0, -1, 0)), null, 0.6, uses);
+      }
+    }
+
     function returnGridToInventory() {
       craftGrid.forEach((item, i) => {
         craftGrid[i] = null;
-        if (item) giveOrDrop(item.id, item.count);
+        if (item) giveItemBack(item);
       });
     }
 
-    function craftOnce() {
+    // quiet: まとめて作るときは、1回ごとの音と知らせを出さない
+    function craftOnce(quiet = false) {
       const recipe = currentRecipe;
-      if (!recipe) return;
+      if (!recipe) return false;
       if (recipe.result === 'big_bag' && bagSize === BAG_LARGE) {
         setHint('🎒 カバンはもう大きくなっています');
         refreshScreen();
-        return;
+        return false;
       }
       if (recipe.result !== 'big_bag' && !hasRoomFor(recipe.result, recipe.count)) {
         setHint('⚠️ 持ち物がいっぱいです');
         refreshScreen();
-        return;
+        return false;
       }
       if (recipe.repair) {
         activeCells().forEach(i => { craftGrid[i] = null; }); // 2つとも使う
@@ -5091,7 +5105,7 @@
         showToast(`🔧 ${ITEMS[recipe.result].name}を直した！（残り ${recipe.uses}）`);
         playSound('place');
         renderInventory();
-        return;
+        return true;
       }
       activeCells().forEach(i => {
         if (!craftGrid[i]) return;
@@ -5103,18 +5117,44 @@
         showToast('🎒 カバンが大きくなった！（32枠）');
       } else {
         addItem(recipe.result, recipe.count);
-        showToast(`🛠️ ${ITEMS[recipe.result].name}${recipe.count > 1 ? ' ×' + recipe.count : ''} を作った！`);
+        if (!quiet) showToast(`🛠️ ${ITEMS[recipe.result].name}${recipe.count > 1 ? ' ×' + recipe.count : ''} を作った！`);
       }
-      playSound('place');
-      renderRecipeBook();
-      renderInventory();
+      if (!quiet) {
+        playSound('place');
+        renderRecipeBook();
+      }
+      renderInventory(); // これで currentRecipe も作り直される
+      return true;
+    }
+
+    // Shift + クリック: 材料がなくなるか持ち物がいっぱいになるまで、まとめて作る
+    function craftBulk() {
+      const first = currentRecipe;
+      if (!first || first.repair || first.result === 'big_bag') {
+        craftOnce();
+        return;
+      }
+      const id = first.result;
+      let made = 0;
+      for (let n = 0; n < 64; n++) {
+        if (!currentRecipe || currentRecipe.repair || currentRecipe.result !== id) break;
+        const count = currentRecipe.count;
+        if (!craftOnce(true)) break;
+        made += count;
+      }
+      if (made > 0) {
+        showToast(`🛠️ ${ITEMS[id].name} ×${made} を作った！`);
+        playSound('place');
+        renderRecipeBook();
+        renderInventory();
+      }
     }
 
     // レシピ本: 材料をすべて一度でも手に入れていれば載る
     const isRecipeUnlocked = recipe => recipe.specs.every(spec => optionsOf(spec).some(id => seenItems.has(id)));
 
-    // レシピ本をクリック: 持ち物から材料をマスに並べる
-    function fillRecipe(recipe) {
+    // レシピ本をクリック: 持ち物から材料をマスに並べる（bulk なら作れるだけ重ねて並べる）
+    function fillRecipe(recipe, bulk = false) {
       returnGridToInventory();
       if (recipe.size > craftSize) {
         setHint('🛠️ これは作業台の近くで作れます（3×3 のマスが必要）');
@@ -5144,9 +5184,20 @@
         counts[id]--;
         chosen.push([cell, id]);
       }
+      // まとめて作るとき: 同じ並べ方を、材料と枠の上限までくり返し重ねる
+      let sets = 1;
+      if (bulk) {
+        const need = {};
+        chosen.forEach(([, id]) => { need[id] = (need[id] || 0) + 1; });
+        const cap = Math.min(64, ...chosen.map(([, id]) => maxStack(id)));
+        while (sets < cap && Object.entries(need).every(([id, n]) => (counts[id] || 0) >= n)) {
+          Object.entries(need).forEach(([id, n]) => { counts[id] -= n; });
+          sets++;
+        }
+      }
       chosen.forEach(([cell, id]) => {
-        removeItems(id, 1);
-        craftGrid[cell] = { id, count: 1 };
+        removeItems(id, sets);
+        craftGrid[cell] = { id, count: sets };
       });
       renderInventory();
     }
@@ -5286,7 +5337,7 @@
       gridSlots.push(slot);
     }
     resultEl.innerHTML = makeSlotElement().innerHTML;
-    resultEl.addEventListener('mousedown', () => craftOnce());
+    resultEl.addEventListener('mousedown', e => (e.shiftKey ? craftBulk() : craftOnce()));
 
     const containerSlots = [];
     for (let i = 0; i < 24; i++) {
@@ -5354,7 +5405,7 @@
         card.innerHTML = `<div>${result.emoji} ${result.name}${recipe.count > 1 ? '×' + recipe.count : ''}</div>` +
           `<div class="pattern">${cells.map(cell => `<span>${cell}</span>`).join('')}</div>` +
           `<div>${recipe.size === 3 ? '🛠️ 3×3' : recipe.shape ? '2×2' : '形は自由'}</div>`;
-        card.addEventListener('click', () => fillRecipe(recipe));
+        card.addEventListener('click', e => fillRecipe(recipe, e.shiftKey)); // Shift で作れるだけ並べる
         recipeBook.appendChild(card);
       });
       const locked = document.createElement('div');
@@ -5396,8 +5447,8 @@
       fillSlot(resultEl, currentRecipe ? { id: currentRecipe.result, count: currentRecipe.count } : null);
       craftHint.textContent = hintText ||
         (currentRecipe && currentRecipe.repair ? `🔧 ${ITEMS[currentRecipe.result].name}を直せます（残り ${currentRecipe.uses}・右の枠をクリック）`
-          : currentRecipe ? `✨ ${ITEMS[currentRecipe.result].name}${currentRecipe.count > 1 ? ' ×' + currentRecipe.count : ''} ができます（右の枠をクリック）`
-          : trimmedGrid() ? '🤔 この並べ方では何もできません' : '💡 材料をマスに並べるか、レシピ本をクリック');
+          : currentRecipe ? `✨ ${ITEMS[currentRecipe.result].name}${currentRecipe.count > 1 ? ' ×' + currentRecipe.count : ''} ができます（右の枠をクリック／Shift＋クリックでまとめて作る）`
+          : trimmedGrid() ? '🤔 この並べ方では何もできません' : '💡 材料をマスに並べるか、レシピ本をクリック（Shift＋クリックで作れるだけ並べる）');
 
       if (openContainer && openContainer.type === 'chest') {
         const slots = getChestSlots(openContainer.key);
@@ -5442,7 +5493,7 @@
       if (!inventoryOpen) return;
       inventoryOpen = false;
       returnGridToInventory();
-      if (cursor) giveOrDrop(cursor.id, cursor.count);
+      if (cursor) giveItemBack(cursor);
       cursor = null;
       openContainer = null;
       inventoryScreen.hidden = true;
@@ -5504,7 +5555,8 @@
       const key = blockKey(x, y, z);
       const slots = storageChests.get(key) || (furnaces.get(key) || {}).slots || [];
       slots.forEach(item => {
-        if (item) spawnDroppedItem(item.id, item.count, new THREE.Vector3(x, y, z));
+        if (item) spawnDroppedItem(item.id, item.count, new THREE.Vector3(x, y, z), null, 0.6,
+          maxUses(item.id) ? usesLeft(item) : undefined);
       });
       storageChests.delete(key);
       furnaces.delete(key);
@@ -5540,7 +5592,8 @@
     const droppedItems = [];
     const dropGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
 
-    function spawnDroppedItem(id, count, position, velocity = null, pickupDelay = 0.6) {
+    // uses: 道具の残り回数（落とす前の状態を保つ。undefined なら新品あつかい）
+    function spawnDroppedItem(id, count, position, velocity = null, pickupDelay = 0.6, uses = undefined) {
       const mesh = new THREE.Mesh(dropGeo, new THREE.MeshLambertMaterial({ color: ITEMS[id].color }));
       mesh.position.copy(position);
       mesh.castShadow = true;
@@ -5551,6 +5604,7 @@
         mesh,
         velocity: velocity ? velocity.clone() : new THREE.Vector3((Math.random() - 0.5) * 2, 3, (Math.random() - 0.5) * 2),
         pickupDelay,
+        uses,
         life: 300
       });
     }
@@ -5588,17 +5642,27 @@
         d.mesh.rotation.y += delta * 2;
 
         if (d.pickupDelay <= 0 && pos.distanceTo(center) < 1.8) {
-          // 入るぶんだけ拾う。全部入らなければ、残りは地面に残る
-          const taken = addItemPartial(d.id, d.count);
-          if (taken > 0) {
-            playSound('place');
-            d.count -= taken;
-            if (d.count <= 0) {
+          if (d.uses !== undefined) {
+            // 道具は「落としたときの残り回数」のまま拾う（空いた枠が1つ必要）
+            if (giveTool(d.id, d.uses)) {
+              playSound('place');
               removeDropped(i);
               continue;
             }
-          } else {
             notifyInventoryFull();
+          } else {
+            // 入るぶんだけ拾う。全部入らなければ、残りは地面に残る
+            const taken = addItemPartial(d.id, d.count);
+            if (taken > 0) {
+              playSound('place');
+              d.count -= taken;
+              if (d.count <= 0) {
+                removeDropped(i);
+                continue;
+              }
+            } else {
+              notifyInventoryFull();
+            }
           }
         }
         if (d.life <= 0 || pos.y < BEDROCK_Y - 10) {
@@ -5615,7 +5679,8 @@
       const dir = new THREE.Vector3();
       camera.getWorldDirection(dir);
       const from = camera.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.3, 0));
-      spawnDroppedItem(held.id, count, from, dir.multiplyScalar(5).add(new THREE.Vector3(0, 2, 0)), 1.5);
+      const uses = maxUses(held.id) ? usesLeft(held) : undefined; // 道具は残り回数をいっしょに落とす
+      spawnDroppedItem(held.id, count, from, dir.multiplyScalar(5).add(new THREE.Vector3(0, 2, 0)), 1.5, uses);
       held.count -= count;
       if (held.count <= 0) inventory[selectedSlot] = null;
       renderInventory();
@@ -6585,6 +6650,11 @@
         openInventoryScreen,
         refreshScreen,
         closeInventoryScreen,
+        dropHeldItem,
+        giveTool,
+        craftOnce,
+        craftBulk,
+        fillRecipe,
         isExplored,
         get craftSize() { return craftSize; },
         get bagSize() { return bagSize; },
