@@ -1374,6 +1374,67 @@
       ctx.strokeRect(4.5, 4.5, 7, 7);
     });
 
+    // 古代遺跡のブロック（くすんだ緑がかった石に、苔とひび）
+    function ancientBrickTexture(cracked) {
+      return createPixelTexture(ctx => {
+        speckle(ctx, '#8a9a7a', ['#7e8e6e', '#98a888'], 40);
+        ctx.fillStyle = '#5e6a52';
+        ctx.fillRect(0, 7, 16, 1);
+        ctx.fillRect(0, 15, 16, 1);
+        ctx.fillRect(7, 0, 1, 7);
+        ctx.fillRect(3, 8, 1, 7);
+        ctx.fillRect(11, 8, 1, 7);
+        ctx.fillStyle = '#4f7a3a';
+        for (let i = 0; i < 6; i++) ctx.fillRect(rand(0, 15), rand(0, 15), rand(1, 2), 1);
+        if (!cracked) return;
+        ctx.fillStyle = '#2e3428'; // ギザギザのひび（奥に何かありそう）
+        [[2, 1], [3, 2], [4, 3], [4, 4], [5, 5], [6, 6], [8, 8], [9, 9], [9, 10], [10, 11], [12, 12], [13, 14]]
+          .forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+        [[11, 2], [10, 3], [10, 4], [9, 5]].forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+      });
+    }
+    textures.ancientBrick = ancientBrickTexture(false);
+    textures.ancientCracked = ancientBrickTexture(true);
+    textures.ancientGlyph = createPixelTexture(ctx => {
+      speckle(ctx, '#8a9a7a', ['#7e8e6e', '#98a888'], 30);
+      ctx.strokeStyle = '#5e6a52';
+      ctx.strokeRect(0.5, 0.5, 15, 15);
+      ctx.fillStyle = '#d8b040'; // 金色の「目」の模様
+      ctx.fillRect(4, 5, 8, 1);
+      ctx.fillRect(4, 10, 8, 1);
+      ctx.fillRect(3, 6, 1, 4);
+      ctx.fillRect(12, 6, 1, 4);
+      ctx.fillStyle = '#3a8a8a';
+      ctx.fillRect(7, 7, 2, 2);
+      ctx.fillStyle = '#d8b040';
+      ctx.fillRect(7, 2, 2, 2);
+      ctx.fillRect(7, 12, 2, 2);
+    });
+    textures.mossyStone = createPixelTexture(ctx => {
+      speckle(ctx, '#7a7a7a', ['#6e6e6e', '#868686'], 40);
+      for (let i = 0; i < 30; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#4f7a3a' : '#5f8a45';
+        ctx.fillRect(rand(0, 15), rand(0, 15), rand(1, 2), rand(1, 2));
+      }
+    });
+    // 敵の湧くかご（黒い鉄のおりの中に、あやしい紫の火）
+    textures.spawner = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      ctx.fillStyle = 'rgba(40, 20, 60, 0.55)';
+      ctx.fillRect(1, 1, 14, 14);
+      ctx.fillStyle = '#b050ff';
+      [[6, 9], [7, 8], [8, 7], [9, 9], [7, 10], [8, 10], [6, 11], [9, 11], [8, 9]].forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+      ctx.fillStyle = '#ff8af0';
+      ctx.fillRect(7, 9, 2, 2);
+      ctx.fillStyle = '#26262c';
+      for (let i = 0; i <= 15; i += 5) {
+        ctx.fillRect(i, 0, 1, 16);
+        ctx.fillRect(0, i, 16, 1);
+      }
+      ctx.fillRect(15, 0, 1, 16);
+      ctx.fillRect(0, 15, 16, 1);
+    });
+
     // ゴーレム・ハスク・ストレイの顔
     textures.golemFace = createPixelTexture(ctx => {
       speckle(ctx, '#b8b8b0', ['#a8a8a0', '#c8c8c0', '#7f9a6a'], 60);
@@ -1581,7 +1642,7 @@
       'colorBlue', 'colorGreen', 'colorWhite', 'colorBlack', 'ladder', 'door', 'doorOpen', 'lamp',
       'tntSide', 'tntTop', 'bedTop', 'bedSide', 'furnaceFront', 'furnaceSide', 'farmland', 'wheat0',
       'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
-      'lava', 'obsidian'
+      'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -1665,7 +1726,13 @@
       51: { name: '流れる水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, fluid: 'water', render: 'water', replaceable: true, map: '#3f7fe0' },
       52: { name: '溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff7a1a' },
       53: { name: '流れる溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff9a3a' },
-      54: { name: '黒曜石', tiles: same('obsidian'), tier: 4, drop: 'obsidian', map: '#1e1430' }
+      54: { name: '黒曜石', tiles: same('obsidian'), tier: 4, drop: 'obsidian', map: '#1e1430' },
+      // 地下の古代遺跡・敵の湧くかご
+      55: { name: '古代のレンガ', tiles: same('ancientBrick'), tier: 2, drop: 'ancient_bricks', map: '#8a9a7a' },
+      56: { name: 'ひびの入った古代のレンガ', tiles: same('ancientCracked'), tier: 1, drop: 'ancient_bricks', map: '#7a8a6a' },
+      57: { name: '古代の模様ブロック', tiles: same('ancientGlyph'), tier: 2, drop: 'ancient_glyph', map: '#b0a060' },
+      58: { name: '苔の石', tiles: same('mossyStone'), tier: 1, drop: 'mossy_stone', map: '#6a7a5a' },
+      59: { name: '敵の湧くかご', tiles: same('spawner'), tier: 2, spawner: true, seeThrough: true, render: 'glass', map: '#3a2a4a' }
     };
     const GRASS = 1;
     const DIRT = 2;
@@ -1693,6 +1760,11 @@
     const LAVA = 52;
     const FLOW_LAVA = 53;
     const OBSIDIAN = 54;
+    const ANCIENT_BRICKS = 55;
+    const ANCIENT_CRACKED = 56;
+    const ANCIENT_GLYPH = 57;
+    const MOSSY_STONE = 58;
+    const SPAWNER = 59;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -2573,6 +2645,7 @@
       placeCobwebs();
       generateDungeon();
       generateStructures();
+      generateUnderground(); // いちばん最後（前からあるワールドの地上がずれないように）
     }
 
     // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
@@ -2749,7 +2822,16 @@
       igloo: [['cooked_meat', 0.7, 1, 3], ['bread', 0.6, 1, 3], ['coal', 0.6, 2, 5], ['iron', 0.4, 1, 3],
               ['snow', 0.5, 4, 10], ['shield', 0.2, 1, 1]],
       tower: [['arrow', 0.8, 4, 12], ['bow', 0.4, 1, 1], ['iron', 0.6, 2, 5], ['stone_sword', 0.35, 1, 1],
-              ['coal', 0.6, 2, 6], ['shield', 0.25, 1, 1]]
+              ['coal', 0.6, 2, 6], ['shield', 0.25, 1, 1]],
+      // 地下の建物
+      ancient: [['gold', 0.8, 3, 8], ['diamond', 0.5, 1, 3], ['golden_apple', 0.4, 1, 2], ['iron_armor', 0.25, 1, 1],
+                ['diamond_pickaxe', 0.12, 1, 1], ['bow', 0.3, 1, 1], ['arrow', 0.5, 4, 10], ['ancient_glyph', 0.5, 2, 4]],
+      ancientSecret: [['diamond', 0.9, 2, 5], ['gold', 0.8, 4, 10], ['golden_apple', 0.6, 1, 2], ['diamond_pickaxe', 0.3, 1, 1],
+                      ['diamond_sword', 0.25, 1, 1], ['diamond_armor', 0.15, 1, 1]],
+      mineshaft: [['coal', 0.8, 3, 8], ['iron', 0.7, 2, 6], ['gold', 0.35, 1, 3], ['bread', 0.5, 1, 3], ['torch', 0.6, 4, 10],
+                  ['ladder', 0.4, 3, 8], ['stone_pickaxe', 0.3, 1, 1], ['iron_pickaxe', 0.15, 1, 1], ['diamond', 0.1, 1, 2]],
+      spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
+                ['golden_apple', 0.1, 1, 1], ['bow', 0.15, 1, 1], ['iron_sword', 0.15, 1, 1]]
     };
 
     // チェストを置いて、中身を決める
@@ -2989,6 +3071,260 @@
         type.build(cx, floorY, cz);
         structuresPlaced.push({ name: type.name, x: cx, y: floorY, z: cz });
       }
+    }
+
+    /* --- Underground Sites (掘っていると出会う地下の建物) --- */
+    // 古代遺跡・廃坑・敵の湧くかご。中に入ると「見つけた！」と出て、マップに印がつく。
+    // 生成のいちばん最後に作るので、前からあるワールドでも地上の建物の場所は変わらない
+    const SITE_KINDS = {
+      ruins: { name: '古代遺跡', emoji: '🏛️' },
+      mineshaft: { name: '廃坑', emoji: '⛏️' },
+      spawner: { name: '敵の湧くかご', emoji: '👾' }
+    };
+    const undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
+    const spawners = [];         // { x, y, z, type, timer }
+
+    function worldShuffle(list) {
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = worldRandInt(0, i);
+        [list[i], list[j]] = [list[j], list[i]];
+      }
+      return list;
+    }
+
+    // 横向き (sx, sz) に a マス進み、直角の向きに b マスずれた場所
+    const sideCell = (cx, cz, sx, sz, a, b) => [cx + sx * a - sz * b, cz + sz * a + sx * b];
+
+    // 地下の建物を置いてよい場所か。地表・ボスの部屋と階段・地上の建物・ほかの地下の建物・溶岩からはなす
+    function undergroundSpotFree(cx, bottom, cz, half, top, self = null) {
+      if (Math.hypot(cx, cz) < 16) return false;
+      if (Math.abs(cx) > HALF_SIZE - half - 3 || Math.abs(cz) > HALF_SIZE - half - 3) return false;
+      for (const d of DUNGEONS) {
+        // 部屋から入口までの階段は x の向きにまっすぐのびている
+        const minX = Math.min(d.x, d.entrance.x) - d.half - 4;
+        const maxX = Math.max(d.x, d.entrance.x) + d.half + 4;
+        if (cx + half >= minX && cx - half <= maxX && Math.abs(cz - d.z) <= d.half + half + 4) return false;
+      }
+      if (structuresPlaced.some(st => Math.hypot(cx - st.x, cz - st.z) < half + 6)) return false; // ピラミッドの地下室など
+      if (undergroundSites.some(site => site !== self && Math.hypot(cx - site.x, cz - site.z) < half + site.half + 6)) return false;
+      for (let dx = -half; dx <= half; dx += 2) {
+        for (let dz = -half; dz <= half; dz += 2) {
+          if (surfaceHeight(cx + dx, cz + dz) - 5 < top) return false; // 地表をつき抜けない
+          for (let y = bottom - 2; y <= top + 2; y++) {
+            if (isLavaBlock(getBlock(cx + dx, y, cz + dz))) return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    // 古代遺跡: 柱の立つ大広間、まん中の祭だんに宝箱。
+    // ひびの入ったレンガの壁の奥には、もっと良い宝の「かくし部屋」がある
+    function buildAncientRuins(site) {
+      const { x: cx, y: fy, z: cz } = site;
+      const h = 7;
+      const height = 7;
+      const [secret, ...doors] = worldShuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+      // 先に出入り口からトンネルをのばして、洞窟とつながりやすくする（部屋はあとで建てるので、かかっても大丈夫）
+      doors.slice(0, 2).forEach(([sx, sz]) => {
+        const [tx, tz] = sideCell(cx, cz, sx, sz, h + 3, 0);
+        carveWorm(tx, fy + 1, tz, worldRandInt(25, 40), false);
+      });
+
+      // 大広間: 床は古代のレンガ（対角線に模様）、壁の中ほどに模様の帯、天井はところどころくずれている
+      for (let dx = -h - 1; dx <= h + 1; dx++) {
+        for (let dz = -h - 1; dz <= h + 1; dz++) {
+          for (let dy = -1; dy <= height; dy++) {
+            const wall = Math.abs(dx) === h + 1 || Math.abs(dz) === h + 1;
+            let id = 0;
+            if (dy === -1) id = Math.abs(dx) === Math.abs(dz) ? ANCIENT_GLYPH : ANCIENT_BRICKS;
+            else if (dy === height) id = worldRandom() < 0.12 ? STONE : ANCIENT_BRICKS;
+            else if (wall) id = dy === 3 && (dx + dz) % 3 === 0 ? ANCIENT_GLYPH : worldRandom() < 0.15 ? MOSSY_STONE : ANCIENT_BRICKS;
+            forceBlock(cx + dx, fy + dy, cz + dz, id);
+          }
+        }
+      }
+      // 柱（半分くらいは折れていて、かけらが床に落ちている）
+      for (const [px, pz] of [[-4, -4], [4, -4], [-4, 4], [4, 4], [0, -5], [0, 5], [-5, 0], [5, 0]]) {
+        const broken = worldRandom() < 0.5;
+        const top = broken ? worldRandInt(1, 4) : height - 1;
+        for (let dy = 0; dy <= top; dy++) forceBlock(cx + px, fy + dy, cz + pz, dy === 1 ? ANCIENT_GLYPH : ANCIENT_BRICKS);
+        if (broken) forceBlock(cx + px + worldRandInt(-1, 1), fy, cz + pz + (worldRandom() < 0.5 ? 1 : -1), ANCIENT_BRICKS);
+      }
+      // まん中の祭だんと宝箱。祭だんの角に松明
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) forceBlock(cx + dx, fy, cz + dz, dx === 0 && dz === 0 ? ANCIENT_GLYPH : ANCIENT_BRICKS);
+      }
+      placeLootChest(cx, fy + 1, cz, LOOT.ancient);
+      forceTorch(cx - 1, fy + 1, cz - 1);
+      forceTorch(cx + 1, fy + 1, cz + 1);
+      // 天井のクモの巣
+      for (let i = 0; i < 8; i++) {
+        const x = cx + worldRandInt(-h, h);
+        const z = cz + worldRandInt(-h, h);
+        if (getBlock(x, fy + height - 1, z) === 0) forceBlock(x, fy + height - 1, z, COBWEB);
+      }
+      // 出入り口（3マス幅）
+      doors.slice(0, 2).forEach(([sx, sz]) => {
+        for (let a = h + 1; a <= h + 2; a++) {
+          for (let b = -1; b <= 1; b++) {
+            const [x, z] = sideCell(cx, cz, sx, sz, a, b);
+            for (let dy = 0; dy <= 2; dy++) forceBlock(x, fy + dy, z, 0);
+            if (!isSolid(x, fy - 1, z)) forceBlock(x, fy - 1, z, ANCIENT_BRICKS);
+          }
+        }
+      });
+
+      // かくし部屋: 大広間の壁（a = h+1）をはさんだ奥。入口はひびの入ったレンガでふさがっている
+      const [sx, sz] = secret;
+      for (let a = h + 1; a <= h + 7; a++) {
+        for (let b = -3; b <= 3; b++) {
+          const [x, z] = sideCell(cx, cz, sx, sz, a, b);
+          for (let dy = -1; dy <= 4; dy++) {
+            if (a === h + 1) continue; // 大広間の壁はそのまま
+            const edge = a === h + 7 || Math.abs(b) === 3 || dy === -1 || dy === 4;
+            forceBlock(x, fy + dy, z, !edge ? 0 : dy === 2 && b % 2 === 0 ? ANCIENT_GLYPH : ANCIENT_BRICKS);
+          }
+        }
+      }
+      for (let b = -1; b <= 1; b++) {
+        const [x, z] = sideCell(cx, cz, sx, sz, h + 1, b);
+        for (let dy = 0; dy <= 1; dy++) forceBlock(x, fy + dy, z, ANCIENT_CRACKED);
+      }
+      const [chestX, chestZ] = sideCell(cx, cz, sx, sz, h + 6, 0);
+      placeLootChest(chestX, fy, chestZ, LOOT.ancientSecret);
+      for (const b of [-2, 2]) {
+        const [x, z] = sideCell(cx, cz, sx, sz, h + 4, b);
+        forceTorch(x, fy, z);
+      }
+
+      site.boxes.push({ x0: cx - h - 1, x1: cx + h + 1, y0: fy - 1, y1: fy + height, z0: cz - h - 1, z1: cz + h + 1 });
+    }
+
+    // 廃坑: 木の柱で支えた 3 マス幅の通路が、分かれ道をくり返しながら広がる。洞窟の上は板の橋になる
+    function buildMineshaft(site) {
+      const { x: cx, y: fy, z: cz } = site;
+      for (let dx = -3; dx <= 3; dx++) {
+        for (let dz = -3; dz <= 3; dz++) {
+          for (let dy = 0; dy <= 3; dy++) forceBlock(cx + dx, fy + dy, cz + dz, 0);
+          forceBlock(cx + dx, fy - 1, cz + dz, DIRT);
+        }
+      }
+      forceTorch(cx, fy, cz);
+      site.boxes.push({ x0: cx - 3, x1: cx + 3, y0: fy - 1, y1: fy + 3, z0: cz - 3, z1: cz + 3 });
+      worldShuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]).slice(0, 3)
+        .forEach(([dx, dz]) => mineCorridor(site, cx + dx * 4, fy, cz + dz * 4, dx, dz, 0));
+    }
+
+    function mineCorridor(site, x, y, z, dx, dz, depth) {
+      const length = worldRandInt(7, 12);
+      let i = 0;
+      for (; i < length; i++) {
+        const ax = x + dx * i;
+        const az = z + dz * i;
+        if (Math.hypot(ax - site.x, az - site.z) > site.half - 2) break; // 決めた広さの外には出ない
+        // 地表の近く・溶岩・ほかの建物にぶつかりそうなら、そこで行き止まり
+        if (i % 2 === 0 && !undergroundSpotFree(ax, y, az, 2, y + 3, site)) break;
+        for (let b = -1; b <= 1; b++) {
+          const px = ax - dz * b;
+          const pz = az + dx * b;
+          for (let dy = 0; dy <= 2; dy++) forceBlock(px, y + dy, pz, 0);
+          if (!isSolid(px, y - 1, pz)) forceBlock(px, y - 1, pz, PLANKS); // 洞窟の上は板の橋
+        }
+        // 両側の壁から、鉱石がのぞいていることがある
+        for (const b of [-2, 2]) {
+          const px = ax - dz * b;
+          const pz = az + dx * b;
+          const dy = worldRandInt(0, 2);
+          if (getBlock(px, y + dy, pz) === STONE && worldRandom() < 0.06) {
+            forceBlock(px, y + dy, pz, worldRandom() < 0.6 ? COAL_ORE : IRON_ORE);
+          }
+        }
+        if (i % 4 === 2) {
+          // 支え: 両側の柱と、天井の板
+          for (const b of [-1, 1]) {
+            for (let dy = 0; dy <= 1; dy++) forceBlock(ax - dz * b, y + dy, az + dx * b, WOOD);
+          }
+          for (let b = -1; b <= 1; b++) forceBlock(ax - dz * b, y + 2, az + dx * b, PLANKS);
+        } else if (worldRandom() < 0.12) {
+          const b = worldRandInt(-1, 1);
+          forceBlock(ax - dz * b, y + 2, az + dx * b, COBWEB);
+        } else if (worldRandom() < 0.05) {
+          const b = worldRandom() < 0.5 ? -1 : 1;
+          forceTorch(ax - dz * b, y, az + dx * b);
+        }
+      }
+      if (i === 0) return;
+      const endX = x + dx * (i - 1);
+      const endZ = z + dz * (i - 1);
+      site.boxes.push({
+        x0: Math.min(x, endX) - 1, x1: Math.max(x, endX) + 1, y0: y - 1, y1: y + 2,
+        z0: Math.min(z, endZ) - 1, z1: Math.max(z, endZ) + 1
+      });
+      // 行き止まりには宝箱のことも
+      const r = worldRandom();
+      if (depth >= 3 || i < length || r < 0.25) {
+        if (worldRandom() < 0.45) placeLootChest(endX, y, endZ, LOOT.mineshaft);
+        return;
+      }
+      // 分かれ道: まっすぐ進むか、左右に曲がるか（両方のことも）
+      if (r < 0.6) mineCorridor(site, endX + dx, y, endZ + dz, dx, dz, depth + 1);
+      if (r > 0.45) mineCorridor(site, endX - dz * 2, y, endZ + dx * 2, -dz, dx, depth + 1);
+      if (r > 0.75) mineCorridor(site, endX + dz * 2, y, endZ - dx * 2, dz, -dx, depth + 1);
+    }
+
+    // 敵の湧くかご: 苔むした小部屋のまん中に「かご」があり、近くにいると敵が出てくる。壊すと止まる
+    function buildSpawnerRoom(site) {
+      const { x: cx, y: fy, z: cz } = site;
+      const h = 3;
+      const height = 4;
+      const [sx, sz] = [[1, 0], [-1, 0], [0, 1], [0, -1]][worldRandInt(0, 3)];
+      const [tx, tz] = sideCell(cx, cz, sx, sz, h + 3, 0);
+      carveWorm(tx, fy + 1, tz, worldRandInt(15, 30), false);
+      for (let dx = -h - 1; dx <= h + 1; dx++) {
+        for (let dz = -h - 1; dz <= h + 1; dz++) {
+          for (let dy = -1; dy <= height; dy++) {
+            const edge = Math.abs(dx) === h + 1 || Math.abs(dz) === h + 1 || dy === -1 || dy === height;
+            forceBlock(cx + dx, fy + dy, cz + dz, edge ? (worldRandom() < 0.55 ? MOSSY_STONE : STONE) : 0);
+          }
+        }
+      }
+      for (let a = h + 1; a <= h + 2; a++) { // 入口（1マス幅）
+        const [x, z] = sideCell(cx, cz, sx, sz, a, 0);
+        for (let dy = 0; dy <= 1; dy++) forceBlock(x, fy + dy, z, 0);
+      }
+      forceBlock(cx, fy, cz, SPAWNER);
+      const corners = worldShuffle([[-2, -2], [2, -2], [-2, 2], [2, 2]]);
+      const chests = worldRandInt(1, 2);
+      for (let i = 0; i < chests; i++) placeLootChest(cx + corners[i][0], fy, cz + corners[i][1], LOOT.spawner);
+      // 深いほどスケルトンが多い。浅いところはゾンビとクモ
+      const types = fy < -24 ? ['skeleton', 'skeleton', 'zombie', 'spider'] : ['zombie', 'zombie', 'spider', 'skeleton'];
+      site.spawner = { x: cx, y: fy, z: cz, type: types[worldRandInt(0, types.length - 1)], timer: 2 };
+      spawners.push(site.spawner);
+      site.boxes.push({ x0: cx - h - 2, x1: cx + h + 2, y0: fy - 1, y1: fy + height, z0: cz - h - 2, z1: cz + h + 2 });
+    }
+
+    const UNDERGROUND_PLAN = [
+      { kind: 'ruins', count: 3, half: 16, depth: [-26, -18], height: 8, build: buildAncientRuins },
+      { kind: 'mineshaft', count: 3, half: 5, reach: 26, depth: [-15, -9], height: 4, build: buildMineshaft },
+      { kind: 'spawner', count: 6, half: 6, depth: [-34, -10], height: 5, build: buildSpawnerRoom }
+    ];
+
+    function generateUnderground() {
+      UNDERGROUND_PLAN.forEach(plan => {
+        let built = 0;
+        for (let attempt = 0; attempt < 300 && built < plan.count; attempt++) {
+          const cx = worldRandInt(-HALF_SIZE + 8, HALF_SIZE - 8);
+          const cz = worldRandInt(-HALF_SIZE + 8, HALF_SIZE - 8);
+          const fy = worldRandInt(plan.depth[0], plan.depth[1]);
+          if (!undergroundSpotFree(cx, fy, cz, plan.half, fy + plan.height)) continue;
+          // 廃坑はまん中の部屋だけ確かめて、通路はのばしながら確かめる（reach まで広がる）
+          const site = { kind: plan.kind, x: cx, y: fy, z: cz, half: plan.reach || plan.half, boxes: [] };
+          plan.build(site);
+          undergroundSites.push(site);
+          built++;
+        }
+      });
     }
 
     // プレイヤーが入っているダンジョンの部屋（どこにも入っていなければ null）
@@ -3671,6 +4007,36 @@
       }
     }
 
+    /* --- Spawners (敵の湧くかご) --- */
+    // 近く（14 マス以内）にいると、数秒ごとにかごのまわりに敵が出る。1つのかごから出ている敵は 3 体まで。
+    // 松明があっても止まらない。止めるには、かごを壊す（石のツルハシが要る）
+    const SPAWNER_RANGE = 14;
+
+    function updateSpawners(delta) {
+      const feetY = camera.position.y - player.eye;
+      spawners.forEach(sp => {
+        if (getBlock(sp.x, sp.y, sp.z) !== SPAWNER) return; // 壊されている
+        if (Math.hypot(sp.x - camera.position.x, sp.y - feetY, sp.z - camera.position.z) > SPAWNER_RANGE) return;
+        sp.timer -= delta;
+        if (sp.timer > 0) return;
+        sp.timer = 5 + Math.random() * 4;
+        if (mobs.filter(m => m.spawner === sp).length >= 3) return;
+        const def = MOB_DEFS[sp.type];
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const x = sp.x + rand(-2, 2);
+          const z = sp.z + rand(-2, 2);
+          const y = sp.y - 0.5; // 床の上に足をそろえる
+          if ((x === sp.x && z === sp.z) || collidesBox(x, y, z, def.radius, def.height)) continue;
+          const mob = createMob(sp.type, x, y, z);
+          applyMobStrength(mob);
+          mob.spawner = sp;
+          spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0xb050ff, 16, 3);
+          spawnParticles(new THREE.Vector3(sp.x, sp.y + 0.5, sp.z), 0xff8af0, 8, 2);
+          break;
+        }
+      });
+    }
+
     /* --- Enemies: Physics (壁にめり込まない動き) --- */
     const MOB_GRAVITY = 22;
 
@@ -3875,6 +4241,7 @@
 
     function updateMobs(delta) {
       updateSpawning(delta);
+      updateSpawners(delta);
 
       const playerFeet = camera.position.y - player.eye;
       const playerCenter = new THREE.Vector3(camera.position.x, playerFeet + 0.9, camera.position.z);
@@ -4567,6 +4934,11 @@
           showToast('🍎 りんごを見つけた！');
         }
       }
+      if (def.spawner) {
+        spawnParticles(pos, 0xb050ff, 30, 5);
+        showToast('👾 敵の湧くかごを壊した！ もう敵は出てこない');
+      }
+      if (target.id === ANCIENT_CRACKED) showToast('🏛️ ひびの入ったレンガがくずれた…… 奥に何かある？');
       updateRaycast();
     }
 
@@ -4855,6 +5227,9 @@
       yellow_flower: { name: '黄色い花', kind: 'block', block: FLOWERS[1], color: '#f4d42c', emoji: '🌼' },
       blue_flower: { name: '青い花', kind: 'block', block: FLOWERS[2], color: '#3c7ce8', emoji: '💠' },
       obsidian: { name: '黒曜石', kind: 'block', block: OBSIDIAN, color: '#2a1a40', emoji: '🟪' },
+      ancient_bricks: { name: '古代のレンガ', kind: 'block', block: ANCIENT_BRICKS, color: '#8a9a7a', emoji: '🏛️' },
+      ancient_glyph: { name: '古代の模様ブロック', kind: 'block', block: ANCIENT_GLYPH, color: '#b0a060', emoji: '👁️' },
+      mossy_stone: { name: '苔の石', kind: 'block', block: MOSSY_STONE, color: '#6a7a5a', emoji: '🪨' },
       coal: { name: '石炭', kind: 'material', color: '#333333', emoji: '⚫', particle: 0x222222 },
       charcoal: { name: '木炭', kind: 'material', color: '#3a2a1a', emoji: '♨️' },
       iron: { name: '鉄', kind: 'material', color: '#d8b08c', emoji: '🔩', particle: 0xd8b08c },
@@ -6089,6 +6464,7 @@
     const EXPLORE_RADIUS = 24;
     const explored = new Uint8Array(SIZE_X * SIZE_Z);
     let dungeonsFound = BOSS_TIERS.map(() => false); // 入口を見つけた部屋だけ、マップに印が出る
+    let sitesFound = undergroundSites.map(() => false); // 中に入った地下の建物だけ、マップに印が出る
     const isExplored = (x, z) => explored[(z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)] === 1;
 
     function exploreAround(px, pz) {
@@ -6112,6 +6488,16 @@
           dungeonsFound[i] = true;
           showToast(`${BOSS_TIERS[i].emoji} ダンジョンの入口を見つけた！ マップに印がついた`);
         }
+      });
+      undergroundSites.forEach((site, i) => {
+        if (sitesFound[i]) return;
+        const inside = site.boxes.some(b => px >= b.x0 - 0.5 && px <= b.x1 + 0.5 && pz >= b.z0 - 0.5 && pz <= b.z1 + 0.5 &&
+          feetY >= b.y0 - 0.5 && feetY <= b.y1 + 0.5);
+        if (!inside) return;
+        sitesFound[i] = true;
+        const kind = SITE_KINDS[site.kind];
+        showToast(`${kind.emoji} ${kind.name}を見つけた！ マップに印がついた`);
+        playSound('ore');
       });
     }
 
@@ -6222,6 +6608,12 @@
       return bossesDefeated[index] ? '🏆' : BOSS_TIERS[index].emoji;
     }
 
+    // 地下の建物の印。かごを壊したところは ✅
+    function siteIcon(site) {
+      const sp = site.spawner;
+      return sp && getBlock(sp.x, sp.y, sp.z) !== SPAWNER ? '✅' : SITE_KINDS[site.kind].emoji;
+    }
+
     function drawMinimap() {
       const size = minimap.width;
       const span = MINIMAP_RADIUS * 2 + 1;
@@ -6248,6 +6640,11 @@
         const [dx, dy] = toMini(d.x, d.z);
         drawEmoji(minimapCtx, dungeonIcon(i), edge(dx), edge(dy), 14);
       });
+      undergroundSites.forEach((site, i) => {
+        if (!sitesFound[i]) return;
+        const [sx, sy] = toMini(site.x, site.z);
+        drawEmoji(minimapCtx, siteIcon(site), edge(sx), edge(sy), 12);
+      });
       drawPlayerArrow(minimapCtx, size / 2, size / 2, 6);
     }
 
@@ -6265,6 +6662,11 @@
         drawEmoji(worldMapCtx, dungeonIcon(i), dx, dy, 28);
         const [ex, ey] = toMap(d.entrance.x, d.entrance.z);
         drawEmoji(worldMapCtx, '🚪', ex, ey, 20);
+      });
+      undergroundSites.forEach((site, i) => {
+        if (!sitesFound[i]) return;
+        const [sx, sy] = toMap(site.x, site.z);
+        drawEmoji(worldMapCtx, siteIcon(site), sx, sy, 22);
       });
       const [px, py] = toMap(camera.position.x, camera.position.z);
       drawPlayerArrow(worldMapCtx, px, py, 11);
@@ -6700,6 +7102,7 @@
         spawnPoint,
         explored: encodeExplored(),
         dungeonsFound,
+        sitesFound,
         savedAt: Date.now()
       };
       try {
@@ -6736,6 +7139,7 @@
       spawnPoint = data.spawnPoint || null;
       decodeExplored(data.explored);
       dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
+      sitesFound = undergroundSites.map((_, i) => !!(data.sitesFound || [])[i]);
       renderInventory();
       buildMapImage();
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
@@ -6821,6 +7225,9 @@
         get craftSize() { return craftSize; },
         get bagSize() { return bagSize; },
         get dungeonsFound() { return dungeonsFound; },
+        get sitesFound() { return sitesFound; },
+        undergroundSites,
+        spawners,
         get spawnPoint() { return spawnPoint; },
         get boss() { return boss; },
         get bossesDefeated() { return bossesDefeated; },
