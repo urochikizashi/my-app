@@ -1166,6 +1166,19 @@
       ironOre: oreTexture('#c9a27e', '#e8c9ad'),
       goldOre: oreTexture('#e6c229', '#fff27a'),
       diamondOre: oreTexture('#2ed3c6', '#aaf7f0'),
+      // 黒曜石（黒むらさきに、ところどころ光る紫のすじ）
+      obsidian: createPixelTexture(ctx => {
+        ctx.fillStyle = '#140c1e';
+        ctx.fillRect(0, 0, 16, 16);
+        for (let i = 0; i < 70; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#0a0610' : '#261838';
+          ctx.fillRect(rand(0, 15), rand(0, 15), rand(1, 2), 1);
+        }
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#5a3a8a' : '#7a52b0';
+          ctx.fillRect(rand(0, 14), rand(0, 15), 2, 1);
+        }
+      }),
       // 作業台（上面は格子、側面は道具の絵）
       craftingTableTop: createPixelTexture(ctx => {
         ctx.fillStyle = '#a57c4a';
@@ -1568,7 +1581,7 @@
       'colorBlue', 'colorGreen', 'colorWhite', 'colorBlack', 'ladder', 'door', 'doorOpen', 'lamp',
       'tntSide', 'tntTop', 'bedTop', 'bedSide', 'furnaceFront', 'furnaceSide', 'farmland', 'wheat0',
       'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
-      'lava'
+      'lava', 'obsidian'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -1588,7 +1601,7 @@
     const same = name => [tile(name), tile(name), tile(name)];
 
     // tiles: [上, 下, 横] の絵
-    // tier: 掘るのに必要なツルハシ（0: 素手でOK, 1: 木, 2: 石, 3: 鉄, 99: 壊せない）
+    // tier: 掘るのに必要なツルハシ（0: 素手でOK, 1: 木, 2: 石, 3: 鉄, 4: ダイヤ, 99: 壊せない）
     // drop: 掘ったときに持ち物に入るアイテム
     // seeThrough: 向こうが透けて見える（隣のブロックの面を隠さない）
     // solid: false なら通り抜けられる
@@ -1651,7 +1664,8 @@
       50: { name: '青い花', tiles: same('flowerBlue'), render: 'cross', seeThrough: true, solid: false, tier: 0, drop: 'blue_flower', map: '#3c7ce8' },
       51: { name: '流れる水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, fluid: 'water', render: 'water', replaceable: true, map: '#3f7fe0' },
       52: { name: '溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff7a1a' },
-      53: { name: '流れる溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff9a3a' }
+      53: { name: '流れる溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff9a3a' },
+      54: { name: '黒曜石', tiles: same('obsidian'), tier: 4, drop: 'obsidian', map: '#1e1430' }
     };
     const GRASS = 1;
     const DIRT = 2;
@@ -1678,6 +1692,7 @@
     const FLOW_WATER = 51; // 源から流れ出した水
     const LAVA = 52;
     const FLOW_LAVA = 53;
+    const OBSIDIAN = 54;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -2231,13 +2246,15 @@
       for (const [dx, dz] of SIDES) createFlow(x + dx, y, z + dz, level - 1, def);
     }
 
-    // 溶岩が水にふれたら石になる（ジュッと音がする）
+    // 溶岩が水にふれたら固まる（ジュッと音がする）。
+    // 溶岩の「源」は黒曜石に、流れている溶岩はふつうの石になる
     function lavaMeetsWater(x, y, z) {
       if (!FLUID_AROUND.some(([dx, dy, dz]) => isWaterBlock(getBlock(x + dx, y + dy, z + dz)))) return false;
+      const becomes = getBlock(x, y, z) === LAVA ? OBSIDIAN : STONE;
       fluidLevels.delete(blockKey(x, y, z));
       removeBlock(x, y, z, false);
-      addBlock(x, y, z, STONE, false);
-      spawnParticles(new THREE.Vector3(x, y + 0.5, z), 0xdddddd, 8, 3);
+      addBlock(x, y, z, becomes, false);
+      spawnParticles(new THREE.Vector3(x, y + 0.5, z), becomes === OBSIDIAN ? 0x7a52b0 : 0xdddddd, 8, 3);
       playSound('fuse');
       return true;
     }
@@ -4420,7 +4437,7 @@
     let mining = null; // { key, x, y, z, progress, total }
     let swingTimer = 0;
 
-    const HARDNESS = { 0: 0.5, 1: 1.6, 2: 2.6, 3: 3.6 }; // 素手のときの秒数（ツルハシの必要度ごと）
+    const HARDNESS = { 0: 0.5, 1: 1.6, 2: 2.6, 3: 3.6, 4: 18 }; // 素手のときの秒数（ツルハシの必要度ごと）
 
     function miningSeconds(def) {
       if (def.render === 'cross' || def.torch || def.web) return 0.1; // 草花・松明・クモの巣はすぐ取れる
@@ -4600,7 +4617,22 @@
         return;
       }
       const cell = targetPlaceCell();
-      if (cell && addBlock(cell.x, cell.y, cell.z, item.lava ? LAVA : WATER, true)) {
+      if (!cell) return;
+      // 溶岩に水をかけた（水に溶岩を流した）ときは、その場で固まる。溶岩の源に水なら黒曜石
+      const existing = getBlock(cell.x, cell.y, cell.z);
+      if (item.lava ? isWaterBlock(existing) : isLavaBlock(existing)) {
+        const becomes = !item.lava && existing === LAVA ? OBSIDIAN : STONE;
+        removeBlock(cell.x, cell.y, cell.z, false);
+        addBlock(cell.x, cell.y, cell.z, becomes, false);
+        spawnParticles(new THREE.Vector3(cell.x, cell.y + 0.5, cell.z), becomes === OBSIDIAN ? 0x7a52b0 : 0xdddddd, 8, 3);
+        playSound('fuse');
+        if (becomes === OBSIDIAN) showToast('🟪 溶岩が固まって黒曜石になった！（ダイヤのツルハシで掘れる）');
+        inventory[selectedSlot] = { id: 'bucket', count: 1 };
+        renderInventory();
+        updateRaycast();
+        return;
+      }
+      if (addBlock(cell.x, cell.y, cell.z, item.lava ? LAVA : WATER, true)) {
         inventory[selectedSlot] = { id: 'bucket', count: 1 };
         renderInventory();
         updateRaycast();
@@ -4822,6 +4854,7 @@
       red_flower: { name: '赤い花', kind: 'block', block: FLOWERS[0], color: '#d8342c', emoji: '🌹' },
       yellow_flower: { name: '黄色い花', kind: 'block', block: FLOWERS[1], color: '#f4d42c', emoji: '🌼' },
       blue_flower: { name: '青い花', kind: 'block', block: FLOWERS[2], color: '#3c7ce8', emoji: '💠' },
+      obsidian: { name: '黒曜石', kind: 'block', block: OBSIDIAN, color: '#2a1a40', emoji: '🟪' },
       coal: { name: '石炭', kind: 'material', color: '#333333', emoji: '⚫', particle: 0x222222 },
       charcoal: { name: '木炭', kind: 'material', color: '#3a2a1a', emoji: '♨️' },
       iron: { name: '鉄', kind: 'material', color: '#d8b08c', emoji: '🔩', particle: 0xd8b08c },
@@ -4844,6 +4877,7 @@
       wood_pickaxe: { name: '木のツルハシ', kind: 'pickaxe', tier: 1, color: '#a07449', emoji: '⛏️', stack: 1, durability: 60 },
       stone_pickaxe: { name: '石のツルハシ', kind: 'pickaxe', tier: 2, color: '#8a8a8a', emoji: '⛏️', stack: 1, durability: 130 },
       iron_pickaxe: { name: '鉄のツルハシ', kind: 'pickaxe', tier: 3, color: '#d8d8d8', emoji: '⛏️', stack: 1, durability: 260 },
+      diamond_pickaxe: { name: 'ダイヤのツルハシ', kind: 'pickaxe', tier: 4, color: '#44eedd', emoji: '⛏️', stack: 1, durability: 900 },
       wood_sword: { name: '木の剣', kind: 'sword', damage: 5, color: '#a07449', emoji: '🗡️', stack: 1, durability: 60 },
       stone_sword: { name: '石の剣', kind: 'sword', damage: 7, color: '#8a8a8a', emoji: '🗡️', stack: 1, durability: 130 },
       iron_sword: { name: '鉄の剣', kind: 'sword', damage: 10, color: '#d8d8d8', emoji: '🗡️', stack: 1, durability: 260 },
@@ -4875,7 +4909,7 @@
       ITEMS[`${c.key}_block`] = { name: `${c.name}のブロック`, kind: 'block', block: c.block, color: c.color, emoji: c.emoji };
       ITEMS[`${c.key}_dye`] = { name: `${c.name}の染料`, kind: 'material', color: c.color, emoji: c.dye };
     });
-    const PICKAXE_NAMES = { 1: '木のツルハシ', 2: '石のツルハシ', 3: '鉄のツルハシ' };
+    const PICKAXE_NAMES = { 1: '木のツルハシ', 2: '石のツルハシ', 3: '鉄のツルハシ', 4: 'ダイヤのツルハシ' };
 
     const maxStack = id => ITEMS[id].stack || MAX_STACK;
     const usableSlots = () => HOTBAR_SIZE + bagSize;
@@ -5063,6 +5097,7 @@
       shaped('stone_pickaxe', 1, ['SSS', '.K.', '.K.'], { S: 'stone', K: 'stick' }),
       shaped('stone_sword', 1, ['S', 'S', 'K'], { S: 'stone', K: 'stick' }),
       shaped('iron_pickaxe', 1, ['III', '.K.', '.K.'], { I: 'iron', K: 'stick' }),
+      shaped('diamond_pickaxe', 1, ['DDD', '.K.', '.K.'], { D: 'diamond', K: 'stick' }),
       shaped('iron_sword', 1, ['I', 'I', 'K'], { I: 'iron', K: 'stick' }),
       shaped('diamond_sword', 1, ['D', 'D', 'K'], { D: 'diamond', K: 'stick' }),
       shaped('iron_armor', 1, ['I.I', 'IXI', 'III'], { I: 'iron', X: 'string' }),
