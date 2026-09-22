@@ -713,7 +713,7 @@
         🏠 <b>くらし</b>: チェストにしまう、かまどで焼く、ベッドで夜を飛ばす、畑で小麦を育てる、弓矢や盾で戦う、TNT で爆破…いろいろ作ってみよう！
       </div>
       <div class="mob-info">
-        ⛏️ <b>地下探検</b>: ワールドは161×161ブロックの広さ。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。<br>
+        ⛏️ <b>地下探検</b>: ワールドは321×321ブロックの広さ（前からあるワールドは161×161のまま）。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。<br>
         🌍 <b>いろいろな地形</b>: 草原・森・砂漠（サボテンに注意）・雪原・山と湖。砂漠にはハスク、雪原にはストレイが出ます。<br>
         🗿 <b>ボス</b>: 地下深くのダンジョンに <b>3体のボス</b>がいます。まずは 🗿 ゴーレム。倒すと 🔥 マグマゴーレム、💀 やみのゴーレムが別の場所で目を覚まし、その部屋がマップに出ます（奥のボスほど深くて強い）。地面をたたく衝撃波はジャンプでよけ、背中の光るコアをねらおう。倒すと部屋の宝箱が開きます。<br>
         🕸️ <b>糸</b>はクモを倒すか、洞窟のクモの巣を掘ると手に入ります。
@@ -724,7 +724,7 @@
       <button class="btn-sub" id="save-btn">💾 セーブ</button>
       <button class="btn-sub" id="new-world-btn">🆕 新しいワールド</button>
     </div>
-    <div id="save-status"></div>
+    <div id="save-status">🌍 ワールドを作っています…（少し時間がかかります）</div>
   </div>
 
   <!-- 持ち物・クラフト画面（E キー / 作業台・チェスト・かまどを右クリック） -->
@@ -1906,15 +1906,24 @@
     });
 
     /* --- World Data (ブロックの情報) --- */
-    const WORLD_SIZE = 160;           // 161×161 ブロック
+    const SAVE_KEY = 'minecraft3d-save';
+    const SAVE_VERSION = 5; // 地形生成を変えたら上げる（古いセーブは読み込まない）
+    const savedGame = loadSave();
+    // ワールドの広さ。新しいワールドは 321×321。
+    // 前からあるセーブは作ったときの広さのまま（広さが変わると木や洞窟の場所が全部ずれるので）。
+    // worldSize が無いセーブは、161×161 だったころのもの
+    const NEW_WORLD_SIZE = 320;
+    const WORLD_SIZE = savedGame ? savedGame.worldSize || 160 : NEW_WORLD_SIZE;
     const HALF_SIZE = WORLD_SIZE / 2;
+    // 161×161 を 1 としたときの広さ。洞窟や建物の数はこれに合わせて増やす
+    const WORLD_SCALE = WORLD_SIZE / 160;
+    const WORLD_AREA = WORLD_SCALE * WORLD_SCALE;
+    const scaled = n => Math.round(n * WORLD_AREA);
     const BEDROCK_Y = -40;            // 最下層（岩盤）の高さ
     const MAX_Y = 40;                 // これより上には置けない
     const SIZE_X = WORLD_SIZE + 1;
     const SIZE_Y = MAX_Y - BEDROCK_Y + 1;
     const SIZE_Z = WORLD_SIZE + 1;
-    const SAVE_KEY = 'minecraft3d-save';
-    const SAVE_VERSION = 5; // 地形生成を変えたら上げる（古いセーブは読み込まない）
 
     // 全ブロックを1本の数字の列に入れる（0 は空気）
     const world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
@@ -2100,10 +2109,25 @@
       if (chunk.glassMesh) terrainGroup.add(chunk.glassMesh);
       if (chunk.waterMesh) terrainGroup.add(chunk.waterMesh);
       if (chunk.lavaMesh) terrainGroup.add(chunk.lavaMesh);
+      chunk.built = true;
       chunk.dirty = false;
     }
 
-    function buildAllChunks() {
+    // 遠くなったチャンクのメッシュを片づける（ワールドが広いので、全部持っているとメモリが足りなくなる）
+    function releaseChunk(chunk) {
+      for (const key of ['opaqueMesh', 'glassMesh', 'waterMesh', 'lavaMesh']) {
+        if (chunk[key]) {
+          terrainGroup.remove(chunk[key]);
+          chunk[key].geometry.dispose();
+          chunk[key] = null;
+        }
+      }
+      chunk.built = false;
+      chunk.dirty = false;
+    }
+
+    // チャンクの入れ物だけ先に全部作る。中身（メッシュ）は近づいたときに作る（updateChunks）
+    function createChunks() {
       for (let cx = 0; cx < CHUNKS_PER_SIDE; cx++) {
         for (let cz = 0; cz < CHUNKS_PER_SIDE; cz++) {
           const chunk = {
@@ -2115,10 +2139,10 @@
             glassMesh: null,
             waterMesh: null,
             lavaMesh: null,
+            built: false,
             dirty: false
           };
           chunks.push(chunk);
-          buildChunk(chunk);
         }
       }
     }
@@ -2133,19 +2157,41 @@
       }
     }
 
+    // 見える距離に入ったチャンクを作り、変わったチャンクを作り直し、ずっと遠くなったチャンクは片づける。
+    // 1フレームに作るのは近い順に数個だけ（まとめて作るとカクッと止まる）。最初の1回だけは近くを全部作る
+    const CHUNK_BUILD_DISTANCE = VIEW_DISTANCE + 12;
+    const CHUNK_RELEASE_DISTANCE = VIEW_DISTANCE + 40; // 行ったり来たりで作り直し続けないように、少し余裕をもたせる
+    let firstChunkPass = true;
+
     function updateChunks() {
-      let rebuilt = 0;
+      const todo = [];
       for (const chunk of chunks) {
-        if (chunk.dirty && rebuilt < 4) {
-          buildChunk(chunk);
-          rebuilt++;
+        const d = Math.hypot(chunk.centerX - camera.position.x, chunk.centerZ - camera.position.z);
+        if (chunk.built && d > CHUNK_RELEASE_DISTANCE) {
+          releaseChunk(chunk);
+          continue;
         }
-        const far = Math.hypot(chunk.centerX - camera.position.x, chunk.centerZ - camera.position.z) > VIEW_DISTANCE;
+        if ((!chunk.built && d <= CHUNK_BUILD_DISTANCE) || (chunk.built && chunk.dirty)) todo.push({ chunk, d });
+        const far = d > VIEW_DISTANCE;
         if (chunk.opaqueMesh) chunk.opaqueMesh.visible = !far;
         if (chunk.glassMesh) chunk.glassMesh.visible = !far;
         if (chunk.waterMesh) chunk.waterMesh.visible = !far;
         if (chunk.lavaMesh) chunk.lavaMesh.visible = !far;
       }
+      // 松明は1本ずつ別に描いているので、遠くのものは描かない（広いワールドでは数が多い）
+      for (const group of torchGroup.children) {
+        group.visible = Math.hypot(group.position.x - camera.position.x, group.position.z - camera.position.z) <= VIEW_DISTANCE;
+      }
+      todo.sort((a, b) => a.d - b.d);
+      // すぐ近くが空っぽのとき（最初・復活・ベッドにもどったとき）は、待たずに作る
+      const urgent = todo.filter(t => !t.chunk.built && t.d < 40).length;
+      const limit = firstChunkPass ? Infinity : Math.max(3, urgent);
+      firstChunkPass = false;
+      todo.slice(0, limit).forEach(({ chunk, d }) => {
+        buildChunk(chunk);
+        const far = d > VIEW_DISTANCE;
+        for (const key of ['opaqueMesh', 'glassMesh', 'waterMesh', 'lavaMesh']) if (chunk[key]) chunk[key].visible = !far;
+      });
     }
 
     /* --- Torches (松明) --- */
@@ -2432,11 +2478,11 @@
 
     function generateCaves() {
       // 地下を走るトンネル（ワールドが広いので本数も多い）
-      for (let i = 0; i < 110; i++) {
+      for (let i = 0; i < scaled(110); i++) {
         carveWorm(worldRandInt(-HALF_SIZE + 2, HALF_SIZE - 2), worldRandInt(BEDROCK_Y + 4, -8), worldRandInt(-HALF_SIZE + 2, HALF_SIZE - 2), worldRandInt(40, 80), false);
       }
       // 地表から入れる洞窟の入口
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < scaled(20); i++) {
         let x, z;
         do {
           x = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
@@ -2650,7 +2696,7 @@
 
     // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
     function placeLava() {
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < scaled(12); i++) {
         const cx = worldRandInt(-HALF_SIZE + 10, HALF_SIZE - 10);
         const cz = worldRandInt(-HALF_SIZE + 10, HALF_SIZE - 10);
         const cy = worldRandInt(BEDROCK_Y + 1, BEDROCK_Y + 6);
@@ -2670,7 +2716,7 @@
       }
       // 洞窟の中の小さな溶岩だまり
       let placed = 0;
-      for (let attempt = 0; attempt < 30000 && placed < 60; attempt++) {
+      for (let attempt = 0; attempt < scaled(30000) && placed < scaled(60); attempt++) {
         const x = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
         const z = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
         const y = worldRandInt(BEDROCK_Y + 4, -20);
@@ -2690,7 +2736,7 @@
     // 洞窟の天井にクモの巣（掘ると糸が手に入る）
     function placeCobwebs() {
       let placed = 0;
-      for (let attempt = 0; attempt < 40000 && placed < 260; attempt++) {
+      for (let attempt = 0; attempt < scaled(40000) && placed < scaled(260); attempt++) {
         const x = worldRandInt(-HALF_SIZE + 1, HALF_SIZE - 1);
         const z = worldRandInt(-HALF_SIZE + 1, HALF_SIZE - 1);
         const y = worldRandInt(BEDROCK_Y + 2, -6);
@@ -2755,7 +2801,8 @@
       const tier = BOSS_TIERS[dungeon.tier];
       // スタート地点から離れた、地下深くに作る（奥のボスほど遠い）
       const angle = baseAngle + (dungeon.tier * Math.PI * 2) / DUNGEONS.length + (worldRandom() - 0.5) * 0.7;
-      const distance = tier.minDistance + worldRandom() * 14;
+      // 広いワールドでは遠くに置く（ただし広さほどは遠くしない。161×161 のときは今までどおり）
+      const distance = (tier.minDistance + worldRandom() * 14) * (1 + (WORLD_SCALE - 1) * 0.6);
       const cx = Math.round(THREE.MathUtils.clamp(Math.cos(angle) * distance, -HALF_SIZE + 12, HALF_SIZE - 12));
       const cz = Math.round(THREE.MathUtils.clamp(Math.sin(angle) * distance, -HALF_SIZE + 12, HALF_SIZE - 12));
       const { floorY: fy, half: h, height } = dungeon;
@@ -3054,7 +3101,7 @@
     }
 
     function generateStructures() {
-      for (let attempt = 0; attempt < 1200 && structuresPlaced.length < 12; attempt++) {
+      for (let attempt = 0; attempt < scaled(1200) && structuresPlaced.length < scaled(12); attempt++) {
         const cx = worldRandInt(-HALF_SIZE + 12, HALF_SIZE - 12);
         const cz = worldRandInt(-HALF_SIZE + 12, HALF_SIZE - 12);
         if (Math.hypot(cx, cz) < 22) continue;                       // スタート地点のまわりは空けておく
@@ -3065,7 +3112,7 @@
         if (!list) continue;
         const type = list[worldRandInt(0, list.length - 1)];
         // 同じ建物ばかりにならないように、1種類 3 つまで
-        if (structuresPlaced.filter(st => st.name === type.name).length >= 3) continue;
+        if (structuresPlaced.filter(st => st.name === type.name).length >= scaled(3)) continue;
         if (!flatEnough(cx, cz, type.half)) continue;
         const floorY = surfaceHeight(cx, cz);
         type.build(cx, floorY, cz);
@@ -3313,7 +3360,7 @@
     function generateUnderground() {
       UNDERGROUND_PLAN.forEach(plan => {
         let built = 0;
-        for (let attempt = 0; attempt < 300 && built < plan.count; attempt++) {
+        for (let attempt = 0; attempt < scaled(300) && built < scaled(plan.count); attempt++) {
           const cx = worldRandInt(-HALF_SIZE + 8, HALF_SIZE - 8);
           const cz = worldRandInt(-HALF_SIZE + 8, HALF_SIZE - 8);
           const fy = worldRandInt(plan.depth[0], plan.depth[1]);
@@ -3334,12 +3381,11 @@
     }
 
     /* --- Build the World (ワールドを作る) --- */
-    const savedGame = loadSave();
     worldSeed = savedGame ? savedGame.seed : Math.floor(Math.random() * 2 ** 31);
     worldRngState = worldSeed;
     generateWorld();
     if (savedGame) applyBlockChanges(savedGame.changes);
-    buildAllChunks();
+    createChunks();
 
     /* --- Particle System (Explosions & Hits) --- */
     const particles = [];
@@ -7060,6 +7106,7 @@
     let lastAutoSave = performance.now();
     const saveToast = document.getElementById('save-toast');
     const saveStatus = document.getElementById('save-status');
+    saveStatus.textContent = ''; // 「ワールドを作っています…」を消す（セーブから再開するときは下で書きかえる）
 
     function loadSave() {
       try {
@@ -7082,6 +7129,7 @@
       const data = {
         version: SAVE_VERSION,
         seed: worldSeed,
+        worldSize: WORLD_SIZE,
         changes: Object.fromEntries(blockChanges),
         player: {
           position: camera.position.toArray(),
