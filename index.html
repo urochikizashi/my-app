@@ -1285,6 +1285,47 @@
       ctx.fillRect(10, 5, 2, 3);
       ctx.fillRect(7, 11, 2, 1);
     });
+    textures.batFace = createPixelTexture(ctx => {
+      ctx.fillStyle = '#4a3a55';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#ff5a5a';
+      ctx.fillRect(4, 6, 2, 2);
+      ctx.fillRect(10, 6, 2, 2);
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(6, 10, 1, 2); // きば
+      ctx.fillRect(9, 10, 1, 2);
+    });
+    textures.witchFace = createPixelTexture(ctx => {
+      ctx.fillStyle = '#9a8a70';
+      ctx.fillRect(0, 0, 16, 16);
+      for (let i = 0; i < 30; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#8a7a62' : '#a89880';
+        ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+      }
+      ctx.fillStyle = '#1a1a2a';
+      ctx.fillRect(3, 6, 3, 2);
+      ctx.fillRect(10, 6, 3, 2);
+      ctx.fillStyle = '#5a7a3a';
+      ctx.fillRect(7, 8, 2, 3); // 大きな鼻
+      ctx.fillStyle = '#3a2a2a';
+      ctx.fillRect(5, 12, 6, 1); // 口
+      ctx.fillStyle = '#2a4a2a';
+      ctx.fillRect(9, 11, 1, 1); // いぼ
+    });
+    textures.guardianFace = createPixelTexture(ctx => {
+      ctx.fillStyle = '#8a7f6a';
+      ctx.fillRect(0, 0, 16, 16);
+      for (let i = 0; i < 40; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#7a6f5c' : '#9a8f7a';
+        ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+      }
+      ctx.fillStyle = '#6ae0ff'; // 光る目
+      ctx.fillRect(3, 6, 3, 3);
+      ctx.fillRect(10, 6, 3, 3);
+      ctx.fillStyle = '#45705f';
+      ctx.fillRect(4, 12, 8, 1); // 石の口もと
+      ctx.fillRect(7, 2, 2, 3);  // ひたいの模様
+    });
 
     // 地形のバリエーション（砂漠・雪原・森・湖）とダンジョン用
     function speckle(ctx, base, colors, count) {
@@ -3435,6 +3476,8 @@
       regenCooldown: 0, // ダメージ後、自然回復が始まるまでの秒数
       regenTimer: 0,
       slowTimer: 0, // ストレイの矢に当たると少しのあいだ遅くなる
+      poisonTimer: 0, // ウィッチの毒。残っているあいだ 1.5秒ごとにダメージ
+      poisonTick: 0,
       fallFrom: 0, // 落ち始めたときの足の高さ（落下ダメージの計算に使う）
       air: 10,     // 水の中でいきが続く秒数
       maxAir: 10,
@@ -3785,6 +3828,66 @@
       return { group, head, legs };
     }
 
+    // コウモリ: 小さな体と、はばたく羽。地下をふわふわ飛ぶだけで、おそってこない
+    function buildBat() {
+      const group = new THREE.Group();
+      const furMat = new THREE.MeshLambertMaterial({ color: 0x4a3a55 });
+      addBox(group, [0.3, 0.3, 0.25], furMat, [0, 0.25, 0]);
+      const head = addBox(group, [0.26, 0.24, 0.24], faceMaterials({ color: 0x4a3a55 }, textures.batFace), [0, 0.42, 0.1]);
+      addBox(group, [0.07, 0.14, 0.05], furMat, [-0.08, 0.56, 0.08]); // 耳
+      addBox(group, [0.07, 0.14, 0.05], furMat, [0.08, 0.56, 0.08]);
+      const wingMat = new THREE.MeshLambertMaterial({ color: 0x3a2d44, side: THREE.DoubleSide });
+      // 羽は legs として返す。はばたきは bat の AI で rotation.z を動かしている
+      const wingL = addBox(group, [0.45, 0.02, 0.3], wingMat, [-0.34, 0.3, 0]);
+      const wingR = addBox(group, [0.45, 0.02, 0.3], wingMat, [0.34, 0.3, 0]);
+      return { group, head, legs: [], wings: [wingL, wingR] };
+    }
+
+    // ウィッチ: とんがり帽子のおばあさん。遠くから毒のビンを投げてくる
+    function buildWitch() {
+      const group = new THREE.Group();
+      const robeMat = new THREE.MeshLambertMaterial({ color: 0x4a3a6a });
+      const skinMat = new THREE.MeshLambertMaterial({ color: 0x9a8a70 });
+      const head = addBox(group, [0.5, 0.5, 0.5], faceMaterials({ color: 0x9a8a70 }, textures.witchFace), [0, 1.55, 0]);
+      addBox(group, [0.5, 0.7, 0.3], robeMat, [0, 0.98, 0]);
+      addBox(group, [0.56, 0.35, 0.36], robeMat, [0, 0.45, 0]); // すそ
+      const armL = addBox(group, [0.16, 0.5, 0.16], skinMat, [-0.33, 1.1, 0.2]);
+      const armR = addBox(group, [0.16, 0.5, 0.16], skinMat, [0.33, 1.1, 0.2]);
+      armL.rotation.x = Math.PI / 2;
+      armR.rotation.x = Math.PI / 2;
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x33284a });
+      const legL = addBox(group, [0.18, 0.4, 0.2], legMat, [-0.12, 0.2, 0]);
+      const legR = addBox(group, [0.18, 0.4, 0.2], legMat, [0.12, 0.2, 0]);
+      // とんがり帽子（3段でとがらせる）
+      const hatMat = new THREE.MeshLambertMaterial({ color: 0x2a2038 });
+      addBox(group, [0.75, 0.06, 0.75], hatMat, [0, 1.83, 0]);
+      addBox(group, [0.45, 0.22, 0.45], hatMat, [0, 1.96, 0]);
+      addBox(group, [0.26, 0.22, 0.26], hatMat, [0.03, 2.15, 0]);
+      addBox(group, [0.12, 0.2, 0.12], hatMat, [0.07, 2.33, 0]);
+      // 手に持った緑のビン（光る）
+      const flask = addBox(group, [0.16, 0.2, 0.16], new THREE.MeshBasicMaterial({ color: 0x8aff5a }), [0.33, 1.1, 0.5]);
+      flask.userData.noTint = true;
+      return { group, head, legs: [legL, legR] };
+    }
+
+    // 遺跡の番人: 古代遺跡の宝を守っている石の戦士。かたくて強いが、動きはおそい
+    function buildGuardian() {
+      const group = new THREE.Group();
+      const stoneMat = new THREE.MeshLambertMaterial({ color: 0x8a7f6a });
+      const darkMat = new THREE.MeshLambertMaterial({ color: 0x6a6052 });
+      addBox(group, [0.85, 0.95, 0.5], stoneMat, [0, 1.25, 0]);
+      const head = addBox(group, [0.55, 0.55, 0.55], faceMaterials({ color: 0x8a7f6a }, textures.guardianFace), [0, 2.05, 0]);
+      const armL = addBox(group, [0.26, 0.9, 0.26], stoneMat, [-0.55, 1.3, 0]);
+      const armR = addBox(group, [0.26, 0.9, 0.26], stoneMat, [0.55, 1.3, 0]);
+      const legL = addBox(group, [0.28, 0.8, 0.3], darkMat, [-0.2, 0.4, 0]);
+      const legR = addBox(group, [0.28, 0.8, 0.3], darkMat, [0.2, 0.4, 0]);
+      addBox(group, [0.9, 0.12, 0.56], darkMat, [0, 1.72, 0]); // 肩のかざり
+      // 胸の古代の石（光る）
+      const gem = addBox(group, [0.24, 0.24, 0.1], new THREE.MeshBasicMaterial({ color: 0x6ae0ff }), [0, 1.35, 0.28]);
+      gem.userData.noTint = true;
+      return { group, head, legs: [legL, legR], arms: [armL, armR] };
+    }
+
     const MOB_DEFS = {
       zombie: { name: 'ゾンビ', ai: 'melee', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
       husk: { name: 'ハスク', ai: 'melee', health: 22, speed: 2.5, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', noBurn: true, build: buildHusk },
@@ -3793,6 +3896,10 @@
       skeleton: { name: 'スケルトン', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, build: buildSkeleton },
       stray: { name: 'ストレイ', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, slowArrows: true, build: buildStray },
       slime: { name: 'スライム', ai: 'slime', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, drop: 'slimeball', build: buildSlime },
+      // ウィッチは毒のビンを投げる。コウモリはおそってこない（passive なので敵の数に入らない）
+      witch: { name: 'ウィッチ', ai: 'witch', health: 26, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, noBurn: true, drop: 'gunpowder', dropCount: [1, 2], build: buildWitch },
+      guardian: { name: '遺跡の番人', ai: 'melee', ignoresTorch: true, health: 34, speed: 1.7, radius: 0.4, height: 2.3, sight: 16, damage: 5, noBurn: true, drop: 'gold', dropCount: [1, 3], build: buildGuardian },
+      bat: { name: 'コウモリ', emoji: '🦇', ai: 'bat', passive: true, flying: true, noBurn: true, health: 6, speed: 3.4, radius: 0.22, height: 0.5, sight: 10, build: buildBat },
       golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem },
       magma_golem: { name: 'マグマゴーレム', ai: 'boss', health: 450, speed: 2.0, radius: 0.85, height: 3.5, sight: 34, damage: 11, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.magma) },
       shadow_golem: { name: 'やみのゴーレム', ai: 'boss', health: 650, speed: 2.2, radius: 0.9, height: 3.6, sight: 38, damage: 14, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.shadow) },
@@ -3838,7 +3945,9 @@
         wanderMoving: false,
         fleeTimer: 0,
         loveTimer: 0,  // 小麦をあげたあと、子どもが生まれるまで
-        growTimer: 0   // 子どもが大きくなるまでの秒数
+        growTimer: 0,  // 子どもが大きくなるまでの秒数
+        flapTimer: Math.random() * 6, // コウモリの羽ばたき
+        flyTargetY: 0  // コウモリが目指している高さ
       };
       mobs.push(mob);
       return mob;
@@ -3933,8 +4042,8 @@
     let currentDepth = 0; // プレイヤーの今の深さ（updateAtmosphere で更新）
 
     // 出てくる敵の種類と出やすさ
-    const SURFACE_MOBS = [['zombie', 30], ['creeper', 20], ['spider', 35], ['skeleton', 15]];
-    const UNDERGROUND_MOBS = [['zombie', 20], ['creeper', 15], ['spider', 25], ['skeleton', 20], ['slime', 20]];
+    const SURFACE_MOBS = [['zombie', 30], ['creeper', 20], ['spider', 35], ['skeleton', 15], ['witch', 8]];
+    const UNDERGROUND_MOBS = [['zombie', 20], ['creeper', 15], ['spider', 25], ['skeleton', 20], ['slime', 20], ['witch', 10]];
     // 地形によって入れかわる敵（砂漠のゾンビはハスク、雪原のスケルトンはストレイ）
     const BIOME_VARIANTS = { desert: { zombie: 'husk' }, snow: { skeleton: 'stray' } };
 
@@ -3962,7 +4071,9 @@
       animalSpawnTimer -= delta;
       if (animalSpawnTimer > 0) return;
       animalSpawnTimer = 4 + Math.random() * 4;
-      if (countMobs(true) >= ANIMAL_LIMIT || currentDepth >= 5) return;
+      // コウモリは passive だが動物ではないので、動物の数には入れない
+      const animalCount = mobs.reduce((n, m) => n + (m.def.passive && m.type !== 'bat' ? 1 : 0), 0);
+      if (animalCount >= ANIMAL_LIMIT || currentDepth >= 5) return;
       for (let attempt = 0; attempt < 12; attempt++) {
         const angle = Math.random() * Math.PI * 2;
         const r = 12 + Math.random() * 16;
@@ -3993,7 +4104,8 @@
     function spawnMobAt(type, x, y, z) {
       const def = MOB_DEFS[type];
       if (collidesBox(x, y, z, def.radius, def.height)) return null;
-      if (!def.passive && isNearTorch(x, y, z, 8)) return null; // 松明のそばには敵は出ない（動物は出る）
+      // 松明のそばには敵は出ない（動物と、遺跡を守る番人は出る）
+      if (!def.passive && !def.ignoresTorch && isNearTorch(x, y, z, 8)) return null;
       // 液体の中には出さない（溶岩の上で立ち往生しないように）
       if (FLUIDS[getBlock(Math.round(x), Math.round(y + 0.5), Math.round(z))]) return null;
       const mob = createMob(type, x, y, z);
@@ -4037,8 +4149,74 @@
       return false;
     }
 
+    // コウモリ: 地下だけ。敵の数には入れず、別枠で少しだけ出す
+    const BAT_LIMIT = 4;
+    let batSpawnTimer = 6;
+
+    function updateBatSpawning(delta) {
+      batSpawnTimer -= delta;
+      if (batSpawnTimer > 0) return;
+      batSpawnTimer = 6 + Math.random() * 6;
+      if (currentDepth < 5) return;
+      if (mobs.reduce((n, m) => n + (m.type === 'bat' ? 1 : 0), 0) >= BAT_LIMIT) return;
+      const px = camera.position.x;
+      const pz = camera.position.z;
+      const feetCell = Math.floor(camera.position.y - player.eye + 0.5);
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const x = Math.round(px + rand(-12, 12));
+        const z = Math.round(pz + rand(-12, 12));
+        if (!isInsideWorld(x, z) || Math.hypot(x - px, z - pz) < 5) continue;
+        for (let y = feetCell + 5; y >= feetCell - 6; y--) {
+          // 床の上に、2マス以上の空間があるところ（洞窟の天井近くを飛ばせる）
+          if (isSolid(x, y - 1, z) && !isSolid(x, y, z) && !isSolid(x, y + 1, z)) {
+            if (spawnMobAt('bat', x, y + 0.6, z)) return;
+            break;
+          }
+        }
+      }
+    }
+
+    // 遺跡の番人: 古代遺跡の中に入っているあいだだけ、1か所につき2体まで
+    const GUARDIANS_PER_SITE = 2;
+    let guardianSpawnTimer = 2;
+
+    function updateGuardianSpawning(delta) {
+      guardianSpawnTimer -= delta;
+      if (guardianSpawnTimer > 0) return;
+      guardianSpawnTimer = 3 + Math.random() * 3;
+      const px = camera.position.x;
+      const pz = camera.position.z;
+      const feetY = camera.position.y - player.eye;
+      undergroundSites.forEach(site => {
+        if (site.kind !== 'ruins') return;
+        const inside = site.boxes.some(b => px >= b.x0 - 5 && px <= b.x1 + 5 && pz >= b.z0 - 5 && pz <= b.z1 + 5 &&
+          feetY >= b.y0 - 3 && feetY <= b.y1 + 3);
+        if (!inside) return;
+        if (mobs.reduce((n, m) => n + (m.site === site ? 1 : 0), 0) >= GUARDIANS_PER_SITE) return;
+        const feetCell = Math.floor(feetY + 0.5);
+        for (let attempt = 0; attempt < 16; attempt++) {
+          const x = Math.round(px + rand(-9, 9));
+          const z = Math.round(pz + rand(-9, 9));
+          if (!isInsideWorld(x, z) || Math.hypot(x - px, z - pz) < 4) continue;
+          for (let y = feetCell + 3; y >= feetCell - 4; y--) {
+            if (isSolid(x, y - 1, z) && !isSolid(x, y, z) && !isSolid(x, y + 1, z) && !isSolid(x, y + 2, z)) {
+              const mob = spawnMobAt('guardian', x, y - 0.5, z);
+              if (mob) {
+                mob.site = site;
+                showToast('🗿 遺跡の番人が目を覚ました！');
+                return;
+              }
+              break;
+            }
+          }
+        }
+      });
+    }
+
     function updateSpawning(delta) {
       updateAnimalSpawning(delta);
+      updateBatSpawning(delta);
+      updateGuardianSpawning(delta);
       while (countMobs(false) + pendingSpawns.length < desiredMobCount()) {
         pendingSpawns.push(5 + Math.random() * 7); // 5〜12秒後に出現
       }
@@ -4095,7 +4273,9 @@
       // ブロックに埋まっていたら（上にブロックを置かれた等）上に押し出す
       if (collidesBox(p.x, p.y, p.z, r, h)) p.y = Math.floor(p.y + 0.5) + 0.5 + 1;
 
-      v.y -= MOB_GRAVITY * delta;
+      // コウモリは空を飛ぶ。重力を受けず、自分で上下する（下の moveY）
+      if (mob.def.flying) v.y *= Math.max(0, 1 - 5 * delta); // ノックバックだけ残して、すぐおさまる
+      else v.y -= MOB_GRAVITY * delta;
       let blocked = false;
 
       // 横は X と Z を別々に動かし、ぶつかる方向だけ止める
@@ -4110,7 +4290,7 @@
         else { blocked = true; v.z = 0; }
       }
 
-      const ny = p.y + v.y * delta;
+      const ny = p.y + (v.y + (mob.def.flying ? mob.moveY || 0 : 0)) * delta;
       if (!collidesBox(p.x, ny, p.z, r, h)) {
         p.y = ny;
         mob.onGround = false;
@@ -4123,8 +4303,8 @@
         v.y = 0;
       }
 
-      // 壁に当たったら、地面にいればジャンプ。クモは壁を登る
-      if (blocked) {
+      // 壁に当たったら、地面にいればジャンプ。クモは壁を登る（飛ぶ敵はよけるだけ）
+      if (blocked && !mob.def.flying) {
         if (mob.def.climbs) v.y = Math.max(v.y, 3.5);
         else if (mob.onGround && mob.type !== 'slime') v.y = 7.2;
       }
@@ -4171,6 +4351,41 @@
       playSound('bow');
     }
 
+    // ウィッチの毒のビン。当たった所ではじけて、まわりにいると毒を受ける
+    const potionGeo = new THREE.BoxGeometry(0.22, 0.28, 0.22);
+    const potionMat = new THREE.MeshBasicMaterial({ color: 0x8aff5a });
+    const POTION_SPLASH_RANGE = 3.2;
+    let poisonWarned = false;
+
+    function throwPotion(mob, target) {
+      const p = mob.group.position;
+      const from = new THREE.Vector3(p.x, p.y + 1.2 * mob.baseScale, p.z);
+      const dir = target.clone().sub(from);
+      const distance = dir.length();
+      const speed = 11;
+      const vel = dir.normalize().multiplyScalar(speed);
+      vel.y += 0.5 * ARROW_GRAVITY * (distance / speed) + 1.5; // 山なりに投げる
+      const mesh = new THREE.Mesh(potionGeo, potionMat);
+      mesh.position.copy(from);
+      scene.add(mesh);
+      arrows.push({ mesh, vel, life: 5, damage: 0, slow: false, potion: true });
+      playSound('bow');
+    }
+
+    function splashPotion(pos) {
+      spawnParticles(pos.clone(), 0x8aff5a, 26, 4);
+      const feetY = camera.position.y - player.eye;
+      const playerCenter = new THREE.Vector3(camera.position.x, feetY + 0.9, camera.position.z);
+      if (pos.distanceTo(playerCenter) <= POTION_SPLASH_RANGE) {
+        player.poisonTimer = 6;
+        player.poisonTick = Math.min(player.poisonTick > 0 ? player.poisonTick : 1.5, 1.5);
+        if (!poisonWarned) {
+          poisonWarned = true;
+          showToast('🧪 毒を受けた！ しばらく体力が減り続ける（ミルクはまだ無い…逃げよう）');
+        }
+      }
+    }
+
     function updateArrows(delta) {
       const feetY = camera.position.y - player.eye;
       for (let i = arrows.length - 1; i >= 0; i--) {
@@ -4188,9 +4403,14 @@
             pos.y > feetY && pos.y < feetY + player.bodyHeight;
           blocked = isSolid(pos.x, pos.y, pos.z);
         }
-        a.mesh.lookAt(pos.clone().add(a.vel));
-        if (hitsPlayer) damagePlayer(a.damage, new THREE.Vector3(a.vel.x, 0, a.vel.z).normalize());
-        if (hitsPlayer && a.slow) player.slowTimer = 3; // ストレイの矢は体が冷えて遅くなる
+        if (a.potion) a.mesh.rotation.set(pos.x * 2, pos.y * 2, 0); // くるくる回して飛ぶ
+        else a.mesh.lookAt(pos.clone().add(a.vel));
+        if (a.potion) {
+          if (hitsPlayer || blocked || a.life <= 0) splashPotion(pos);
+        } else {
+          if (hitsPlayer) damagePlayer(a.damage, new THREE.Vector3(a.vel.x, 0, a.vel.z).normalize());
+          if (hitsPlayer && a.slow) player.slowTimer = 3; // ストレイの矢は体が冷えて遅くなる
+        }
         if (hitsPlayer || blocked || a.life <= 0) {
           scene.remove(a.mesh);
           arrows.splice(i, 1);
@@ -4265,6 +4485,16 @@
           child.velocity.set((Math.random() - 0.5) * 4, 4, (Math.random() - 0.5) * 4);
         }
         return;
+      }
+
+      // ウィッチと番人は、たまに良いものを落とす
+      if (mob.type === 'witch' && Math.random() < 0.25) {
+        giveOrDrop('golden_apple', 1);
+        showToast('🍎 ウィッチが金のりんごを落とした！');
+      }
+      if (mob.type === 'guardian' && Math.random() < 0.2) {
+        giveOrDrop('diamond', 1);
+        showToast('💎 番人がダイヤを落とした！');
       }
 
       let drop = mob.def.drop;
@@ -4449,6 +4679,42 @@
             mob.attackCooldown = 1.0;
             damagePlayer(meleeDamage(), toPlayer.clone());
           }
+        } else if (mob.def.ai === 'witch') {
+          // ウィッチ: スケルトンと同じように間合いを取りつつ、毒のビンを投げる
+          if (sees) {
+            if (flatDist > 9) walkToward(1);
+            else if (flatDist < 5) walkToward(-0.8);
+            mob.shootTimer -= delta;
+            const hand = new THREE.Vector3(p.x, p.y + 1.2 * mob.baseScale, p.z);
+            if (mob.shootTimer <= 0 && dist < 14 && hasLineOfSight(hand, playerCenter)) {
+              mob.shootTimer = 3.0 + Math.random();
+              throwPotion(mob, playerCenter);
+            }
+          }
+        } else if (mob.def.ai === 'bat') {
+          // コウモリ: おそってこない。ふわふわ飛び回り、近づかれると逃げる
+          mob.flapTimer += delta * 14;
+          if (mob.wings) {
+            const flap = Math.sin(mob.flapTimer) * 0.9;
+            mob.wings[0].rotation.z = flap;
+            mob.wings[1].rotation.z = -flap;
+          }
+          mob.wanderTimer -= delta;
+          if (mob.wanderTimer <= 0) {
+            mob.wanderTimer = 1.5 + Math.random() * 2.5;
+            mob.wanderAngle = Math.random() * Math.PI * 2;
+            mob.flyTargetY = p.y + rand(-3, 3);
+          }
+          // 近づかれたら反対向きに逃げる
+          const fleeing = flatDist < 5;
+          const angle = fleeing ? Math.atan2(-toPlayer.x, -toPlayer.z) : mob.wanderAngle;
+          mob.moveX = Math.sin(angle) * mob.speed * (fleeing ? 1.3 : 0.7);
+          mob.moveZ = Math.cos(angle) * mob.speed * (fleeing ? 1.3 : 0.7);
+          mob.group.rotation.y = angle;
+          // 天井と床にぶつからない高さを目指す
+          if (isSolid(p.x, p.y + mob.height + 0.4, p.z)) mob.flyTargetY = p.y - 1.5;
+          else if (isSolid(p.x, p.y - 1.2, p.z)) mob.flyTargetY = Math.max(mob.flyTargetY, p.y + 1);
+          mob.moveY = THREE.MathUtils.clamp(mob.flyTargetY - p.y, -1, 1) * 2.0;
         }
 
         if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
@@ -6826,6 +7092,18 @@
       const onLadder = bodyTouches(def => def.climbable);
       if (bodyTouches(def => def.hurts, 0.05)) damagePlayer(1); // サボテンにさわると痛い
       if (player.slowTimer > 0) player.slowTimer -= delta;
+      // 毒: 残っているあいだ、1.5秒ごとにハート半分。体力1では死なない（毒だけでは倒れない）
+      if (player.poisonTimer > 0) {
+        player.poisonTimer -= delta;
+        player.poisonTick -= delta;
+        if (player.poisonTick <= 0) {
+          player.poisonTick = 1.5;
+          if (player.health > 1) damagePlayer(1);
+        }
+        if (Math.random() < delta * 8) {
+          spawnParticles(camera.position.clone().add(new THREE.Vector3(0, -0.5, 0)), 0x8aff5a, 2, 1);
+        }
+      }
       let speedFactor = 1;
       if (inWater) speedFactor *= 0.5;
       if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
@@ -7280,6 +7558,8 @@
         get boss() { return boss; },
         get bossesDefeated() { return bossesDefeated; },
         spawnAnimals: updateAnimalSpawning,
+        spawnBats: updateBatSpawning,
+        spawnGuardians: updateGuardianSpawning,
         spawnMob(type, x, y, z, size = 1) {
           const mob = createMob(type, x, y, z, size);
           applyMobStrength(mob);
