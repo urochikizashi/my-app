@@ -1476,6 +1476,28 @@
       ctx.fillRect(0, 15, 16, 1);
     });
 
+    // 異世界（ネザー）のブロック
+    textures.netherrack = createPixelTexture(ctx => {
+      speckle(ctx, '#6e2b2b', ['#5a2222', '#853434', '#4a1c1c'], 90);
+      ctx.fillStyle = '#3f1616';
+      for (let i = 0; i < 12; i++) ctx.fillRect(rand(0, 14), rand(0, 14), 2, 1);
+    });
+    textures.glowstone = createPixelTexture(ctx => {
+      speckle(ctx, '#f2c14a', ['#ffe08a', '#d89a2a'], 60);
+      ctx.fillStyle = '#fff4c0';
+      [[3, 3], [10, 4], [5, 9], [11, 11], [7, 6]].forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
+    });
+    textures.soulSand = createPixelTexture(ctx => {
+      speckle(ctx, '#5a4436', ['#6b5040', '#48362a'], 70);
+      ctx.fillStyle = '#2e211a'; // うめき顔のくぼみ
+      [[4, 5], [10, 5], [5, 10], [6, 11], [9, 11], [10, 10]].forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
+    });
+    textures.portal = createPixelTexture(ctx => {
+      speckle(ctx, '#7a2ad0', ['#9a4aff', '#5a1aa0', '#c08aff'], 110);
+      ctx.fillStyle = '#d8b0ff';
+      for (let i = 0; i < 10; i++) ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+    });
+
     // ゴーレム・ハスク・ストレイの顔
     textures.golemFace = createPixelTexture(ctx => {
       speckle(ctx, '#b8b8b0', ['#a8a8a0', '#c8c8c0', '#7f9a6a'], 60);
@@ -1683,7 +1705,8 @@
       'colorBlue', 'colorGreen', 'colorWhite', 'colorBlack', 'ladder', 'door', 'doorOpen', 'lamp',
       'tntSide', 'tntTop', 'bedTop', 'bedSide', 'furnaceFront', 'furnaceSide', 'farmland', 'wheat0',
       'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
-      'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner'
+      'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner',
+      'netherrack', 'glowstone', 'soulSand', 'portal'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -1773,7 +1796,12 @@
       56: { name: 'ひびの入った古代のレンガ', tiles: same('ancientCracked'), tier: 1, drop: 'ancient_bricks', map: '#7a8a6a' },
       57: { name: '古代の模様ブロック', tiles: same('ancientGlyph'), tier: 2, drop: 'ancient_glyph', map: '#b0a060' },
       58: { name: '苔の石', tiles: same('mossyStone'), tier: 1, drop: 'mossy_stone', map: '#6a7a5a' },
-      59: { name: '敵の湧くかご', tiles: same('spawner'), tier: 2, spawner: true, seeThrough: true, render: 'glass', map: '#3a2a4a' }
+      59: { name: '敵の湧くかご', tiles: same('spawner'), tier: 2, spawner: true, seeThrough: true, render: 'glass', map: '#3a2a4a' },
+      60: { name: '地獄の石', tiles: same('netherrack'), tier: 0, drop: 'netherrack', map: '#6e2b2b' },
+      61: { name: '光る石', tiles: same('glowstone'), tier: 0, drop: 'glowstone', light: true, map: '#f2c14a' },
+      62: { name: 'たましいの砂', tiles: same('soulSand'), tier: 0, drop: 'soul_sand', soulSand: true, map: '#5a4436' },
+      // ゲートの中身。すり抜けられて、光っていて、掘れない
+      63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
     const DIRT = 2;
@@ -1806,6 +1834,11 @@
     const ANCIENT_GLYPH = 57;
     const MOSSY_STONE = 58;
     const SPAWNER = 59;
+    // 異世界（ネザー）のブロック
+    const NETHERRACK = 60;
+    const GLOWSTONE = 61;
+    const SOUL_SAND = 62;
+    const PORTAL = 63;   // ゲートの中の、むらさきのうずまき
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -1948,7 +1981,9 @@
 
     /* --- World Data (ブロックの情報) --- */
     const SAVE_KEY = 'minecraft3d-save';
-    const SAVE_VERSION = 5; // 地形生成を変えたら上げる（古いセーブは読み込まない）
+    // 版 6 で異世界を足した。版 5 のセーブもそのまま読める（表の世界として引きつぎ、異世界はまだ無いあつかい）
+    const SAVE_VERSION = 6;
+    const READABLE_SAVES = [5, 6];
     const savedGame = loadSave();
     // ワールドの広さ。新しいワールドは 321×321。
     // 前からあるセーブは作ったときの広さのまま（広さが変わると木や洞窟の場所が全部ずれるので）。
@@ -1967,8 +2002,8 @@
     const SIZE_Z = WORLD_SIZE + 1;
 
     // 全ブロックを1本の数字の列に入れる（0 は空気）
-    const world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
-    const blockChanges = new Map(); // "x,y,z" -> ブロック番号（0 は破壊）。生成後に変わったブロック（セーブ用）
+    let world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
+    let blockChanges = new Map(); // "x,y,z" -> ブロック番号（0 は破壊）。生成後に変わったブロック（セーブ用）
     let blockCount = 0;
 
     function blockKey(x, y, z) {
@@ -2238,7 +2273,7 @@
     /* --- Torches (松明) --- */
     const torchGroup = new THREE.Group();
     scene.add(torchGroup);
-    const torchMeshes = new Map(); // "x,y,z" -> Group
+    let torchMeshes = new Map(); // "x,y,z" -> Group
     const torchStickGeo = new THREE.BoxGeometry(0.12, 0.55, 0.12);
     const torchFlameGeo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
     const torchStickMat = new THREE.MeshLambertMaterial({ color: 0x7a5530 });
@@ -2333,8 +2368,8 @@
     // level はいきおい。源からはなれるほど 1 ずつ減り、0 になると止まる。
     // 湖ぜんぶを毎秒計算すると重いので、プレイヤーがさわった所のまわりだけ調べる。
     const FLUID_TICK = 0.25;         // 何秒ごとに1マスずつ進むか
-    const fluidLevels = new Map();   // "x,y,z" -> いきおい
-    const activeFluid = new Set();   // これから調べるセル
+    let fluidLevels = new Map();   // "x,y,z" -> いきおい
+    let activeFluid = new Set();   // これから調べるセル
     let fluidTickTimer = 0;
     let fluidTickCount = 0;
     const FLUID_AROUND = [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]];
@@ -3169,8 +3204,8 @@
       mineshaft: { name: '廃坑', emoji: '⛏️' },
       spawner: { name: '敵の湧くかご', emoji: '👾' }
     };
-    const undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
-    const spawners = [];         // { x, y, z, type, timer }
+    let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
+    let spawners = [];         // { x, y, z, type, timer }
 
     function worldShuffle(list) {
       for (let i = list.length - 1; i > 0; i--) {
@@ -3417,6 +3452,7 @@
 
     // プレイヤーが入っているダンジョンの部屋（どこにも入っていなければ null）
     function dungeonAt(px, feetY, pz) {
+      if (inNether()) return null; // ボスの部屋は表の世界だけ
       return DUNGEONS.find(d => Math.abs(px - d.x) <= d.half && Math.abs(pz - d.z) <= d.half &&
         feetY >= d.floorY - 1 && feetY <= d.floorY + d.height) || null;
     }
@@ -3478,6 +3514,8 @@
       slowTimer: 0, // ストレイの矢に当たると少しのあいだ遅くなる
       poisonTimer: 0, // ウィッチの毒。残っているあいだ 1.5秒ごとにダメージ
       poisonTick: 0,
+      portalTimer: 0,        // ゲートの中にいる秒数（1.2秒で向こうへ）
+      justTeleported: false, // ゲートから出るまで、もう一度飛ばない
       fallFrom: 0, // 落ち始めたときの足の高さ（落下ダメージの計算に使う）
       air: 10,     // 水の中でいきが続く秒数
       maxAir: 10,
@@ -3611,6 +3649,10 @@
     respawnBtn.addEventListener('click', () => {
       player.health = player.maxHealth;
       updateHealthUI();
+      // 異世界で倒れたら、表の世界にもどって復活する
+      if (inNether()) switchDimension(OVERWORLD);
+      player.portalTimer = 0;
+      player.justTeleported = false;
       // ベッドで復活地点を決めていて、ベッドが残っていればそこから
       if (spawnPoint && getBlock(spawnPoint.x, spawnPoint.y - 0.5, spawnPoint.z) === BED) {
         camera.position.set(spawnPoint.x, spawnPoint.y + player.eye, spawnPoint.z);
@@ -4022,8 +4064,8 @@
     function applyMobStrength(mob) {
       if (mob.def.passive) return; // 動物は深さで強くならない
       const p = mob.group.position;
-      const depth = Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
-      const t = Math.min(depth / 40, 1); // 0: 地上 〜 1: 最深部
+      const depth = inNether() ? 24 : Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
+      const t = Math.min(depth / 40, 1); // 0: 地上 〜 1: 最深部（異世界はまん中あたりで固定）
       mob.health = Math.round(mob.health * (1 + t * 2)); // 体力は最大3倍
       mob.power = 1 + t;                                 // 攻撃力は最大2倍
       mob.speed *= 1 + t * 0.4;
@@ -4058,6 +4100,7 @@
 
     // 暗いかどうか（夜、または地面から5m以上もぐった場所）
     function isDarkAt(x, y, z) {
+      if (inNether()) return true; // 異世界に太陽は無い
       return daylight < 0.3 || y < surfaceHeight(Math.round(x), Math.round(z)) - 4;
     }
 
@@ -4096,6 +4139,7 @@
     }
 
     function desiredMobCount() {
+      if (inNether()) return 7;
       if (currentDepth >= 5) return Math.min(8, 3 + Math.floor(currentDepth / 8));
       if (daylight < 0.3) return Math.min(10, 4 + Math.floor(killCount / 4));
       return 0;
@@ -5339,6 +5383,10 @@
         if (def.bed) return useBed(t.x, t.y, t.z);
         if (t.id === CHEST) return openChest(t.x, t.y, t.z);
         if (def.tnt && held && held.id === 'torch') return igniteTnt(t.x, t.y, t.z);
+        if (def.tnt && held && ITEMS[held.id].kind === 'igniter') {
+          wearItem(selectedSlot);
+          return igniteTnt(t.x, t.y, t.z);
+        }
       }
       if (!item) return;
 
@@ -5358,6 +5406,21 @@
         consumeHeldItem();
         playSound('eat');
         showToast(`${item.emoji} ${item.name}を食べた`);
+        return;
+      }
+      // 火打ち石: 黒曜石のわくの中に火をつけると、異世界のゲートが開く
+      if (item.kind === 'igniter') {
+        if (!t) return showToast('🔥 黒曜石のわくの、内がわに向けて使おう');
+        // クリックした面の手前のマスと、そのまわりの空きマスをためす
+        const spots = [[t.x + t.normal[0], t.y + t.normal[1], t.z + t.normal[2]], [t.x, t.y, t.z]];
+        for (const [cx, cy, cz] of spots) {
+          if (getBlock(cx, cy, cz) !== 0) continue;
+          if (tryLightPortal(cx, cy, cz)) {
+            wearItem(selectedSlot);
+            return;
+          }
+        }
+        showToast('🔥 ここにはゲートを開けない（黒曜石のわくを作ってね）');
         return;
       }
       if (item.kind === 'bow') return shootPlayerArrow();
@@ -5539,6 +5602,10 @@
       yellow_flower: { name: '黄色い花', kind: 'block', block: FLOWERS[1], color: '#f4d42c', emoji: '🌼' },
       blue_flower: { name: '青い花', kind: 'block', block: FLOWERS[2], color: '#3c7ce8', emoji: '💠' },
       obsidian: { name: '黒曜石', kind: 'block', block: OBSIDIAN, color: '#2a1a40', emoji: '🟪' },
+      netherrack: { name: '地獄の石', kind: 'block', block: NETHERRACK, color: '#6e2b2b', emoji: '🟥' },
+      glowstone: { name: '光る石', kind: 'block', block: GLOWSTONE, color: '#f2c14a', emoji: '🌟' },
+      soul_sand: { name: 'たましいの砂', kind: 'block', block: SOUL_SAND, color: '#5a4436', emoji: '🟫' },
+      flint_and_steel: { name: '火打ち石', kind: 'igniter', color: '#c8c8c8', emoji: '🔥', stack: 1, durability: 32 },
       ancient_bricks: { name: '古代のレンガ', kind: 'block', block: ANCIENT_BRICKS, color: '#8a9a7a', emoji: '🏛️' },
       ancient_glyph: { name: '古代の模様ブロック', kind: 'block', block: ANCIENT_GLYPH, color: '#b0a060', emoji: '👁️' },
       mossy_stone: { name: '苔の石', kind: 'block', block: MOSSY_STONE, color: '#6a7a5a', emoji: '🪨' },
@@ -5804,6 +5871,7 @@
       shaped('lamp', 1, ['.G.', 'GTG', '.G.'], { G: 'glass', T: 'torch' }),
       shaped('stone_bricks', 4, ['SS', 'SS'], { S: 'stone' }),
       shapeless('brick', 4, ['dirt', 'dirt', 'coal']),
+      shapeless('flint_and_steel', 1, ['iron', ['coal', 'charcoal']]),
       shaped('hoe', 1, ['PP', '.K', '.K'], { P: 'planks', K: 'stick' }),
       shaped('bread', 1, ['WWW'], { W: 'wheat' }),
       shaped('golden_apple', 1, ['.G.', 'GAG', '.G.'], { G: 'gold', A: 'apple' }),
@@ -6373,9 +6441,9 @@
 
     /* --- Chests & Furnaces (チェストとかまど) --- */
     const CHEST_SIZE = 24;
-    const storageChests = new Map(); // "x,y,z" -> 24枠
+    let storageChests = new Map(); // "x,y,z" -> 24枠
     applyStructureLoot(); // 生成した建物のチェストに中身を入れる（セーブがあればこのあと上書きされる）
-    const furnaces = new Map();      // "x,y,z" -> { slots: [焼くもの, 燃料, できたもの], burn: 燃料の残り秒, progress: 焼けた秒 }
+    let furnaces = new Map();      // "x,y,z" -> { slots: [焼くもの, 燃料, できたもの], burn: 燃料の残り秒, progress: 焼けた秒 }
     const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat', raw_meat: 'cooked_meat' };
     const FUEL_SECONDS = { coal: 32, charcoal: 32, wood: 8, planks: 4, stick: 2 }; // 1個焼くのに4秒
     const SMELT_TIME = 4;
@@ -6429,7 +6497,7 @@
     }
 
     /* --- Dropped Items (落ちているアイテム) --- */
-    const droppedItems = [];
+    let droppedItems = [];
     const dropGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
 
     // uses: 道具の残り回数（落とす前の状態を保つ。undefined なら新品あつかい）
@@ -6527,7 +6595,7 @@
     }
 
     /* --- Farming (作物と苗の成長) --- */
-    const growingBlocks = new Set(); // 育っている途中の作物・苗の "x,y,z"
+    let growingBlocks = new Set(); // 育っている途中の作物・苗の "x,y,z"
     let growthTimer = 0;
 
     // 生成したあとでブロックを入れかえる（成長・ドアの開け閉め・畑を耕す）
@@ -6738,6 +6806,7 @@
     });
 
     function useBed(x, y, z) {
+      if (inNether()) return showToast('🛏️ 異世界では、ベッドは使えない');
       spawnPoint = { x, y: y + 0.5, z };
       if (daylight >= 0.3) {
         showToast('🛏️ 復活地点をここにした（夜に使うと朝まで眠れる）');
@@ -6774,10 +6843,392 @@
 
     // 行ったことのある場所だけマップに出す（最初はまっくら）
     const EXPLORE_RADIUS = 24;
-    const explored = new Uint8Array(SIZE_X * SIZE_Z);
+    let explored = new Uint8Array(SIZE_X * SIZE_Z);
     let dungeonsFound = BOSS_TIERS.map(() => false); // 入口を見つけた部屋だけ、マップに印が出る
     let sitesFound = undergroundSites.map(() => false); // 中に入った地下の建物だけ、マップに印が出る
     const isExplored = (x, z) => explored[(z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)] === 1;
+
+    /* --- Dimensions (表の世界と異世界) --- */
+    // ワールドは「大きな箱1つ」でできている。異世界へ行くときは、
+    // 箱と、それにくっついている持ち物（チェストの中身・松明・流れる水など）を
+    // まるごと別のものに差しかえる。行き来しても、それぞれの世界はそのまま残る。
+    const OVERWORLD = 0;
+    const NETHER = 1;
+    const DIMENSION_NAMES = ['表の世界', '異世界'];
+    let currentDim = OVERWORLD;
+    const dimensions = [null, null];
+    // セーブから読んだ異世界の中身。はじめて異世界へ行ったときに入れる
+    // （異世界の地形は、行くまで作らない。行かない人のぶんまで作ると重いので）
+    let pendingNetherSave = null;
+
+    // 今の世界の中身をひとまとめにする／取り出す
+    function captureDimension() {
+      return { world, blockChanges, blockCount, torchMeshes, fluidLevels, activeFluid,
+               storageChests, furnaces, growingBlocks, droppedItems, explored,
+               undergroundSites, sitesFound, spawners, generated: true };
+    }
+
+    function applyDimension(d) {
+      world = d.world;
+      blockChanges = d.blockChanges;
+      blockCount = d.blockCount;
+      torchMeshes = d.torchMeshes;
+      fluidLevels = d.fluidLevels;
+      activeFluid = d.activeFluid;
+      storageChests = d.storageChests;
+      furnaces = d.furnaces;
+      growingBlocks = d.growingBlocks;
+      droppedItems = d.droppedItems;
+      explored = d.explored;
+      undergroundSites = d.undergroundSites;
+      sitesFound = d.sitesFound;
+      spawners = d.spawners;
+    }
+
+    function makeDimension() {
+      return { world: new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z), blockChanges: new Map(), blockCount: 0,
+               torchMeshes: new Map(), fluidLevels: new Map(), activeFluid: new Set(),
+               storageChests: new Map(), furnaces: new Map(), growingBlocks: new Set(),
+               droppedItems: [], explored: new Uint8Array(SIZE_X * SIZE_Z),
+               undergroundSites: [], sitesFound: [], spawners: [], generated: false };
+    }
+
+    // 世界を入れかえる。画面に出ているもの（チャンク・松明・落ちもの・敵・矢）はいったん全部片づけて、
+    // 行き先のものを出しなおす。敵と矢は保存しないので、そのまま消す。
+    function switchDimension(index) {
+      if (index === currentDim) return;
+      dimensions[currentDim] = captureDimension();
+
+      chunks.forEach(releaseChunk);
+      torchGroup.clear();
+      droppedItems.forEach(item => scene.remove(item.mesh));
+      [...mobs].forEach(removeMob);
+      [...arrows].forEach(a => scene.remove(a.mesh));
+      arrows.length = 0;
+      [...playerArrows].forEach(a => scene.remove(a.mesh));
+      playerArrows.length = 0;
+      litTnt.length = 0;
+      boss = null;
+      bossBar.hidden = true;
+
+      const fresh = !dimensions[index];
+      if (fresh) dimensions[index] = makeDimension();
+      applyDimension(dimensions[index]);
+      currentDim = index;
+
+      if (fresh && index === NETHER) {
+        generateNether();
+        if (pendingNetherSave) {
+          // 前に遊んだときの、異世界での変更を入れなおす
+          applyBlockChanges(pendingNetherSave.changes || {});
+          Object.entries(pendingNetherSave.storageChests || {}).forEach(([key, slots]) => {
+            storageChests.set(key, slots.map(item => (item && ITEMS[item.id] ? item : null)));
+          });
+          Object.entries(pendingNetherSave.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
+          Object.entries(pendingNetherSave.fluidLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
+          decodeExplored(pendingNetherSave.explored, explored);
+          pendingNetherSave = null;
+        }
+      }
+
+      torchMeshes.forEach(group => torchGroup.add(group));
+      droppedItems.forEach(item => scene.add(item.mesh));
+      firstChunkPass = true;
+      dirtyMapColumns.clear();
+      buildMapImage();
+      return fresh;
+    }
+
+    const inNether = () => currentDim === NETHER;
+
+    /* --- Nether Generation (異世界の地形) --- */
+    // 表の世界とちがって、上にも岩盤のふたがある「横に広い大洞窟」1枚。
+    // 床と天井のでこぼこをサイン波で決めて、そのあいだを空っぽにする。
+    // いちばん低いところには溶岩の海がたまる。
+    const NETHER_TOP = 14;          // 天井の岩盤
+    const NETHER_LAVA_LEVEL = -26;  // これより下の空きは溶岩になる
+    let netherOffsetX = 0;
+    let netherOffsetZ = 0;
+
+    function netherFloorHeight(x, z) {
+      return Math.floor(-22 +
+        4.5 * Math.sin(x * 0.055 + netherOffsetX) * Math.cos(z * 0.048 + netherOffsetZ) +
+        2.5 * Math.sin(x * 0.13 - z * 0.11) +
+        1.5 * Math.cos(x * 0.23 + z * 0.19));
+    }
+
+    function netherCeilingHeight(x, z) {
+      return Math.ceil(6 +
+        3 * Math.sin(x * 0.06 - netherOffsetZ) * Math.cos(z * 0.052 + netherOffsetX) +
+        2 * Math.cos(x * 0.15 + z * 0.13));
+    }
+
+    function generateNether() {
+      // 表の世界の乱数の順番をこわさないように、状態を借りて返す
+      const savedRng = worldRngState;
+      worldRngState = (worldSeed * 2654435761 + 12345) | 0;
+      netherOffsetX = worldRandom() * 1000;
+      netherOffsetZ = worldRandom() * 1000;
+
+      for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
+        for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) {
+          const floorY = netherFloorHeight(x, z);
+          const ceilY = netherCeilingHeight(x, z);
+          world[cellIndex(x, BEDROCK_Y, z)] = BEDROCK;
+          world[cellIndex(x, NETHER_TOP, z)] = BEDROCK;
+          // 床（地獄の石。ところどころ たましいの砂）
+          const soul = worldRandom() < 0.06;
+          for (let y = BEDROCK_Y + 1; y <= floorY; y++) {
+            world[cellIndex(x, y, z)] = soul && y === floorY ? SOUL_SAND : NETHERRACK;
+          }
+          // 天井
+          for (let y = ceilY; y < NETHER_TOP; y++) world[cellIndex(x, y, z)] = NETHERRACK;
+          // 低いところは溶岩の海
+          for (let y = floorY + 1; y <= NETHER_LAVA_LEVEL && y < ceilY; y++) {
+            world[cellIndex(x, y, z)] = LAVA;
+          }
+        }
+      }
+      blockCount = 0;
+
+      // 天井からぶら下がる光る石のかたまり
+      const glowCount = scaled(90);
+      for (let i = 0; i < glowCount; i++) {
+        const x = worldRandInt(-HALF_SIZE + 4, HALF_SIZE - 4);
+        const z = worldRandInt(-HALF_SIZE + 4, HALF_SIZE - 4);
+        const y = netherCeilingHeight(x, z) - 1;
+        const size = worldRandInt(1, 2);
+        for (let dx = -size; dx <= size; dx++) {
+          for (let dz = -size; dz <= size; dz++) {
+            for (let dy = -size; dy <= 0; dy++) {
+              if (Math.abs(dx) + Math.abs(dz) + Math.abs(dy) > size + 1) continue;
+              const cx = x + dx, cy = y + dy, cz = z + dz;
+              if (!inBounds(cx, cy, cz)) continue;
+              const i2 = cellIndex(cx, cy, cz);
+              if (world[i2] === 0 || world[i2] === NETHERRACK) world[i2] = GLOWSTONE;
+            }
+          }
+        }
+      }
+
+      // 床から生える地獄の石の柱（見通しをじゃまして、洞窟らしくする）
+      const pillarCount = scaled(60);
+      for (let i = 0; i < pillarCount; i++) {
+        const x = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
+        const z = worldRandInt(-HALF_SIZE + 3, HALF_SIZE - 3);
+        const floorY = netherFloorHeight(x, z);
+        const height = worldRandInt(4, 14);
+        const r = worldRandInt(1, 2);
+        for (let dx = -r; dx <= r; dx++) {
+          for (let dz = -r; dz <= r; dz++) {
+            for (let y = floorY + 1; y <= floorY + height; y++) {
+              if (!inBounds(x + dx, y, z + dz)) continue;
+              const i2 = cellIndex(x + dx, y, z + dz);
+              if (world[i2] === 0) world[i2] = NETHERRACK;
+            }
+          }
+        }
+      }
+
+      worldRngState = savedRng;
+    }
+
+    /* --- Portal (異世界のゲート) --- */
+    // 黒曜石で「わく」を作って、火打ち石で中に火をつけると開く。
+    // 中の広さは 横2〜4・たて3〜5 マス。たてに立てる（ドアのように）。
+    const PORTAL_MIN_W = 2, PORTAL_MAX_W = 4;
+    const PORTAL_MIN_H = 3, PORTAL_MAX_H = 5;
+
+    // (x,y,z) の空きマスを中に含む、ちゃんとした黒曜石のわくをさがす。
+    // axis は 'x'（東西にはった面）か 'z'（南北にはった面）
+    function scanPortalFrame(x, y, z, axis) {
+      const dx = axis === 'x' ? 1 : 0;
+      const dz = axis === 'z' ? 1 : 0;
+      const at = (i, j) => getBlock(x + dx * i, y + j, z + dz * i);
+      if (at(0, 0) !== 0) return null;
+
+      let left = 0;
+      while (left > -PORTAL_MAX_W && at(left - 1, 0) === 0) left--;
+      if (at(left - 1, 0) !== OBSIDIAN) return null;
+      let right = 0;
+      while (right < PORTAL_MAX_W && at(right + 1, 0) === 0) right++;
+      if (at(right + 1, 0) !== OBSIDIAN) return null;
+      const width = right - left + 1;
+      if (width < PORTAL_MIN_W || width > PORTAL_MAX_W) return null;
+
+      let bottom = 0;
+      while (bottom > -PORTAL_MAX_H && at(0, bottom - 1) === 0) bottom--;
+      if (at(0, bottom - 1) !== OBSIDIAN) return null;
+      let top = 0;
+      while (top < PORTAL_MAX_H && at(0, top + 1) === 0) top++;
+      if (at(0, top + 1) !== OBSIDIAN) return null;
+      const height = top - bottom + 1;
+      if (height < PORTAL_MIN_H || height > PORTAL_MAX_H) return null;
+
+      // 中が全部空っぽで、まわりがぐるりと黒曜石か
+      const cells = [];
+      for (let i = left; i <= right; i++) {
+        if (at(i, bottom - 1) !== OBSIDIAN || at(i, top + 1) !== OBSIDIAN) return null;
+        for (let j = bottom; j <= top; j++) {
+          if (at(i, j) !== 0) return null;
+          cells.push([x + dx * i, y + j, z + dz * i]);
+        }
+      }
+      for (let j = bottom; j <= top; j++) {
+        if (at(left - 1, j) !== OBSIDIAN || at(right + 1, j) !== OBSIDIAN) return null;
+      }
+      return { cells, axis };
+    }
+
+    function findPortalFrame(x, y, z) {
+      return scanPortalFrame(x, y, z, 'x') || scanPortalFrame(x, y, z, 'z');
+    }
+
+    // 火打ち石で火をつける。ゲートになればそのブロックをうめる
+    function tryLightPortal(x, y, z) {
+      const frame = findPortalFrame(x, y, z);
+      if (!frame) return false;
+      frame.cells.forEach(([cx, cy, cz]) => addBlock(cx, cy, cz, PORTAL));
+      spawnParticles(new THREE.Vector3(x, y + 0.5, z), 0x9a4aff, 30, 4);
+      playSound('ore');
+      showToast('🌀 異世界のゲートが開いた！ 中に入ってみよう');
+      return true;
+    }
+
+    // 今いる世界にあるゲートのうち、(x,z) にいちばん近いもの
+    function findNearestPortal(x, z) {
+      let best = null;
+      let bestDist = Infinity;
+      blockChanges.forEach((id, key) => {
+        if (id !== PORTAL) return;
+        const [bx, by, bz] = key.split(',').map(Number);
+        const d = Math.hypot(bx - x, bz - z);
+        if (d < bestDist) {
+          bestDist = d;
+          best = { x: bx, y: by, z: bz };
+        }
+      });
+      return bestDist <= 96 ? best : null;
+    }
+
+    // 足が着く高さ（そのマスに立てる）をさがす。返すのは「床の上の最初の空きマス」
+    function standCell(x, z) {
+      if (!isInsideWorld(x, z)) return null;
+      if (inNether()) return netherStandY(x, z);
+      const y = Math.round(findGroundY(x, z) + 0.5);
+      if (y > MAX_Y - 4 || y < BEDROCK_Y + 1) return null;
+      if (isSolid(x, y, z) || isSolid(x, y + 1, z) || isSolid(x, y + 2, z)) return null;
+      return y;
+    }
+
+    // 行き先にゲートが無いときは、安全な場所をさがして新しく建てる。
+    // y は「床の上の最初の空きマス」。ゲートの中は y〜y+2、わくはそのまわり
+    function buildPortalAt(x, y, z) {
+      // まわりを片づけて、立てるようにする
+      for (let i = -3; i <= 2; i++) {
+        for (let k = -1; k <= 1; k++) {
+          for (let j = 0; j <= 4; j++) replaceBlock(x + i, y + j, z + k, 0);
+          const below = getBlock(x + i, y - 1, z + k);
+          if (below === 0 || FLUIDS[below]) replaceBlock(x + i, y - 1, z + k, OBSIDIAN); // 溶岩の上に出ないように
+        }
+      }
+      // 黒曜石のわく（中は 横2マス・たて3マス）
+      for (let i = -2; i <= 1; i++) {
+        replaceBlock(x + i, y - 1, z, OBSIDIAN);
+        replaceBlock(x + i, y + 3, z, OBSIDIAN);
+      }
+      for (let j = 0; j <= 2; j++) {
+        replaceBlock(x - 2, y + j, z, OBSIDIAN);
+        replaceBlock(x + 1, y + j, z, OBSIDIAN);
+      }
+      for (let i = -1; i <= 0; i++) {
+        for (let j = 0; j <= 2; j++) addBlock(x + i, y + j, z, PORTAL);
+      }
+      return { x: x - 0.5, y: y - 0.5, z };
+    }
+
+    // 行き先で立つ場所（足の高さ）を決める
+    function portalLandingSpot(x, z) {
+      const nearby = findNearestPortal(x, z);
+      if (nearby) {
+        // ゲートのまわりで、立てるところをさがす
+        for (const [ox, oz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const sx = nearby.x + ox;
+          const sz = nearby.z + oz;
+          for (let dy = 0; dy >= -2; dy--) {
+            const y = nearby.y + dy;
+            if (isSolid(sx, y - 1, sz) && !isSolid(sx, y, sz) && !isSolid(sx, y + 1, sz)) {
+              return { x: sx, y: y - 0.5, z: sz };
+            }
+          }
+        }
+        return { x: nearby.x, y: nearby.y - 0.5, z: nearby.z };
+      }
+      // 無ければ新しく建てる。近いところから外へさがす
+      for (let r = 0; r <= 48; r += 3) {
+        for (let attempt = 0; attempt < (r === 0 ? 1 : 10); attempt++) {
+          const angle = Math.random() * Math.PI * 2;
+          const bx = r === 0 ? x : Math.round(x + Math.cos(angle) * r);
+          const bz = r === 0 ? z : Math.round(z + Math.sin(angle) * r);
+          if (Math.abs(bx) > HALF_SIZE - 5 || Math.abs(bz) > HALF_SIZE - 5) continue;
+          const y = standCell(bx, bz);
+          if (y === null) continue;
+          if (FLUIDS[getBlock(bx, y - 1, bz)]) continue; // 溶岩・水の上はだめ
+          return buildPortalAt(bx, y, bz);
+        }
+      }
+      // どうしても見つからないとき（ほぼ無い）は、まん中に無理やり建てる
+      return buildPortalAt(0, standCell(0, 0) || 0, 0);
+    }
+
+    // ゲートに入ってしばらくすると、向こう側へ移る
+    function travelThroughPortal() {
+      const to = currentDim === OVERWORLD ? NETHER : OVERWORLD;
+      const x = Math.round(camera.position.x);
+      const z = Math.round(camera.position.z);
+      const fresh = switchDimension(to);
+      const spot = portalLandingSpot(x, z);
+      camera.position.set(spot.x, spot.y + player.eye, spot.z);
+      player.velocity.set(0, 0, 0);
+      player.fallFrom = spot.y;
+      player.portalTimer = 0;
+      player.justTeleported = true; // ゲートから出るまで、もう一度飛ばない
+      exploreAround(Math.round(spot.x), Math.round(spot.z));
+      showToast(to === NETHER
+        ? (fresh ? '🔥 異世界に来た！ 溶岩に気をつけて' : '🔥 異世界にもどってきた')
+        : '🌳 表の世界にもどってきた');
+      playSound('ore');
+    }
+
+    // 体がゲートに重なっているあいだ、少しずつたまる
+    function updatePortal(delta) {
+      const feetY = camera.position.y - player.eye;
+      const inside = [0.1, 0.9, 1.6].some(dy =>
+        getBlock(Math.round(camera.position.x), Math.round(feetY + dy), Math.round(camera.position.z)) === PORTAL);
+      if (!inside) {
+        player.portalTimer = 0;
+        player.justTeleported = false;
+        return;
+      }
+      if (player.justTeleported) return; // 出るまで待つ
+      player.portalTimer += delta;
+      if (Math.random() < delta * 12) {
+        spawnParticles(camera.position.clone().add(new THREE.Vector3(0, -0.4, 0)), 0xb070ff, 2, 1);
+      }
+      if (player.portalTimer >= 1.2) travelThroughPortal();
+    }
+
+    // 異世界で、立てる高さをさがす（溶岩とブロックの中はだめ）。見つからなければ null
+    function netherStandY(x, z) {
+      if (!isInsideWorld(x, z)) return null;
+      for (let y = NETHER_TOP - 2; y > BEDROCK_Y; y--) {
+        const below = getBlock(x, y - 1, z);
+        if (below === 0 || FLUIDS[below]) continue;
+        if (getBlock(x, y, z) !== 0 || getBlock(x, y + 1, z) !== 0 || getBlock(x, y + 2, z) !== 0) continue;
+        return y;
+      }
+      return null;
+    }
 
     function exploreAround(px, pz) {
       const cx = Math.round(px);
@@ -6792,6 +7243,7 @@
           }
         }
       }
+      if (inNether()) return; // ボスの部屋や地下の建物は表の世界だけ
       const feetY = camera.position.y - player.eye;
       const here = dungeonAt(px, feetY, pz);
       DUNGEONS.forEach((d, i) => {
@@ -6814,23 +7266,23 @@
     }
 
     // セーブ用: 行った場所を 1マス1ビットにつめて文字にする
-    function encodeExplored() {
+    function encodeExplored(map = explored) {
       let text = '';
-      for (let i = 0; i < explored.length; i += 8) {
+      for (let i = 0; i < map.length; i += 8) {
         let byte = 0;
-        for (let b = 0; b < 8; b++) if (explored[i + b]) byte |= 1 << b;
+        for (let b = 0; b < 8; b++) if (map[i + b]) byte |= 1 << b;
         text += String.fromCharCode(byte);
       }
       return btoa(text);
     }
 
-    function decodeExplored(encoded) {
+    function decodeExplored(encoded, map = explored) {
       if (!encoded) return;
       try {
         const text = atob(encoded);
         for (let i = 0; i < text.length; i++) {
           const byte = text.charCodeAt(i);
-          for (let b = 0; b < 8 && i * 8 + b < explored.length; b++) explored[i * 8 + b] = (byte >> b) & 1;
+          for (let b = 0; b < 8 && i * 8 + b < map.length; b++) map[i * 8 + b] = (byte >> b) & 1;
         }
       } catch (e) {
         // 読めないときは、まだどこにも行っていないことにする
@@ -7234,6 +7686,7 @@
     const DAY_SKY = new THREE.Color(0x78a7ff);
     const NIGHT_SKY = new THREE.Color(0x0a0f2a);
     const CAVE_DARK = new THREE.Color(0x07070c);
+    const NETHER_SKY = new THREE.Color(0x2a0d0d); // 異世界の赤黒いもや
     const UNDERWATER_COLOR = new THREE.Color(0x14548c);
     const FOG_NEAR = 30;
     const FOG_FAR = 75;
@@ -7263,10 +7716,26 @@
       daylight = daylightAt(timeOfDay);
 
       const feetY = camera.position.y - player.eye;
-      const surfaceY = surfaceHeight(Math.round(camera.position.x), Math.round(camera.position.z));
+      // 異世界には地表が無いので、天井からの深さであつかう
+      const surfaceY = inNether() ? NETHER_TOP : surfaceHeight(Math.round(camera.position.x), Math.round(camera.position.z));
       const depth = Math.max(0, Math.floor(surfaceY + 0.5 - feetY));
       currentDepth = depth;
       deepestDepth = Math.max(deepestDepth, depth);
+
+      // 異世界はどこにいても赤黒い。昼夜は関係ない
+      if (inNether()) {
+        ambientLight.intensity = 0.32;
+        sunLight.intensity = 0.1;
+        torchLight.intensity = 2.2;
+        scene.background.copy(NETHER_SKY);
+        scene.fog.color.copy(NETHER_SKY);
+        scene.fog.near = FOG_NEAR;
+        scene.fog.far = FOG_FAR * 0.7; // もやが濃い
+        depthDisplay.textContent = `異世界（天井から ${depth}m）`;
+        biomeDisplay.textContent = '🔥 異世界';
+        timeDisplay.textContent = '🌑 ここに朝は来ない';
+        return;
+      }
 
       const underground = THREE.MathUtils.clamp((depth - 3) / 10, 0, 1);
       ambientLight.intensity = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.2, 0.7, daylight), 0.12, underground);
@@ -7347,6 +7816,7 @@
         updateDroppedItems(delta);
         updateGrowth(delta);
         updateTnt(delta);
+        updatePortal(delta);
         updatePlayerArrows(delta);
 
         torchLightTimer -= delta;
@@ -7389,7 +7859,7 @@
     function loadSave() {
       try {
         const data = JSON.parse(localStorage.getItem(SAVE_KEY));
-        return data && data.version === SAVE_VERSION ? data : null;
+        return data && READABLE_SAVES.includes(data.version) ? data : null;
       } catch (e) {
         return null;
       }
@@ -7404,11 +7874,23 @@
 
     function saveGame(showMessage = false) {
       if (saveDisabled || player.health <= 0) return;
+      dimensions[currentDim] = captureDimension(); // 今いる世界の中身をしまってから書く
+      const over = dimensions[OVERWORLD];
+      const nether = dimensions[NETHER];
+      const packDim = d => ({
+        changes: Object.fromEntries(d.blockChanges),
+        storageChests: Object.fromEntries(d.storageChests),
+        fluidLevels: Object.fromEntries(d.fluidLevels),
+        furnaces: Object.fromEntries(d.furnaces),
+        explored: encodeExplored(d.explored)
+      });
       const data = {
         version: SAVE_VERSION,
         seed: worldSeed,
         worldSize: WORLD_SIZE,
-        changes: Object.fromEntries(blockChanges),
+        dimension: currentDim,
+        // 表の世界は、版 5 と同じ場所に書く（前からのセーブと同じ形）
+        changes: Object.fromEntries(over.blockChanges),
         player: {
           position: camera.position.toArray(),
           quaternion: camera.quaternion.toArray(),
@@ -7422,13 +7904,14 @@
         chestsLooted,
         bagSize,
         seenItems: [...seenItems],
-        storageChests: Object.fromEntries(storageChests),
-        fluidLevels: Object.fromEntries(fluidLevels),
-        furnaces: Object.fromEntries(furnaces),
+        storageChests: Object.fromEntries(over.storageChests),
+        fluidLevels: Object.fromEntries(over.fluidLevels),
+        furnaces: Object.fromEntries(over.furnaces),
         spawnPoint,
-        explored: encodeExplored(),
+        explored: encodeExplored(over.explored),
         dungeonsFound,
-        sitesFound,
+        sitesFound: over.sitesFound,
+        nether: nether ? packDim(nether) : null, // まだ行っていなければ null
         savedAt: Date.now()
       };
       try {
@@ -7468,6 +7951,9 @@
       sitesFound = undergroundSites.map((_, i) => !!(data.sitesFound || [])[i]);
       renderInventory();
       buildMapImage();
+      // 異世界の中身は、行ったときに入れる。前に異世界にいたなら、そのまま異世界から再開する
+      pendingNetherSave = data.nether || null;
+      if (data.dimension === NETHER) switchDimension(NETHER);
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
     }
 
@@ -7559,6 +8045,23 @@
         get bossesDefeated() { return bossesDefeated; },
         spawnAnimals: updateAnimalSpawning,
         spawnBats: updateBatSpawning,
+        switchDimension,
+        travelThroughPortal,
+        tryLightPortal,
+        findPortalFrame,
+        findNearestPortal,
+        buildPortalAt,
+        netherStandY,
+        standCell,
+        generateNether,
+        OVERWORLD,
+        NETHER,
+        PORTAL,
+        OBSIDIAN,
+        NETHERRACK,
+        GLOWSTONE,
+        get currentDim() { return currentDim; },
+        get dimensions() { return dimensions; },
         spawnGuardians: updateGuardianSpawning,
         spawnMob(type, x, y, z, size = 1) {
           const mob = createMob(type, x, y, z, size);
