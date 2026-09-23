@@ -1476,6 +1476,38 @@
       ctx.fillRect(0, 15, 16, 1);
     });
 
+    // 3体の新しいボスの顔
+    textures.queenFace = createPixelTexture(ctx => {
+      speckle(ctx, '#3a2040', ['#2a1630', '#4a2a52'], 60);
+      ctx.fillStyle = '#ff2a4a'; // 6つの目
+      [[2, 5], [6, 4], [10, 4], [13, 5], [4, 8], [11, 8]].forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
+      ctx.fillStyle = '#e0d0ff';
+      ctx.fillRect(5, 12, 2, 3); // キバ
+      ctx.fillRect(9, 12, 2, 3);
+    });
+    textures.mummyFace = createPixelTexture(ctx => {
+      speckle(ctx, '#d8cba8', ['#c4b794', '#e8dcbc'], 50);
+      ctx.fillStyle = '#b0a284';
+      for (let y = 1; y < 16; y += 3) ctx.fillRect(0, y, 16, 1); // 包帯のすきま
+      ctx.fillStyle = '#000';
+      ctx.fillRect(3, 6, 4, 3);
+      ctx.fillRect(9, 6, 4, 3);
+      ctx.fillStyle = '#4ae0ff'; // 光る目
+      ctx.fillRect(4, 7, 2, 2);
+      ctx.fillRect(10, 7, 2, 2);
+    });
+    textures.dragonFace = createPixelTexture(ctx => {
+      speckle(ctx, '#2a1416', ['#3e1c1e', '#1a0c0e'], 70);
+      ctx.fillStyle = '#ffb02a'; // 光る目
+      ctx.fillRect(2, 5, 4, 3);
+      ctx.fillRect(10, 5, 4, 3);
+      ctx.fillStyle = '#ff4a1a';
+      ctx.fillRect(3, 6, 2, 2);
+      ctx.fillRect(11, 6, 2, 2);
+      ctx.fillStyle = '#e8e0d0'; // キバ
+      for (const x of [4, 7, 10]) ctx.fillRect(x, 12, 2, 3);
+    });
+
     // 異世界（ネザー）のブロック
     textures.netherrack = createPixelTexture(ctx => {
       speckle(ctx, '#6e2b2b', ['#5a2222', '#853434', '#4a1c1c'], 90);
@@ -2005,6 +2037,17 @@
     let world = new Uint8Array(SIZE_X * SIZE_Y * SIZE_Z);
     let blockChanges = new Map(); // "x,y,z" -> ブロック番号（0 は破壊）。生成後に変わったブロック（セーブ用）
     let blockCount = 0;
+
+    // 世界は2つ（表の世界と異世界）。入れかえの本体は下の switchDimension。
+    // ここで先に決めておくのは、ワールドを作るときに OVERWORLD を使うため
+    const OVERWORLD = 0;
+    const NETHER = 1;
+    let currentDim = OVERWORLD;
+    const dimensions = [null, null];
+    // セーブから読んだ異世界の中身。はじめて異世界へ行ったときに入れる
+    // （異世界の地形は、行くまで作らない。行かない人のぶんまで作ると重いので）
+    let pendingNetherSave = null;
+    const inNether = () => currentDim === NETHER;
 
     function blockKey(x, y, z) {
       return `${x},${y},${z}`;
@@ -3084,10 +3127,14 @@
       forceBlock(cx, floorY + 2, cz - h, STONE_BRICKS);
 
       const roomY = floorY - 8; // 地下の宝物庫
-      for (let dx = -3; dx <= 3; dx++) {
-        for (let dz = -3; dz <= 3; dz++) {
-          for (let dy = -1; dy <= 4; dy++) {
-            const wall = Math.abs(dx) === 3 || Math.abs(dz) === 3 || dy === -1 || dy === 4;
+      // 最初のピラミッドだけは、ファラオのミイラが眠る「王の間」にする（広い部屋）
+      const tomb = !pharaohTombPlaced;
+      const rr = tomb ? 8 : 3;
+      const rh = tomb ? 7 : 4;
+      for (let dx = -rr; dx <= rr; dx++) {
+        for (let dz = -rr; dz <= rr; dz++) {
+          for (let dy = -1; dy <= rh; dy++) {
+            const wall = Math.abs(dx) === rr || Math.abs(dz) === rr || dy === -1 || dy === rh;
             forceBlock(cx + dx, roomY + dy, cz + dz, wall ? STONE_BRICKS : 0);
           }
         }
@@ -3097,7 +3144,24 @@
       forceTorch(cx + 2, roomY + 1, cz + 2);
       placeLootChest(cx - 2, roomY + 1, cz + 2, LOOT.pyramid);
       placeLootChest(cx + 2, roomY + 1, cz - 2, LOOT.pyramid);
+      if (tomb) {
+        pharaohTombPlaced = true;
+        // 王の間: 四すみの柱、まん中の石のひつぎ、おくの宝箱
+        for (const [px, pz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) {
+          for (let dy = 0; dy < rh; dy++) {
+            forceBlock(cx + px, roomY + dy, cz + pz, dy === rh - 1 ? ANCIENT_GLYPH : STONE_BRICKS);
+          }
+        }
+        for (let dx = -2; dx <= 2; dx++) {
+          for (let dz = -1; dz <= 1; dz++) forceBlock(cx + dx, roomY, cz + dz + 3, STONE_BRICKS); // ひつぎ
+        }
+        forceTorch(cx - 5, roomY + 1, cz + 5);
+        forceTorch(cx + 5, roomY + 1, cz - 5);
+        registerLair('mummy', OVERWORLD, cx, roomY, cz, rr, rh, { x: cx, y: roomY, z: cz - 6 });
+      }
     }
+
+    let pharaohTombPlaced = false; // 王の間は、ワールドに1つだけ
 
     // 雪原のかまくら: 雪のドーム、中にベッドとかまど
     function buildIgloo(cx, floorY, cz) {
@@ -3200,6 +3264,7 @@
     // 古代遺跡・廃坑・敵の湧くかご。中に入ると「見つけた！」と出て、マップに印がつく。
     // 生成のいちばん最後に作るので、前からあるワールドでも地上の建物の場所は変わらない
     const SITE_KINDS = {
+      nest: { name: '大グモの巣', emoji: '🕸️' },
       ruins: { name: '古代遺跡', emoji: '🏛️' },
       mineshaft: { name: '廃坑', emoji: '⛏️' },
       spawner: { name: '敵の湧くかご', emoji: '👾' }
@@ -3427,16 +3492,87 @@
       site.boxes.push({ x0: cx - h - 2, x1: cx + h + 2, y0: fy - 1, y1: fy + height, z0: cz - h - 2, z1: cz + h + 2 });
     }
 
+    /* --- Boss Lairs (すみかに住んでいるボス) --- */
+    // ダンジョンの 3 体のゴーレムとは別に、決まった場所に 1 体ずつ住んでいるボス。
+    // 倒したかどうかは、ダンジョンとは別に key で覚える（セーブの版は変えない。
+    // 古いセーブには無いので、まだ倒していないあつかいになる）
+    const LAIRS = {
+      spider_queen: {
+        key: 'spider_queen', type: 'spider_queen', emoji: '🕷️',
+        hint: 'クモの巣だらけの大きな空どう',
+        loot: [['queen_fang', 1], ['string', 24], ['diamond', 6], ['golden_apple', 3]]
+      },
+      mummy: {
+        key: 'mummy', type: 'mummy', emoji: '🏺',
+        hint: 'ピラミッドの地下の、王の間',
+        loot: [['pharaoh_mask', 1], ['gold', 20], ['diamond', 8], ['golden_apple', 3]]
+      },
+      nether_dragon: {
+        key: 'nether_dragon', type: 'nether_dragon', emoji: '🐉',
+        hint: '異世界の、黒曜石の広場',
+        loot: [['dragon_sword', 1], ['glowstone', 24], ['diamond', 16], ['golden_apple', 5]]
+      }
+    };
+    const bossLairs = [];        // { key, dim, x, y, z, half, height, chest }
+    let lairsDefeated = {};      // key -> true（セーブする）
+    let lairChestsLooted = {};   // key -> true（セーブする）
+
+    function registerLair(key, dim, x, y, z, half, height, chest) {
+      bossLairs.push({ key, dim, x, y, z, half, height, chest });
+      if (chest) forceBlock(chest.x, chest.y, chest.z, CHEST);
+    }
+
+    const lairAt = (px, feetY, pz) => bossLairs.find(l => l.dim === currentDim &&
+      Math.abs(px - l.x) <= l.half && Math.abs(pz - l.z) <= l.half &&
+      feetY >= l.y - 2 && feetY <= l.y + l.height) || null;
+
+    const lairOfChest = (x, y, z) => bossLairs.find(l => l.chest &&
+      l.chest.x === x && l.chest.y === y && l.chest.z === z) || null;
+
+    // 大グモの巣: クモの巣だらけの大きな空どう。まん中に卵ののうと宝箱
+    function buildSpiderNest(site) {
+      const { x: cx, y: fy, z: cz } = site;
+      const r = 11;
+      const height = 9;
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dz = -r; dz <= r; dz++) {
+          const dist = Math.hypot(dx, dz);
+          if (dist > r) continue;
+          // 天井はドームのように、まん中ほど高い
+          const top = Math.round(height * Math.sqrt(Math.max(0, 1 - (dist / r) ** 2)));
+          for (let dy = -1; dy <= top; dy++) {
+            const id = dy === -1 ? STONE : 0;
+            forceBlock(cx + dx, fy + dy, cz + dz, id);
+          }
+          // クモの巣をあちこちに（歩くと遅くなる）
+          if (dist > 2 && worldRandom() < 0.16) {
+            const wy = fy + worldRandInt(0, Math.max(0, top - 1));
+            forceBlock(cx + dx, wy, cz + dz, COBWEB);
+          }
+        }
+      }
+      // まん中の、石の台
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) forceBlock(cx + dx, fy - 1, cz + dz, STONE_BRICKS);
+      }
+      forceTorch(cx - 3, fy, cz - 3);
+      site.boxes.push({ x0: cx - r, x1: cx + r, y0: fy - 1, y1: fy + height, z0: cz - r, z1: cz + r });
+      registerLair('spider_queen', OVERWORLD, cx, fy, cz, r, height, { x: cx + 3, y: fy, z: cz });
+    }
+
     const UNDERGROUND_PLAN = [
       { kind: 'ruins', count: 3, half: 16, depth: [-26, -18], height: 8, build: buildAncientRuins },
       { kind: 'mineshaft', count: 3, half: 5, reach: 26, depth: [-15, -9], height: 4, build: buildMineshaft },
-      { kind: 'spawner', count: 6, half: 6, depth: [-34, -10], height: 5, build: buildSpawnerRoom }
+      { kind: 'spawner', count: 6, half: 6, depth: [-34, -10], height: 5, build: buildSpawnerRoom },
+      // 大グモの巣はワールドに 1 つだけ（fixed）。必ず最後に置く
+      { kind: 'nest', count: 1, fixed: true, half: 13, depth: [-24, -14], height: 10, build: buildSpiderNest }
     ];
 
     function generateUnderground() {
       UNDERGROUND_PLAN.forEach(plan => {
         let built = 0;
-        for (let attempt = 0; attempt < scaled(300) && built < scaled(plan.count); attempt++) {
+        const want = plan.fixed ? plan.count : scaled(plan.count);
+        for (let attempt = 0; attempt < scaled(300) && built < want; attempt++) {
           const cx = worldRandInt(-HALF_SIZE + 8, HALF_SIZE - 8);
           const cz = worldRandInt(-HALF_SIZE + 8, HALF_SIZE - 8);
           const fy = worldRandInt(plan.depth[0], plan.depth[1]);
@@ -3930,6 +4066,78 @@
       return { group, head, legs: [legL, legR], arms: [armL, armR] };
     }
 
+    // --- 3体の新しいボス ---
+    // 大グモの女王: クモをうんと大きくして、光る卵ののうをしょっている
+    function buildSpiderQueen() {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0x3a2040 });
+      const markMat = new THREE.MeshLambertMaterial({ color: 0x7a1a3a });
+      addBox(group, [1.5, 0.9, 1.3], bodyMat, [0, 1.0, 0.1]);
+      addBox(group, [1.9, 1.3, 1.8], bodyMat, [0, 1.15, -1.4]); // 大きなおしり
+      addBox(group, [1.0, 0.5, 0.9], markMat, [0, 1.75, -1.4]);  // 背中の赤い模様
+      const head = addBox(group, [1.0, 0.85, 0.9], faceMaterials({ color: 0x3a2040 }, textures.queenFace), [0, 1.05, 1.1]);
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x2a1830 });
+      const legs = [];
+      for (let i = 0; i < 8; i++) {
+        const side = i < 4 ? 1 : -1;
+        const zPos = 0.7 - (i % 4) * 0.45;
+        const leg = addBox(group, [2.0, 0.18, 0.18], legMat, [side * 1.15, 1.0, zPos]);
+        leg.rotation.z = side * 0.45;
+        legs.push(leg);
+      }
+      // 光る卵ののう（弱点ではないが、目立つようにする）
+      const sac = addBox(group, [0.7, 0.7, 0.7], new THREE.MeshBasicMaterial({ color: 0xc8ff6a }), [0, 0.6, -2.0]);
+      sac.userData.noTint = true;
+      return { group, head, legs };
+    }
+
+    // ファラオのミイラ: 包帯の体に、金色のかぶりもの
+    function buildMummy() {
+      const group = new THREE.Group();
+      const wrapMat = new THREE.MeshLambertMaterial({ color: 0xd8cba8 });
+      const goldMat = new THREE.MeshLambertMaterial({ color: 0xe0b83a });
+      addBox(group, [1.0, 1.2, 0.6], wrapMat, [0, 1.5, 0]);
+      const head = addBox(group, [0.7, 0.7, 0.7], faceMaterials({ color: 0xd8cba8 }, textures.mummyFace), [0, 2.45, 0]);
+      addBox(group, [0.95, 0.55, 0.85], goldMat, [0, 2.6, -0.1]); // かぶりもの
+      addBox(group, [0.2, 0.5, 0.2], goldMat, [0, 2.95, 0.2]);    // ひたいのかざり
+      const armL = addBox(group, [0.28, 1.0, 0.28], wrapMat, [-0.65, 1.55, 0.2]);
+      const armR = addBox(group, [0.28, 1.0, 0.28], wrapMat, [0.65, 1.55, 0.2]);
+      armL.rotation.x = Math.PI / 2.2; // 前に組んだうで
+      armR.rotation.x = Math.PI / 2.2;
+      const legL = addBox(group, [0.32, 0.95, 0.32], wrapMat, [-0.25, 0.48, 0]);
+      const legR = addBox(group, [0.32, 0.95, 0.32], wrapMat, [0.25, 0.48, 0]);
+      addBox(group, [1.05, 0.25, 0.65], goldMat, [0, 1.0, 0]); // 金の帯
+      return { group, head, legs: [legL, legR], arms: [armL, armR] };
+    }
+
+    // 異世界のドラゴン: 首・頭・つばさ・しっぽ。空を飛ぶ
+    function buildNetherDragon() {
+      const group = new THREE.Group();
+      const skinMat = new THREE.MeshLambertMaterial({ color: 0x2a1416 });
+      const bellyMat = new THREE.MeshLambertMaterial({ color: 0x5a2420 });
+      addBox(group, [1.4, 1.1, 2.4], skinMat, [0, 1.2, 0]);
+      addBox(group, [1.0, 0.3, 2.0], bellyMat, [0, 0.65, 0]);
+      addBox(group, [0.7, 0.7, 1.2], skinMat, [0, 1.6, 1.5]); // 首
+      const head = addBox(group, [0.9, 0.8, 1.1], faceMaterials({ color: 0x2a1416 }, textures.dragonFace), [0, 1.85, 2.4]);
+      addBox(group, [0.16, 0.5, 0.16], skinMat, [-0.3, 2.3, 2.3]); // つの
+      addBox(group, [0.16, 0.5, 0.16], skinMat, [0.3, 2.3, 2.3]);
+      // しっぽ（だんだん細く）
+      for (let i = 0; i < 4; i++) {
+        const t = 1 - i * 0.2;
+        addBox(group, [0.55 * t, 0.5 * t, 0.8], skinMat, [0, 1.15, -1.4 - i * 0.75]);
+      }
+      const wingMat = new THREE.MeshLambertMaterial({ color: 0x4a1a1c, side: THREE.DoubleSide });
+      const wingL = addBox(group, [2.6, 0.08, 1.6], wingMat, [-1.9, 1.7, -0.2]);
+      const wingR = addBox(group, [2.6, 0.08, 1.6], wingMat, [1.9, 1.7, -0.2]);
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x231012 });
+      const legL = addBox(group, [0.35, 0.8, 0.35], legMat, [-0.5, 0.4, -0.3]);
+      const legR = addBox(group, [0.35, 0.8, 0.35], legMat, [0.5, 0.4, -0.3]);
+      // のどの火（口から火をはくのが分かるように）
+      const glow = addBox(group, [0.45, 0.35, 0.35], new THREE.MeshBasicMaterial({ color: 0xff7a1a }), [0, 1.7, 2.9]);
+      glow.userData.noTint = true;
+      return { group, head, legs: [legL, legR], wings: [wingL, wingR], glow };
+    }
+
     const MOB_DEFS = {
       zombie: { name: 'ゾンビ', ai: 'melee', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
       husk: { name: 'ハスク', ai: 'melee', health: 22, speed: 2.5, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', noBurn: true, build: buildHusk },
@@ -3941,6 +4149,10 @@
       // ウィッチは毒のビンを投げる。コウモリはおそってこない（passive なので敵の数に入らない）
       witch: { name: 'ウィッチ', ai: 'witch', health: 26, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, noBurn: true, drop: 'gunpowder', dropCount: [1, 2], build: buildWitch },
       guardian: { name: '遺跡の番人', ai: 'melee', ignoresTorch: true, health: 34, speed: 1.7, radius: 0.4, height: 2.3, sight: 16, damage: 5, noBurn: true, drop: 'gold', dropCount: [1, 3], build: buildGuardian },
+      // ダンジョンではなく、すみかに住んでいるボス（ai: 'lairboss'）
+      spider_queen: { name: '大グモの女王', ai: 'lairboss', health: 380, speed: 3.6, radius: 1.0, height: 1.7, sight: 26, damage: 5, boss: true, noBurn: true, climbs: true, build: buildSpiderQueen },
+      mummy: { name: 'ファラオのミイラ', ai: 'lairboss', health: 520, speed: 1.9, radius: 0.55, height: 2.9, sight: 24, damage: 9, boss: true, noBurn: true, build: buildMummy },
+      nether_dragon: { name: '異世界のドラゴン', ai: 'lairboss', health: 820, speed: 5.0, radius: 1.3, height: 2.6, sight: 40, damage: 12, boss: true, noBurn: true, flying: true, build: buildNetherDragon },
       bat: { name: 'コウモリ', emoji: '🦇', ai: 'bat', passive: true, flying: true, noBurn: true, health: 6, speed: 3.4, radius: 0.22, height: 0.5, sight: 10, build: buildBat },
       golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem },
       magma_golem: { name: 'マグマゴーレム', ai: 'boss', health: 450, speed: 2.0, radius: 0.85, height: 3.5, sight: 34, damage: 11, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.magma) },
@@ -4516,7 +4728,8 @@
       }
 
       if (mob.def.boss) {
-        onBossDefeated(mob);
+        if (mob.lair) onLairBossDefeated(mob);
+        else onBossDefeated(mob);
         return;
       }
 
@@ -4554,7 +4767,7 @@
     function walkAnimation(mob, speedFactor) {
       const swing = Math.sin(performance.now() * 0.008 * speedFactor) * 0.45;
       mob.legs.forEach((leg, i) => {
-        if (mob.type === 'spider') leg.rotation.y = (i % 2 === 0 ? swing : -swing) * 0.5;
+        if (mob.type === 'spider' || mob.type === 'spider_queen') leg.rotation.y = (i % 2 === 0 ? swing : -swing) * 0.5;
         else leg.rotation.x = i % 2 === 0 ? swing : -swing;
       });
     }
@@ -4762,6 +4975,7 @@
         }
 
         if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
+        else if (mob.def.ai === 'lairboss') updateLairBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
 
         moveMob(mob, delta);
       });
@@ -4792,9 +5006,9 @@
 
     // 体力バーに出す名前（ボスの種類・怒り・水でしびれている状態）
     function bossLabel(mob) {
-      const tier = bossTierOf(mob);
+      const emoji = mob.lair ? LAIRS[mob.lair.key].emoji : bossTierOf(mob).emoji;
       const state = mob.wetTimer > 0 ? ' 💧よわっている' : mob.enraged ? '（怒り）' : '';
-      return `${tier.emoji} ${mob.def.name}${state}`;
+      return `${emoji} ${mob.def.name}${state}`;
     }
 
     function updateBossBar(mob) {
@@ -4827,6 +5041,218 @@
       playSound('roar');
       showToast(`${tier.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
+    }
+
+    // すみかに入ったら、そこのボスが目を覚ます
+    function updateLairTrigger() {
+      if (boss) return;
+      const lair = lairAt(camera.position.x, camera.position.y - player.eye, camera.position.z);
+      if (!lair || lairsDefeated[lair.key]) return;
+      const conf = LAIRS[lair.key];
+      const spawnY = lair.key === 'nether_dragon' ? lair.y + 6 : lair.y;
+      boss = createMob(conf.type, lair.x, spawnY, lair.z);
+      boss.maxHealth = boss.health;
+      boss.lair = lair;
+      boss.enraged = false;
+      boss.attackTimer = 1.5;
+      boss.specialTimer = 4;
+      boss.summonTimer = 10;
+      boss.leapTimer = 3;
+      boss.restTimer = 12;  // ドラゴンが最初に降りてくるまでの秒数
+      boss.resting = 0;
+      boss.diving = 0;
+      playSound('roar');
+      showToast(`${conf.emoji} ${boss.def.name}が目を覚ました！`);
+      updateBossBar(boss);
+    }
+
+    // すみかのボスの動き。3体とも「追いかけて殴る」＋「種類ごとの必殺技」でできている
+    function updateLairBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter }) {
+      const p = mob.group.position;
+      const half = mob.maxHealth / 2;
+      if (!mob.enraged && mob.health <= half) {
+        mob.enraged = true;
+        mob.speed *= 1.3;
+        playSound('roar');
+        showToast(`${LAIRS[mob.lair.key].emoji} ${mob.def.name}が怒った！`);
+      }
+      // すみかから出ていかない（外に出たら、まん中へもどる）
+      const lair = mob.lair;
+      const outside = Math.abs(p.x - lair.x) > lair.half + 4 || Math.abs(p.z - lair.z) > lair.half + 4;
+      const target = outside ? new THREE.Vector3(lair.x - p.x, 0, lair.z - p.z).normalize() : toPlayer;
+
+      mob.attackTimer -= delta;
+      mob.specialTimer -= delta;
+      mob.summonTimer -= delta;
+
+      const power = mob.enraged ? 1.35 : 1;
+      const melee = () => Math.max(1, Math.round(mob.def.damage * power));
+
+      if (mob.type === 'nether_dragon') {
+        // ドラゴン: プレイヤーの上を飛びながら火の息。ときどき急降下してぶつかる
+        mob.flapTimer = (mob.flapTimer || 0) + delta * 6;
+        if (mob.wings) {
+          const flap = Math.sin(mob.flapTimer) * 0.5;
+          mob.wings[0].rotation.z = flap;
+          mob.wings[1].rotation.z = -flap;
+        }
+        const groundY = lair.y;
+        mob.restTimer = (mob.restTimer === undefined ? 12 : mob.restTimer) - delta;
+        if (mob.resting > 0) {
+          // 降りて休んでいるあいだ。剣がとどく「せめどき」
+          mob.resting -= delta;
+          mob.moveY = THREE.MathUtils.clamp(groundY - p.y, -1, 1) * 7;
+          const reach = mob.radius + 2.2;
+          if (flatDist > reach) {
+            mob.moveX = target.x * mob.speed * 0.35;
+            mob.moveZ = target.z * mob.speed * 0.35;
+          }
+          if (dist < reach + 0.5 && mob.attackTimer <= 0) {
+            mob.attackTimer = 1.6;
+            damagePlayer(melee(), target.clone());
+          }
+          if (mob.resting <= 0) {
+            mob.restTimer = mob.enraged ? 9 : 12;
+            playSound('roar');
+          }
+        } else {
+          // 飛んでいるあいだ。高さは剣がぎりぎりとどかないくらい
+          const wantY = mob.diving > 0 ? groundY + 0.5 : groundY + (mob.enraged ? 4 : 5);
+          mob.moveY = THREE.MathUtils.clamp(wantY - p.y, -1, 1) * (mob.diving > 0 ? 9 : 3);
+          if (mob.diving > 0) {
+            mob.diving -= delta;
+            mob.moveX = target.x * mob.speed * 2.2;
+            mob.moveZ = target.z * mob.speed * 2.2;
+            if (dist < mob.radius + 2.2 && mob.attackTimer <= 0) {
+              mob.attackTimer = 1.2;
+              damagePlayer(melee(), target.clone());
+            }
+            if (mob.diving <= 0) startShockwave(mob, Math.round(10 * power)); // 着地の衝撃波
+          } else if (flatDist > 3) {
+            mob.moveX = target.x * mob.speed * 0.8;
+            mob.moveZ = target.z * mob.speed * 0.8;
+          }
+          if (mob.specialTimer <= 0 && !outside) {
+            if (dist < 22 && Math.random() < 0.5) {
+              mob.specialTimer = mob.enraged ? 2.6 : 3.8;
+              breatheFire(mob, playerCenter, Math.round(7 * power)); // 火の息
+            } else {
+              mob.specialTimer = mob.enraged ? 5 : 7;
+              mob.diving = 1.6; // 急降下
+              playSound('roar');
+            }
+          }
+          // ときどき地面に降りて休む（ずっと空にいると剣がとどかないので）
+          if (mob.restTimer <= 0 && mob.diving <= 0) {
+            mob.resting = mob.enraged ? 3.5 : 5;
+            playSound('roar');
+            showToast('🐉 ドラゴンが降りてきた！ 今がチャンス');
+          }
+        }
+      } else if (mob.type === 'spider_queen') {
+        // 女王: 速く追いかけ、ときどき大ジャンプ。糸をはいて足止めし、仲間のクモを呼ぶ
+        const reach = mob.radius + 1.6;
+        if (flatDist > reach) {
+          mob.moveX = target.x * mob.speed;
+          mob.moveZ = target.z * mob.speed;
+          walkAnimation(mob, 2.2);
+        }
+        if (dist < reach + 0.5 && mob.attackTimer <= 0) {
+          mob.attackTimer = 1.4; // 速いぶん、殴る間はあける
+          damagePlayer(melee(), target.clone());
+        }
+        if (mob.specialTimer <= 0 && !outside) {
+          mob.specialTimer = mob.enraged ? 3 : 4.5;
+          if (dist > 6 && dist < 20) {
+            spitWeb(mob, playerCenter); // 糸をはく
+          } else if (mob.onGround) {
+            mob.velocity.y = 9;          // 大ジャンプ
+            mob.velocity.x = target.x * 9;
+            mob.velocity.z = target.z * 9;
+            playSound('slime');
+          }
+        }
+        if (mob.summonTimer <= 0 && mob.enraged) {
+          mob.summonTimer = 16;
+          summonLairMinions(mob, 'spider', 3);
+        }
+      } else {
+        // ミイラ: おそいが強い。当たると毒。砂の衝撃波と、ハスクを呼ぶ
+        const reach = mob.radius + 1.6;
+        if (flatDist > reach) {
+          mob.moveX = target.x * mob.speed;
+          mob.moveZ = target.z * mob.speed;
+          walkAnimation(mob, 1.0);
+        }
+        if (dist < reach + 0.6 && mob.attackTimer <= 0) {
+          mob.attackTimer = 1.6;
+          damagePlayer(melee(), target.clone());
+          player.poisonTimer = Math.max(player.poisonTimer, 5); // のろい（毒）
+          if (player.poisonTick <= 0) player.poisonTick = 1.5;
+        }
+        if (mob.specialTimer <= 0 && !outside) {
+          mob.specialTimer = mob.enraged ? 4 : 6;
+          if (dist < 12) startShockwave(mob, Math.round(8 * power));
+          else throwRock(mob, playerCenter, { rockDamage: Math.round(7 * power), rockColor: 0xdbcf8e });
+        }
+        if (mob.summonTimer <= 0) {
+          mob.summonTimer = mob.enraged ? 12 : 18;
+          summonLairMinions(mob, 'husk', 2);
+        }
+      }
+    }
+
+    // すみかのボスが呼ぶ仲間
+    function summonLairMinions(mob, type, count) {
+      const p = mob.group.position;
+      const def = MOB_DEFS[type];
+      let spawned = 0;
+      for (let attempt = 0; attempt < count * 6 && spawned < count; attempt++) {
+        const x = p.x + rand(-5, 5);
+        const z = p.z + rand(-5, 5);
+        const y = p.y;
+        if (collidesBox(x, y, z, def.radius, def.height)) continue;
+        const minion = createMob(type, x, y, z);
+        minion.minionOf = mob;
+        spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9a5ad0, 14, 3);
+        spawned++;
+      }
+      if (spawned > 0) {
+        playSound('roar');
+        showToast(`${LAIRS[mob.lair.key].emoji} ${mob.def.name}が仲間を呼んだ！`);
+      }
+    }
+
+    // ドラゴンの火の息。まっすぐ飛んで、当たると大ダメージ
+    function breatheFire(mob, target, damage) {
+      const p = mob.group.position;
+      const from = new THREE.Vector3(p.x, p.y + 1.7, p.z);
+      const dir = target.clone().sub(from).normalize();
+      for (let i = 0; i < 3; i++) {
+        const spread = new THREE.Vector3((Math.random() - 0.5) * 0.12, (Math.random() - 0.5) * 0.12, (Math.random() - 0.5) * 0.12);
+        const mesh = new THREE.Mesh(rockGeo, rockMaterial(0xff7a1a));
+        mesh.scale.setScalar(0.7);
+        mesh.position.copy(from);
+        scene.add(mesh);
+        rocks.push({ mesh, vel: dir.clone().add(spread).multiplyScalar(18), life: 2.5, damage, color: 0xff9a3a });
+      }
+      playSound('fuse');
+    }
+
+    // 女王の糸。当たると、しばらく動きがおそくなる
+    function spitWeb(mob, target) {
+      const p = mob.group.position;
+      const from = new THREE.Vector3(p.x, p.y + 1.1, p.z);
+      const dir = target.clone().sub(from);
+      const distance = dir.length();
+      const speed = 15;
+      const vel = dir.normalize().multiplyScalar(speed);
+      vel.y += 0.5 * ARROW_GRAVITY * (distance / speed);
+      const mesh = new THREE.Mesh(potionGeo, new THREE.MeshBasicMaterial({ color: 0xe8e8f0 }));
+      mesh.position.copy(from);
+      scene.add(mesh);
+      arrows.push({ mesh, vel, life: 3, damage: 2, slow: true, web: true });
+      playSound('bow');
     }
 
     function updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter }) {
@@ -4940,14 +5366,14 @@
       }
     }
 
-    function startShockwave(mob) {
+    function startShockwave(mob, damage = null) {
       playSound('slam');
       const center = mob.group.position.clone();
       const mesh = new THREE.Mesh(new THREE.RingGeometry(0.85, 1.0, 40), shockwaveMat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(center.x, center.y + 0.1, center.z);
       scene.add(mesh);
-      shockwaves.push({ mesh, center, radius: 1, hit: false, damage: bossTierOf(mob).waveDamage });
+      shockwaves.push({ mesh, center, radius: 1, hit: false, damage: damage === null ? bossTierOf(mob).waveDamage : damage });
       spawnParticles(center.clone().add(new THREE.Vector3(0, 0.3, 0)), 0x8a7a6a, 30, 7);
     }
 
@@ -5016,6 +5442,21 @@
       }
     }
 
+    function onLairBossDefeated(mob) {
+      const lair = mob.lair;
+      boss = null;
+      lairsDefeated[lair.key] = true;
+      bossBar.hidden = true;
+      mobs.filter(m => m.minionOf === mob).forEach(m => killMob(m));
+      const center = mob.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+      spawnParticles(center, 0xffffff, 60, 10);
+      spawnParticles(center, 0xffd700, 40, 8);
+      playSound('explosion');
+      playSound('chest');
+      showToast(`🏆 ${mob.def.name}を倒した！ すみかの宝箱を開けよう`);
+      saveGame();
+    }
+
     function onBossDefeated(mob) {
       const index = bossTierIndex(mob);
       boss = null;
@@ -5040,8 +5481,33 @@
       saveGame();
     }
 
+    // すみかのボスの宝箱。ボスを倒すまで開かない
+    function openLairChest(lair) {
+      const conf = LAIRS[lair.key];
+      if (!lairsDefeated[lair.key]) {
+        showToast(`🔒 ${MOB_DEFS[conf.type].name}を倒さないと開かない`);
+        return;
+      }
+      if (lairChestsLooted[lair.key]) {
+        showToast('📦 宝箱はからっぽ');
+        return;
+      }
+      const loot = conf.loot;
+      if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.slice(0, usableSlots()).filter(item => !item).length < loot.length) {
+        showToast('⚠️ 持ち物をあけてから開けよう');
+        return;
+      }
+      loot.forEach(([id, count]) => addItem(id, count));
+      lairChestsLooted[lair.key] = true;
+      playSound('chest');
+      showToast(`${conf.emoji} 宝箱から ${loot.map(([id]) => ITEMS[id].name).join('・')} を手に入れた！`);
+      saveGame();
+    }
+
     // ダンジョンの宝箱を右クリックしたとき（どの部屋の宝箱かで中身が変わる）
     function openChest(x, y, z) {
+      const lair = lairOfChest(x, y, z);
+      if (lair) return openLairChest(lair);
       const dungeon = DUNGEONS.find(d => d.chest && d.chest.x === x && d.chest.y === y && d.chest.z === z) || DUNGEONS[0];
       const tier = BOSS_TIERS[dungeon.tier];
       if (!bossesDefeated[dungeon.tier]) {
@@ -5640,6 +6106,9 @@
       magma_sword: { name: 'マグマの剣', kind: 'sword', damage: 26, color: '#ff7a1a', emoji: '⚔️', stack: 1, durability: 1200 },
       shadow_sword: { name: 'やみの剣', kind: 'sword', damage: 34, color: '#8a5ad0', emoji: '⚔️', stack: 1, durability: 1600 },
       shadow_armor: { name: 'やみのよろい', kind: 'armor', protection: 0.65, color: '#7a4ad0', emoji: '🦺', stack: 1, durability: 800 },
+      queen_fang: { name: '女王のキバ', kind: 'sword', damage: 30, color: '#c8ff6a', emoji: '🗡️', stack: 1, durability: 1400 },
+      pharaoh_mask: { name: 'ファラオの黄金のマスク', kind: 'armor', protection: 0.72, color: '#e0b83a', emoji: '🪬', stack: 1, durability: 1000 },
+      dragon_sword: { name: 'ドラゴンの剣', kind: 'sword', damage: 40, color: '#ff7a1a', emoji: '⚔️', stack: 1, durability: 2000 },
       iron_armor: { name: '鉄のよろい', kind: 'armor', protection: 0.3, color: '#d8d8d8', emoji: '🦺', stack: 1, durability: 200 },
       diamond_armor: { name: 'ダイヤのよろい', kind: 'armor', protection: 0.5, color: '#44eedd', emoji: '🦺', stack: 1, durability: 500 },
       hoe: { name: 'クワ', kind: 'hoe', color: '#a07449', emoji: '🔱', stack: 1, durability: 80 },
@@ -6852,14 +7321,6 @@
     // ワールドは「大きな箱1つ」でできている。異世界へ行くときは、
     // 箱と、それにくっついている持ち物（チェストの中身・松明・流れる水など）を
     // まるごと別のものに差しかえる。行き来しても、それぞれの世界はそのまま残る。
-    const OVERWORLD = 0;
-    const NETHER = 1;
-    const DIMENSION_NAMES = ['表の世界', '異世界'];
-    let currentDim = OVERWORLD;
-    const dimensions = [null, null];
-    // セーブから読んだ異世界の中身。はじめて異世界へ行ったときに入れる
-    // （異世界の地形は、行くまで作らない。行かない人のぶんまで作ると重いので）
-    let pendingNetherSave = null;
 
     // 今の世界の中身をひとまとめにする／取り出す
     function captureDimension() {
@@ -6938,8 +7399,6 @@
       buildMapImage();
       return fresh;
     }
-
-    const inNether = () => currentDim === NETHER;
 
     /* --- Nether Generation (異世界の地形) --- */
     // 表の世界とちがって、上にも岩盤のふたがある「横に広い大洞窟」1枚。
@@ -7030,7 +7489,54 @@
         }
       }
 
+      buildDragonArena();
       worldRngState = savedRng;
+    }
+
+    // ドラゴンの広場: 黒曜石の大きな円い床と、まわりの柱。天井もけずって広くする
+    function buildDragonArena() {
+      const r = 16;
+      // 溶岩の海から はなれた、なるべく平らなところをさがす
+      let best = null;
+      for (let attempt = 0; attempt < 400; attempt++) {
+        const cx = worldRandInt(-HALF_SIZE + r + 4, HALF_SIZE - r - 4);
+        const cz = worldRandInt(-HALF_SIZE + r + 4, HALF_SIZE - r - 4);
+        const floorY = netherFloorHeight(cx, cz);
+        if (floorY <= NETHER_LAVA_LEVEL + 2) continue; // 溶岩の海の底はさける
+        const score = Math.abs(floorY - netherFloorHeight(cx + r, cz)) +
+                      Math.abs(floorY - netherFloorHeight(cx - r, cz)) +
+                      Math.abs(floorY - netherFloorHeight(cx, cz + r)) +
+                      Math.abs(floorY - netherFloorHeight(cx, cz - r));
+        if (!best || score < best.score) best = { cx, cz, floorY, score };
+        if (score <= 2) break;
+      }
+      if (!best) return;
+      const { cx, cz, floorY } = best;
+      const height = 18;
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dz = -r; dz <= r; dz++) {
+          const dist = Math.hypot(dx, dz);
+          if (dist > r) continue;
+          forceBlock(cx + dx, floorY, cz + dz, OBSIDIAN); // 平らな黒曜石の床
+          for (let dy = 1; dy <= height; dy++) {
+            if (!inBounds(cx + dx, floorY + dy, cz + dz)) continue;
+            forceBlock(cx + dx, floorY + dy, cz + dz, 0); // 飛び回れるように、上をあける
+          }
+        }
+      }
+      // まわりの柱（かくれて 火の息をよけられる）
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const px = Math.round(cx + Math.cos(angle) * (r - 4));
+        const pz = Math.round(cz + Math.sin(angle) * (r - 4));
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            for (let dy = 1; dy <= 6; dy++) forceBlock(px + dx, floorY + dy, pz + dz, OBSIDIAN);
+          }
+        }
+        forceBlock(px, floorY + 7, pz, GLOWSTONE);
+      }
+      registerLair('nether_dragon', NETHER, cx, floorY + 1, cz, r, height, { x: cx, y: floorY + 1, z: cz + 5 });
     }
 
     /* --- Portal (異世界のゲート) --- */
@@ -7811,6 +8317,7 @@
         updateRaycast();
         updateAtmosphere(delta);
         updateBossTrigger();
+        updateLairTrigger();
         updateBossEffects(delta);
         updateMap(delta);
         updateDroppedItems(delta);
@@ -7911,6 +8418,8 @@
         explored: encodeExplored(over.explored),
         dungeonsFound,
         sitesFound: over.sitesFound,
+        lairsDefeated,       // すみかのボス（古いセーブには無い＝まだ倒していない）
+        lairChestsLooted,
         nether: nether ? packDim(nether) : null, // まだ行っていなければ null
         savedAt: Date.now()
       };
@@ -7946,6 +8455,8 @@
       Object.entries(data.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
       Object.entries(data.fluidLevels || data.waterLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
       spawnPoint = data.spawnPoint || null;
+      lairsDefeated = data.lairsDefeated || {};
+      lairChestsLooted = data.lairChestsLooted || {};
       decodeExplored(data.explored);
       dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
       sitesFound = undergroundSites.map((_, i) => !!(data.sitesFound || [])[i]);
@@ -8046,6 +8557,17 @@
         spawnAnimals: updateAnimalSpawning,
         spawnBats: updateBatSpawning,
         switchDimension,
+        LAIRS,
+        bossLairs,
+        lairAt,
+        rocks,
+        shockwaves,
+        breatheFire,
+        spitWeb,
+        updateLairTrigger,
+        openLairChest,
+        get lairsDefeated() { return lairsDefeated; },
+        get lairChestsLooted() { return lairChestsLooted; },
         travelThroughPortal,
         tryLightPortal,
         findPortalFrame,
