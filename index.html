@@ -679,6 +679,7 @@
     <div id="mob-count">Enemies: 0</div>
     <div id="kill-count">Kills: 0</div>
     <div id="gear-display">🛡️ 防具なし ／ ⛏️ ツルハシなし</div>
+    <div id="effect-display" hidden></div>
     <div id="block-count">Blocks: 0</div>
     <div id="fps-display">FPS: 60</div>
   </div>
@@ -895,6 +896,40 @@
           osc.start(start);
           osc.stop(start + 0.15);
         });
+      } else if (type === 'fireball') {
+        // 火の玉「ボッ」
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'ghast') {
+        // ガストの鳴き声「ヒュォォーン」（ふるえながら下がる高い声）
+        const osc = audioCtx.createOscillator();
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        const gain = audioCtx.createGain();
+        lfo.frequency.value = 9;
+        lfoGain.gain.value = 25;
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(760, now);
+        osc.frequency.exponentialRampToValueAtTime(320, now + 0.7);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.7);
+        osc.start(now);
+        lfo.start(now);
+        osc.stop(now + 0.7);
+        lfo.stop(now + 0.7);
       } else if (type === 'eat') {
         // 食べる「もぐもぐ」
         [0, 0.12].forEach(offset => {
@@ -1508,6 +1543,63 @@
       for (const x of [4, 7, 10]) ctx.fillRect(x, 12, 2, 3);
     });
 
+    // 異世界の敵の顔
+    textures.piglinFace = createPixelTexture(ctx => {
+      speckle(ctx, '#e0a0a0', ['#d08888', '#7aa05a', '#6a9050'], 40); // ところどころ くさって緑
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(3, 5, 3, 2);
+      ctx.fillRect(10, 5, 3, 2);
+      ctx.fillStyle = '#6a1a1a';
+      ctx.fillRect(4, 5, 1, 2);
+      ctx.fillRect(11, 5, 1, 2);
+      ctx.fillStyle = '#c07070'; // 大きな鼻
+      ctx.fillRect(5, 8, 6, 4);
+      ctx.fillStyle = '#5a2a2a';
+      ctx.fillRect(6, 9, 1, 2);
+      ctx.fillRect(9, 9, 1, 2);
+      ctx.fillStyle = '#f0e8d0'; // キバ
+      ctx.fillRect(4, 12, 1, 2);
+      ctx.fillRect(11, 12, 1, 2);
+    });
+    textures.witherFace = createPixelTexture(ctx => {
+      speckle(ctx, '#2a2a2a', ['#1c1c1c', '#383838'], 50);
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(3, 5, 3, 3);
+      ctx.fillRect(10, 5, 3, 3);
+      ctx.fillRect(7, 9, 2, 2);
+      ctx.fillRect(4, 12, 8, 1);
+    });
+    textures.blazeFace = createPixelTexture(ctx => {
+      speckle(ctx, '#e8b830', ['#f8d060', '#c89020'], 50);
+      ctx.fillStyle = '#3a2000';
+      ctx.fillRect(3, 6, 4, 2);
+      ctx.fillRect(9, 6, 4, 2);
+      ctx.fillStyle = '#fff4a0';
+      ctx.fillRect(4, 6, 2, 1);
+      ctx.fillRect(10, 6, 2, 1);
+      ctx.fillStyle = '#6a3a00';
+      ctx.fillRect(5, 11, 6, 1);
+    });
+    textures.ghastFace = createPixelTexture(ctx => {
+      speckle(ctx, '#f0f0f0', ['#e0e0e0', '#ffffff'], 30);
+      ctx.fillStyle = '#6a6a6a'; // とじた目
+      ctx.fillRect(3, 6, 4, 1);
+      ctx.fillRect(9, 6, 4, 1);
+      ctx.fillStyle = '#b0b0b0'; // なみだのあと
+      ctx.fillRect(4, 7, 1, 3);
+      ctx.fillRect(11, 7, 1, 3);
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(6, 11, 4, 2);
+    });
+    textures.magmaFace = createPixelTexture(ctx => {
+      speckle(ctx, '#4a1408', ['#3a0e06', '#5a1a0a'], 50);
+      ctx.fillStyle = '#ff8a1a'; // ひび割れから のぞく溶岩
+      [[2, 3, 5, 1], [9, 2, 4, 1], [1, 9, 4, 1], [11, 12, 4, 1], [6, 14, 5, 1]].forEach(([x, y, w, hh]) => ctx.fillRect(x, y, w, hh));
+      ctx.fillStyle = '#ffd23a';
+      ctx.fillRect(4, 6, 2, 2);
+      ctx.fillRect(10, 6, 2, 2);
+    });
+
     // 異世界（ネザー）のブロック
     textures.netherrack = createPixelTexture(ctx => {
       speckle(ctx, '#6e2b2b', ['#5a2222', '#853434', '#4a1c1c'], 90);
@@ -1523,6 +1615,35 @@
       speckle(ctx, '#5a4436', ['#6b5040', '#48362a'], 70);
       ctx.fillStyle = '#2e211a'; // うめき顔のくぼみ
       [[4, 5], [10, 5], [5, 10], [6, 11], [9, 11], [10, 10]].forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
+    });
+    textures.netherBrick = createPixelTexture(ctx => {
+      ctx.fillStyle = '#2a1014';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#4a1c22';
+      for (let row = 0; row < 4; row++) {
+        const shift = row % 2 === 0 ? 0 : 4;
+        for (let col = -1; col < 3; col++) ctx.fillRect(col * 8 + shift + 1, row * 4 + 1, 6, 2);
+      }
+      ctx.fillStyle = '#5a2a30';
+      for (let i = 0; i < 10; i++) ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+    });
+    textures.blackstone = createPixelTexture(ctx => {
+      speckle(ctx, '#2a2630', ['#1c1a20', '#38343e', '#24202a'], 90);
+    });
+    textures.gildedBlackstone = createPixelTexture(ctx => {
+      speckle(ctx, '#2a2630', ['#1c1a20', '#38343e'], 70);
+      ctx.fillStyle = '#ffd23a';
+      [[2, 3], [9, 2], [5, 8], [12, 9], [3, 12], [10, 13]].forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
+      ctx.fillStyle = '#c8962a';
+      [[4, 4], [11, 3], [7, 9], [5, 13]].forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+    });
+    textures.healCrystal = createPixelTexture(ctx => {
+      speckle(ctx, '#d84ab8', ['#ff6ad8', '#b02a98', '#ff9ae8'], 80);
+      ctx.fillStyle = '#ffe0f8'; // きらきら光る面
+      [[3, 2, 2, 5], [9, 4, 2, 6], [6, 10, 2, 4], [12, 11, 2, 3]].forEach(([x, y, w, hh]) => ctx.fillRect(x, y, w, hh));
+      ctx.fillStyle = '#6a1a5a';
+      ctx.strokeStyle = '#6a1a5a';
+      ctx.strokeRect(0.5, 0.5, 15, 15);
     });
     textures.portal = createPixelTexture(ctx => {
       speckle(ctx, '#7a2ad0', ['#9a4aff', '#5a1aa0', '#c08aff'], 110);
@@ -1738,7 +1859,8 @@
       'tntSide', 'tntTop', 'bedTop', 'bedSide', 'furnaceFront', 'furnaceSide', 'farmland', 'wheat0',
       'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
       'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner',
-      'netherrack', 'glowstone', 'soulSand', 'portal'
+      'netherrack', 'glowstone', 'soulSand', 'portal', 'healCrystal',
+      'netherBrick', 'blackstone', 'gildedBlackstone'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -1822,7 +1944,7 @@
       51: { name: '流れる水', tiles: same('water'), tier: 99, seeThrough: true, solid: false, water: true, fluid: 'water', render: 'water', replaceable: true, map: '#3f7fe0' },
       52: { name: '溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff7a1a' },
       53: { name: '流れる溶岩', tiles: same('lava'), tier: 99, seeThrough: true, solid: false, lava: true, fluid: 'lava', render: 'lava', replaceable: true, map: '#ff9a3a' },
-      54: { name: '黒曜石', tiles: same('obsidian'), tier: 4, drop: 'obsidian', map: '#1e1430' },
+      54: { name: '黒曜石', tiles: same('obsidian'), tier: 4, drop: 'obsidian', blastProof: true, map: '#1e1430' },
       // 地下の古代遺跡・敵の湧くかご
       55: { name: '古代のレンガ', tiles: same('ancientBrick'), tier: 2, drop: 'ancient_bricks', map: '#8a9a7a' },
       56: { name: 'ひびの入った古代のレンガ', tiles: same('ancientCracked'), tier: 1, drop: 'ancient_bricks', map: '#7a8a6a' },
@@ -1833,6 +1955,12 @@
       61: { name: '光る石', tiles: same('glowstone'), tier: 0, drop: 'glowstone', light: true, map: '#f2c14a' },
       62: { name: 'たましいの砂', tiles: same('soulSand'), tier: 0, drop: 'soul_sand', soulSand: true, map: '#5a4436' },
       // ゲートの中身。すり抜けられて、光っていて、掘れない
+      // ドラゴンの広場の柱の上。空を飛んでいるドラゴンの体力を回復する。こわしても何も出ない
+      64: { name: '回復の結晶', tiles: same('healCrystal'), tier: 0, light: true, blastProof: true, crystal: true, map: '#ff6ad8' },
+      // 異世界の建物のブロック
+      65: { name: 'ネザーレンガ', tiles: same('netherBrick'), tier: 1, drop: 'nether_bricks', map: '#3a161c' },
+      66: { name: 'ブラックストーン', tiles: same('blackstone'), tier: 1, drop: 'blackstone', map: '#2a2630' },
+      67: { name: '金まじりのブラックストーン', tiles: same('gildedBlackstone'), tier: 1, drop: 'gold', map: '#6a5a2a' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -1871,6 +1999,10 @@
     const GLOWSTONE = 61;
     const SOUL_SAND = 62;
     const PORTAL = 63;   // ゲートの中の、むらさきのうずまき
+    const DRAGON_CRYSTAL = 64; // ドラゴンを回復させる結晶
+    const NETHER_BRICKS = 65;
+    const BLACKSTONE = 66;
+    const GILDED_BLACKSTONE = 67;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -2996,6 +3128,15 @@
                       ['diamond_sword', 0.25, 1, 1], ['diamond_armor', 0.15, 1, 1]],
       mineshaft: [['coal', 0.8, 3, 8], ['iron', 0.7, 2, 6], ['gold', 0.35, 1, 3], ['bread', 0.5, 1, 3], ['torch', 0.6, 4, 10],
                   ['ladder', 0.4, 3, 8], ['stone_pickaxe', 0.3, 1, 1], ['iron_pickaxe', 0.15, 1, 1], ['diamond', 0.1, 1, 2]],
+      // 異世界の建物
+      fortress: [['gold', 0.8, 2, 6], ['iron', 0.6, 2, 5], ['diamond', 0.4, 1, 3], ['golden_apple', 0.3, 1, 1], ['obsidian', 0.4, 2, 4],
+                 ['flint_and_steel', 0.25, 1, 1], ['blaze_rod', 0.35, 1, 3], ['diamond_sword', 0.1, 1, 1], ['magma_cream', 0.3, 1, 2]],
+      bastion: [['gold', 0.95, 5, 14], ['diamond', 0.5, 1, 4], ['golden_apple', 0.5, 1, 2], ['diamond_pickaxe', 0.15, 1, 1],
+                ['diamond_armor', 0.12, 1, 1], ['arrow', 0.5, 6, 12], ['blackstone', 0.6, 8, 16], ['ghast_tear', 0.3, 1, 2]],
+      bastionTreasure: [['gold', 1, 10, 24], ['diamond', 0.9, 3, 6], ['golden_apple', 0.8, 2, 4], ['diamond_sword', 0.35, 1, 1],
+                        ['diamond_armor', 0.3, 1, 1], ['diamond_pickaxe', 0.3, 1, 1]],
+      ruinedPortal: [['obsidian', 0.95, 3, 7], ['flint_and_steel', 0.6, 1, 1], ['gold', 0.6, 2, 6], ['golden_apple', 0.25, 1, 1],
+                     ['iron', 0.5, 1, 4], ['magma_cream', 0.25, 1, 1]],
       spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
                 ['golden_apple', 0.1, 1, 1], ['bow', 0.15, 1, 1], ['iron_sword', 0.15, 1, 1]]
     };
@@ -3267,7 +3408,11 @@
       nest: { name: '大グモの巣', emoji: '🕸️' },
       ruins: { name: '古代遺跡', emoji: '🏛️' },
       mineshaft: { name: '廃坑', emoji: '⛏️' },
-      spawner: { name: '敵の湧くかご', emoji: '👾' }
+      spawner: { name: '敵の湧くかご', emoji: '👾' },
+      // 異世界の建物
+      fortress: { name: '地獄のとりで', emoji: '🏯' },
+      bastion: { name: '黒い砦', emoji: '🏴' },
+      ruined_portal: { name: 'こわれたゲート', emoji: '🌀' }
     };
     let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
     let spawners = [];         // { x, y, z, type, timer }
@@ -3518,8 +3663,10 @@
     let lairChestsLooted = {};   // key -> true（セーブする）
 
     function registerLair(key, dim, x, y, z, half, height, chest) {
-      bossLairs.push({ key, dim, x, y, z, half, height, chest });
+      const lair = { key, dim, x, y, z, half, height, chest };
+      bossLairs.push(lair);
       if (chest) forceBlock(chest.x, chest.y, chest.z, CHEST);
+      return lair;
     }
 
     const lairAt = (px, feetY, pz) => bossLairs.find(l => l.dim === currentDim &&
@@ -3650,6 +3797,11 @@
       slowTimer: 0, // ストレイの矢に当たると少しのあいだ遅くなる
       poisonTimer: 0, // ウィッチの毒。残っているあいだ 1.5秒ごとにダメージ
       poisonTick: 0,
+      burnTimer: 0,        // 火の玉で燃えている（1秒ごとにダメージ。水に入ると消える）
+      burnTick: 0,
+      fireResistTimer: 0,  // マグマクリームを食べると、しばらく火と溶岩が平気
+      regenBuffTimer: 0,   // ガストの涙を食べると、しばらく体力が回復し続ける
+      regenBuffTick: 0,
       portalTimer: 0,        // ゲートの中にいる秒数（1.2秒で向こうへ）
       justTeleported: false, // ゲートから出るまで、もう一度飛ばない
       fallFrom: 0, // 落ち始めたときの足の高さ（落下ダメージの計算に使う）
@@ -3739,8 +3891,10 @@
     }
     updateHealthUI();
 
-    function damagePlayer(amount, knockbackDir = null) {
+    // opts.fire: 火・溶岩のダメージ（マグマクリームを食べていると受けない）
+    function damagePlayer(amount, knockbackDir = null, opts = {}) {
       if (player.invulnerableTimer > 0 || player.health <= 0) return;
+      if (opts.fire && player.fireResistTimer > 0) return;
       // 防具を持っていればダメージが減る。盾で守っていればさらに減る
       const protection = armorProtection();
       let reduced = Math.max(1, Math.round(amount * (1 - protection)));
@@ -3775,6 +3929,39 @@
         controls.unlock();
         gameOverScreen.style.display = 'flex';
       }
+    }
+
+    function setPlayerOnFire(seconds) {
+      if (player.fireResistTimer > 0) return;
+      if (player.burnTimer <= 0) player.burnTick = 1;
+      player.burnTimer = Math.max(player.burnTimer, seconds);
+    }
+
+    // ウィザースケルトンの「しおれ」。毒と同じで、少しずつ体力が減る
+    let witherWarned = false;
+    function witherPlayer() {
+      player.poisonTimer = Math.max(player.poisonTimer, 5);
+      if (player.poisonTick <= 0) player.poisonTick = 1.5;
+      if (!witherWarned) {
+        witherWarned = true;
+        showToast('🖤 しおれの呪いを受けた！ しばらく体力が減り続ける');
+      }
+    }
+
+    // 画面左上に、今かかっている効果を出す
+    const effectDisplay = document.getElementById('effect-display');
+    let effectText = '';
+    function updateEffectDisplay() {
+      const list = [];
+      if (player.burnTimer > 0) list.push('🔥 燃えている');
+      if (player.poisonTimer > 0) list.push('🧪 毒');
+      if (player.fireResistTimer > 0) list.push(`🧯 火に強い ${Math.ceil(player.fireResistTimer)}秒`);
+      if (player.regenBuffTimer > 0) list.push(`💗 回復中 ${Math.ceil(player.regenBuffTimer)}秒`);
+      const text = list.join('　');
+      if (text === effectText) return;
+      effectText = text;
+      effectDisplay.textContent = text;
+      effectDisplay.hidden = !text;
     }
 
     function healPlayer(amount) {
@@ -4138,6 +4325,90 @@
       return { group, head, legs: [legL, legR], wings: [wingL, wingR], glow };
     }
 
+    // --- 異世界の敵 ---
+    // ゾンビピグリン: くさったブタの戦士。金の剣を持っている
+    function buildZombiePiglin() {
+      const group = new THREE.Group();
+      const skinMat = new THREE.MeshLambertMaterial({ color: 0xe0a0a0 });
+      const rotMat = new THREE.MeshLambertMaterial({ color: 0x7aa05a });
+      const head = addBox(group, [0.6, 0.5, 0.5], faceMaterials({ color: 0xe0a0a0 }, textures.piglinFace), [0, 1.55, 0]);
+      const earL = addBox(group, [0.08, 0.26, 0.16], skinMat, [-0.34, 1.6, 0]);
+      const earR = addBox(group, [0.08, 0.26, 0.16], rotMat, [0.34, 1.6, 0]);
+      earL.rotation.z = 0.5;
+      earR.rotation.z = -0.5;
+      addBox(group, [0.5, 0.65, 0.3], new THREE.MeshLambertMaterial({ color: 0x6a4a2a }), [0, 0.98, 0]); // 皮のふく
+      addBox(group, [0.2, 0.25, 0.04], rotMat, [0.1, 1.05, 0.16]); // くさって骨が見えているところ
+      const armL = addBox(group, [0.18, 0.55, 0.18], rotMat, [-0.34, 1.1, 0.22]);
+      const armR = addBox(group, [0.18, 0.55, 0.18], skinMat, [0.34, 1.1, 0.22]);
+      armL.rotation.x = Math.PI / 2;
+      armR.rotation.x = Math.PI / 2;
+      const sword = addBox(group, [0.07, 0.07, 0.75], new THREE.MeshLambertMaterial({ color: 0xffd23a }), [0.34, 1.1, 0.8]);
+      sword.userData.noTint = true;
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 });
+      const legL = addBox(group, [0.2, 0.65, 0.22], legMat, [-0.13, 0.33, 0]);
+      const legR = addBox(group, [0.2, 0.65, 0.22], legMat, [0.13, 0.33, 0]);
+      return { group, head, legs: [legL, legR] };
+    }
+
+    // ウィザースケルトン: 背の高い黒いがいこつ。石の剣で切りつけ、当たると「しおれ」（毒）
+    function buildWitherSkeleton() {
+      const group = new THREE.Group();
+      const boneMat = new THREE.MeshLambertMaterial({ color: 0x2e2e2e });
+      const head = addBox(group, [0.55, 0.55, 0.55], faceMaterials({ color: 0x2a2a2a }, textures.witherFace), [0, 2.1, 0]);
+      addBox(group, [0.45, 0.85, 0.22], boneMat, [0, 1.38, 0]);
+      const armL = addBox(group, [0.11, 0.75, 0.11], boneMat, [-0.3, 1.5, 0.28]);
+      const armR = addBox(group, [0.11, 0.75, 0.11], boneMat, [0.3, 1.5, 0.28]);
+      armL.rotation.x = Math.PI / 2;
+      armR.rotation.x = Math.PI / 2;
+      const sword = addBox(group, [0.08, 0.08, 0.85], new THREE.MeshLambertMaterial({ color: 0x8a8a8a }), [0.3, 1.5, 0.95]);
+      sword.userData.noTint = true;
+      const legL = addBox(group, [0.13, 0.95, 0.13], boneMat, [-0.13, 0.48, 0]);
+      const legR = addBox(group, [0.13, 0.95, 0.13], boneMat, [0.13, 0.48, 0]);
+      return { group, head, legs: [legL, legR] };
+    }
+
+    // マグマキューブ: 溶岩のスライム。高く跳ねて、倒すと分かれる
+    function buildMagmaCube(size) {
+      const group = new THREE.Group();
+      const body = addBox(group, [size, size, size],
+        faceMaterials({ map: textures.magmaFace }, textures.magmaFace, { emissive: 0x3a1000 }), [0, size / 2, 0]);
+      return { group, head: body, legs: [] };
+    }
+
+    // ブレイズ: 燃える頭のまわりを、光る棒がくるくる回っている。空を飛んで火の玉を撃つ
+    function buildBlaze() {
+      const group = new THREE.Group();
+      const head = addBox(group, [0.5, 0.5, 0.5], faceMaterials({ color: 0xe8b830 }, textures.blazeFace, { emissive: 0x3a2200 }), [0, 1.45, 0]);
+      const rods = new THREE.Group();
+      rods.position.y = 0.85;
+      const rodMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
+      for (let i = 0; i < 8; i++) {
+        const upper = i < 4;
+        const angle = (i / 4) * Math.PI * 2 + (upper ? 0 : Math.PI / 4);
+        const rr = upper ? 0.5 : 0.32;
+        const rod = addBox(rods, [0.1, 0.5, 0.1], rodMat, [Math.cos(angle) * rr, upper ? 0.3 : -0.3, Math.sin(angle) * rr]);
+        rod.userData.noTint = true;
+      }
+      group.add(rods);
+      return { group, head, legs: [], rods };
+    }
+
+    // ガスト: 大きな白いおばけ。ふだんは目をとじて泣いている。遠くから ばくはつする火の玉を撃つ
+    function buildGhast() {
+      const group = new THREE.Group();
+      const skin = { color: 0xf0f0f0 };
+      const head = addBox(group, [2.4, 2.1, 2.4], faceMaterials(skin, textures.ghastFace), [0, 1.55, 0]);
+      const tentMat = new THREE.MeshLambertMaterial(skin);
+      const legs = [];
+      for (let i = 0; i < 9; i++) {
+        const tx = ((i % 3) - 1) * 0.7;
+        const tz = (Math.floor(i / 3) - 1) * 0.7;
+        const len = 0.5 + ((i * 7) % 5) * 0.12;
+        legs.push(addBox(group, [0.2, len, 0.2], tentMat, [tx, 0.5 - len / 2, tz]));
+      }
+      return { group, head, legs };
+    }
+
     const MOB_DEFS = {
       zombie: { name: 'ゾンビ', ai: 'melee', health: 20, speed: 2.4, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', build: buildZombie },
       husk: { name: 'ハスク', ai: 'melee', health: 22, speed: 2.5, radius: 0.3, height: 1.8, sight: 20, damage: 3, drop: 'rotten_meat', noBurn: true, build: buildHusk },
@@ -4145,14 +4416,20 @@
       spider: { name: 'クモ', ai: 'melee', health: 16, speed: 4.0, radius: 0.55, height: 0.8, sight: 18, damage: 2, climbs: true, drop: 'string', dropCount: [1, 3], build: buildSpider },
       skeleton: { name: 'スケルトン', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, build: buildSkeleton },
       stray: { name: 'ストレイ', ai: 'ranged', health: 20, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, slowArrows: true, build: buildStray },
-      slime: { name: 'スライム', ai: 'slime', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, drop: 'slimeball', build: buildSlime },
+      slime: { name: 'スライム', ai: 'slime', health: 16, speed: 3.0, radius: 0.5, height: 1.0, sight: 16, damage: 2, splits: true, drop: 'slimeball', build: buildSlime },
+      // 異世界だけに出る敵（火に強い fireImmune。表の世界の敵よりずっと強い）
+      zombie_piglin: { name: 'ゾンビピグリン', ai: 'melee', health: 44, speed: 2.9, radius: 0.32, height: 1.8, sight: 22, damage: 7, noBurn: true, fireImmune: true, drop: 'gold', dropCount: [1, 2], build: buildZombiePiglin },
+      wither_skeleton: { name: 'ウィザースケルトン', ai: 'melee', health: 56, speed: 2.7, radius: 0.35, height: 2.4, sight: 22, damage: 9, wither: true, noBurn: true, fireImmune: true, drop: 'coal', dropCount: [1, 3], build: buildWitherSkeleton },
+      magma_cube: { name: 'マグマキューブ', ai: 'slime', health: 32, speed: 3.6, radius: 0.5, height: 1.0, sight: 18, damage: 5, hop: 8.5, splits: true, noBurn: true, fireImmune: true, drop: 'magma_cream', build: buildMagmaCube },
+      blaze: { name: 'ブレイズ', ai: 'blaze', health: 40, speed: 2.6, radius: 0.35, height: 1.8, sight: 24, damage: 6, flying: true, noBurn: true, fireImmune: true, drop: 'blaze_rod', build: buildBlaze },
+      ghast: { name: 'ガスト', ai: 'ghast', health: 36, speed: 1.8, radius: 1.25, height: 2.6, sight: 44, notice: 32, damage: 10, flying: true, noBurn: true, fireImmune: true, drop: 'ghast_tear', build: buildGhast },
       // ウィッチは毒のビンを投げる。コウモリはおそってこない（passive なので敵の数に入らない）
       witch: { name: 'ウィッチ', ai: 'witch', health: 26, speed: 2.2, radius: 0.3, height: 1.8, sight: 18, damage: 3, noBurn: true, drop: 'gunpowder', dropCount: [1, 2], build: buildWitch },
       guardian: { name: '遺跡の番人', ai: 'melee', ignoresTorch: true, health: 34, speed: 1.7, radius: 0.4, height: 2.3, sight: 16, damage: 5, noBurn: true, drop: 'gold', dropCount: [1, 3], build: buildGuardian },
       // ダンジョンではなく、すみかに住んでいるボス（ai: 'lairboss'）
       spider_queen: { name: '大グモの女王', ai: 'lairboss', health: 380, speed: 3.6, radius: 1.0, height: 1.7, sight: 26, damage: 5, boss: true, noBurn: true, climbs: true, build: buildSpiderQueen },
       mummy: { name: 'ファラオのミイラ', ai: 'lairboss', health: 520, speed: 1.9, radius: 0.55, height: 2.9, sight: 24, damage: 9, boss: true, noBurn: true, build: buildMummy },
-      nether_dragon: { name: '異世界のドラゴン', ai: 'lairboss', health: 820, speed: 5.0, radius: 1.3, height: 2.6, sight: 40, damage: 12, boss: true, noBurn: true, flying: true, build: buildNetherDragon },
+      nether_dragon: { name: '異世界のドラゴン', ai: 'lairboss', health: 1500, speed: 5.0, radius: 1.3, height: 2.6, sight: 48, damage: 14, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildNetherDragon },
       bat: { name: 'コウモリ', emoji: '🦇', ai: 'bat', passive: true, flying: true, noBurn: true, health: 6, speed: 3.4, radius: 0.22, height: 0.5, sight: 10, build: buildBat },
       golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem },
       magma_golem: { name: 'マグマゴーレム', ai: 'boss', health: 450, speed: 2.0, radius: 0.85, height: 3.5, sight: 34, damage: 11, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.magma) },
@@ -4222,10 +4499,15 @@
     const HIT_RED = new THREE.Color(1.5, 0.3, 0.3);
     const FUSE_WHITE = new THREE.Color(2, 2, 2);
 
+    // もとの色に color をかけ合わせる（1,1,1 ならもとの色のまま）。
+    // もとの色は最初に覚えておく（上書きすると、シャツやズボンの色が白くなってしまう）
     function setMobColor(mob, color) {
       mob.group.traverse(child => {
         if (!child.isMesh || !child.material || child.userData.noTint) return;
-        (Array.isArray(child.material) ? child.material : [child.material]).forEach(m => m.color.copy(color));
+        (Array.isArray(child.material) ? child.material : [child.material]).forEach(m => {
+          if (!m.userData.baseColor) m.userData.baseColor = m.color.clone();
+          m.color.copy(m.userData.baseColor).multiply(color);
+        });
       });
     }
 
@@ -4279,8 +4561,8 @@
     function applyMobStrength(mob) {
       if (mob.def.passive) return; // 動物は深さで強くならない
       const p = mob.group.position;
-      const depth = inNether() ? 24 : Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
-      const t = Math.min(depth / 40, 1); // 0: 地上 〜 1: 最深部（異世界はまん中あたりで固定）
+      const depth = inNether() ? 14 : Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
+      const t = Math.min(depth / 40, 1); // 0: 地上 〜 1: 最深部（異世界の敵はもともと強いので、少しだけ上げる）
       mob.health = Math.round(mob.health * (1 + t * 2)); // 体力は最大3倍
       mob.power = 1 + t;                                 // 攻撃力は最大2倍
       mob.speed *= 1 + t * 0.4;
@@ -4303,7 +4585,8 @@
     const UNDERGROUND_MOBS = [['zombie', 20], ['creeper', 15], ['spider', 25], ['skeleton', 20], ['slime', 20], ['witch', 10]];
     // 地形によって入れかわる敵（砂漠のゾンビはハスク、雪原のスケルトンはストレイ）
     const BIOME_VARIANTS = { desert: { zombie: 'husk' }, snow: { skeleton: 'stray' } };
-    const NETHER_MOBS = UNDERGROUND_MOBS;
+    // 異世界には、異世界だけの敵が出る
+    const NETHER_MOBS = [['zombie_piglin', 30], ['magma_cube', 22], ['wither_skeleton', 18], ['blaze', 18], ['ghast', 12]];
 
     function pickWeighted(list) {
       let r = Math.random() * list.reduce((sum, [, w]) => sum + w, 0);
@@ -4355,7 +4638,7 @@
     }
 
     function desiredMobCount() {
-      if (inNether()) return 7;
+      if (inNether()) return 8;
       if (currentDepth >= 5) return Math.min(8, 3 + Math.floor(currentDepth / 8));
       if (daylight < 0.3) return Math.min(10, 4 + Math.floor(killCount / 4));
       return 0;
@@ -4582,7 +4865,7 @@
       // 壁に当たったら、地面にいればジャンプ。クモは壁を登る（飛ぶ敵はよけるだけ）
       if (blocked && !mob.def.flying) {
         if (mob.def.climbs) v.y = Math.max(v.y, 3.5);
-        else if (mob.onGround && mob.type !== 'slime') v.y = 7.2;
+        else if (mob.onGround && mob.def.ai !== 'slime') v.y = 7.2;
       }
 
       // ノックバックはすぐ減速する
@@ -4754,11 +5037,11 @@
         return;
       }
 
-      // 大きいスライムは小さいスライムに分裂する
-      if (mob.type === 'slime' && mob.size > 0.6) {
+      // 大きいスライム（マグマキューブ）は小さいのに分裂する
+      if (mob.def.splits && mob.size > 0.6) {
         const count = rand(2, 3);
         for (let i = 0; i < count; i++) {
-          const child = createMob('slime', p.x + (Math.random() - 0.5) * 0.6, p.y + 0.3, p.z + (Math.random() - 0.5) * 0.6, 0.5);
+          const child = createMob(mob.type, p.x + (Math.random() - 0.5) * 0.6, p.y + 0.3, p.z + (Math.random() - 0.5) * 0.6, 0.5);
           applyMobStrength(child);
           child.aggro = true;
           child.velocity.set((Math.random() - 0.5) * 4, 4, (Math.random() - 0.5) * 4);
@@ -4792,6 +5075,146 @@
         if (mob.type === 'spider' || mob.type === 'spider_queen') leg.rotation.y = (i % 2 === 0 ? swing : -swing) * 0.5;
         else leg.rotation.x = i % 2 === 0 ? swing : -swing;
       });
+    }
+
+    // 飛ぶ敵が flyTargetY の高さへ上下する（天井と床にはぶつからないようにする）
+    function hoverToward(mob, speed) {
+      const p = mob.group.position;
+      if (isSolid(p.x, p.y + mob.height + 0.5, p.z)) mob.flyTargetY = Math.min(mob.flyTargetY, p.y - 1);
+      if (isSolid(p.x, p.y - 1, p.z)) mob.flyTargetY = Math.max(mob.flyTargetY, p.y + 1.5);
+      mob.moveY = THREE.MathUtils.clamp(mob.flyTargetY - p.y, -1, 1) * speed;
+    }
+
+    /* --- Fireballs (火の玉: ブレイズ・ガスト・ドラゴン) --- */
+    // 重力を受けずに、まっすぐ飛ぶ。blast があるもの（ガスト・ドラゴン）は当たるとばくはつする。
+    // 剣やこぶしで打ち返せる。打ち返した火の玉は、敵に当たる
+    const fireballs = [];
+    const fireballGeo = new THREE.BoxGeometry(1, 1, 1);
+    const fireballOuter = new THREE.MeshBasicMaterial({ color: 0xff6a1a });
+    const fireballInner = new THREE.MeshBasicMaterial({ color: 0xffd23a });
+    let reflectHintShown = false;
+
+    // opts: speed（速さ）/ damage / size（大きさ）/ blast（ばくはつの大きさ）/ breaks（ブロックをこわすか）
+    function launchFireball(owner, from, target, opts) {
+      const { speed = 12, damage = 5, size = 0.4, blast = 0, breaks = false } = opts;
+      const mesh = new THREE.Group();
+      const outer = new THREE.Mesh(fireballGeo, fireballOuter);
+      outer.scale.setScalar(size);
+      const inner = new THREE.Mesh(fireballGeo, fireballInner);
+      inner.scale.setScalar(size * 0.7);
+      inner.rotation.set(0.7, 0.7, 0);
+      mesh.add(outer, inner);
+      mesh.position.copy(from);
+      scene.add(mesh);
+      const vel = target.clone().sub(from).normalize().multiplyScalar(speed);
+      fireballs.push({ mesh, vel, life: 6, damage, size, blast, breaks, owner, reflected: false });
+    }
+
+    function removeFireball(i) {
+      scene.remove(fireballs[i].mesh);
+      fireballs.splice(i, 1);
+    }
+
+    function updateFireballs(delta) {
+      const feetY = camera.position.y - player.eye;
+      for (let i = fireballs.length - 1; i >= 0; i--) {
+        const f = fireballs[i];
+        f.life -= delta;
+        const pos = f.mesh.position;
+        f.mesh.rotation.x += delta * 6;
+        f.mesh.rotation.y += delta * 4;
+        if (Math.random() < delta * 12) spawnParticles(pos.clone(), 0xff8a2a, 1, 0.5); // 火の粉
+        const hitR = f.size * 0.5 + 0.35;
+        const steps = Math.max(1, Math.ceil((f.vel.length() * delta) / 0.3));
+        let hitsPlayer = false;
+        let target = null;
+        let blocked = false;
+        for (let s = 0; s < steps && !hitsPlayer && !target && !blocked; s++) {
+          pos.addScaledVector(f.vel, delta / steps);
+          if (!f.reflected) {
+            hitsPlayer = Math.abs(pos.x - camera.position.x) < hitR && Math.abs(pos.z - camera.position.z) < hitR &&
+              pos.y > feetY - f.size * 0.5 && pos.y < feetY + player.bodyHeight + f.size * 0.5;
+          } else {
+            target = mobs.find(m => {
+              const mp = m.group.position;
+              return Math.abs(pos.x - mp.x) < m.radius + hitR && Math.abs(pos.z - mp.z) < m.radius + hitR &&
+                pos.y > mp.y - 0.3 && pos.y < mp.y + m.height + 0.3;
+            });
+          }
+          blocked = isSolid(pos.x, pos.y, pos.z);
+        }
+        if (!hitsPlayer && !target && !blocked && f.life > 0) continue;
+        const at = pos.clone();
+        removeFireball(i);
+        // 打ち返した火の玉は強い（ガストは一発でたおせる）
+        if (target) hitMob(target, Math.max(40, f.damage * 4), at);
+        if (f.blast > 0) {
+          fireballBlast(at, f);
+        } else {
+          spawnParticles(at, 0xff8a2a, 12, 3);
+          if (hitsPlayer) {
+            damagePlayer(f.damage, new THREE.Vector3(f.vel.x, 0, f.vel.z).normalize(), { fire: true });
+            setPlayerOnFire(3);
+          }
+        }
+      }
+    }
+
+    // 火の玉のばくはつ。TNT より小さく、黒曜石・岩盤などはこわれない
+    function fireballBlast(center, f) {
+      playSound('explosion');
+      spawnParticles(center, 0xff5500, 26, 7);
+      spawnParticles(center, 0xffd23a, 16, 5);
+      spawnParticles(center, 0x444444, 12, 4);
+      if (f.breaks) {
+        const r = f.blast * 0.7;
+        for (let x = Math.floor(center.x - r); x <= Math.ceil(center.x + r); x++) {
+          for (let y = Math.floor(center.y - r); y <= Math.ceil(center.y + r); y++) {
+            for (let z = Math.floor(center.z - r); z <= Math.ceil(center.z + r); z++) {
+              const id = getBlock(x, y, z);
+              if (id === 0 || !BLOCKS[id] || BLOCKS[id].tier >= 99 || BLOCKS[id].blastProof) continue;
+              if (Math.hypot(x - center.x, y - center.y, z - center.z) > r) continue;
+              if (BLOCKS[id].storage || BLOCKS[id].furnace) spillContainer(x, y, z);
+              removeBlock(x, y, z, false);
+            }
+          }
+        }
+      }
+      const reach = f.blast + 1;
+      const playerCenter = new THREE.Vector3(camera.position.x, camera.position.y - player.eye + 0.9, camera.position.z);
+      const d = playerCenter.distanceTo(center);
+      if (!f.reflected && d < reach) {
+        damagePlayer(Math.max(1, Math.round(f.damage * (1 - (d / reach) * 0.6))), playerCenter.clone().sub(center).normalize(), { fire: true });
+        setPlayerOnFire(2);
+      }
+      if (f.reflected) {
+        [...mobs].forEach(m => {
+          if (m.health > 0 && m.group.position.distanceTo(center) < reach) hitMob(m, f.damage * 2, center.clone());
+        });
+      }
+    }
+
+    // 左クリックしたとき、目の前に火の玉があれば打ち返す
+    function tryReflectFireball() {
+      camera.getWorldDirection(lookDirection);
+      for (const f of fireballs) {
+        if (f.reflected) continue;
+        const to = f.mesh.position.clone().sub(camera.position);
+        const along = to.dot(lookDirection);
+        if (along < 0 || along > 4.5) continue;
+        if (to.addScaledVector(lookDirection, -along).length() > 1.1 + f.size * 0.5) continue;
+        f.reflected = true;
+        f.vel.copy(lookDirection).multiplyScalar(Math.max(14, f.vel.length() * 1.4));
+        f.life = 6;
+        playSound('hit');
+        spawnParticles(f.mesh.position.clone(), 0xffd23a, 10, 4);
+        if (!reflectHintShown) {
+          reflectHintShown = true;
+          showToast('💥 火の玉を打ち返した！ 敵に当てよう');
+        }
+        return true;
+      }
+      return false;
     }
 
     // 気づくまでの動きを、自分の AI の中で決めている敵（それ以外は wanderAround でうろうろ）
@@ -4909,7 +5332,7 @@
           mob.moveZ = toPlayer.z * mob.speed * sign;
           walkAnimation(mob, mob.speed / 3);
         };
-        const meleeDamage = () => Math.max(1, Math.round(mob.def.damage * mob.power * (mob.type === 'slime' ? mob.size : 1)));
+        const meleeDamage = () => Math.max(1, Math.round(mob.def.damage * mob.power * (mob.def.ai === 'slime' ? mob.size : 1)));
 
         if (idle && !SELF_IDLE_AI.includes(mob.def.ai)) {
           // まだ気づいていない敵: 湧いた場所のあたりを、ゆっくりうろうろする
@@ -4945,6 +5368,7 @@
           if (dist < reach + 0.4 && mob.attackCooldown <= 0) {
             mob.attackCooldown = mob.type === 'spider' ? 1.0 : 1.3;
             damagePlayer(meleeDamage(), toPlayer.clone());
+            if (mob.def.wither) witherPlayer();
           }
         } else if (mob.def.ai === 'ranged') {
           // 近すぎたら下がり、遠すぎたら近づき、見えていれば矢を撃つ
@@ -5047,6 +5471,59 @@
           mob.moveY = THREE.MathUtils.clamp(mob.flyTargetY - p.y, -1, 1) * 2.0;
         }
 
+        if (mob.def.ai === 'blaze') {
+          // ブレイズ: 棒をくるくる回して浮かぶ。気づくと、火の玉を3発つづけて撃つ
+          if (mob.rods) mob.rods.rotation.y += delta * (mob.aggro ? 5 : 1.5);
+          if (sees) {
+            if (flatDist > 12) walkToward(1);
+            else if (flatDist < 6) walkToward(-0.7);
+            mob.flyTargetY = playerFeet + 1.2 + Math.sin(performance.now() * 0.002) * 0.8;
+            const eye = new THREE.Vector3(p.x, p.y + 1.45 * mob.baseScale, p.z);
+            if (mob.burst > 0) {
+              mob.burstTimer -= delta;
+              if (mob.burstTimer <= 0) {
+                mob.burst--;
+                mob.burstTimer = 0.35;
+                const aim = playerCenter.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 1.2));
+                launchFireball(mob, eye.addScaledVector(toPlayer, 0.5), aim, { speed: 14, damage: Math.round(mob.def.damage * mob.power), size: 0.35 });
+                playSound('fireball');
+              }
+            } else {
+              mob.shootTimer -= delta;
+              if (mob.shootTimer <= 0 && dist < 22 && hasLineOfSight(eye, playerCenter)) {
+                mob.shootTimer = 4.5 + Math.random();
+                mob.burst = 3;
+                mob.burstTimer = 0.6; // 撃つ前に少し光る（よけるチャンス）
+                spawnParticles(eye, 0xffb020, 16, 2);
+              }
+            }
+          } else if (idle) {
+            wanderAround(mob, delta, 0.4);
+            if (Math.random() < delta * 0.4) mob.flyTargetY = p.y + rand(-1, 1);
+          }
+          hoverToward(mob, 2.5);
+        } else if (mob.def.ai === 'ghast') {
+          // ガスト: ふわふわ浮かんで、遠くから ばくはつする大きな火の玉を撃つ（打ち返せる）
+          mob.flapTimer += delta * 2;
+          mob.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(mob.flapTimer + i) * 0.35; });
+          if (sees) {
+            if (flatDist > 22) walkToward(1);
+            else if (flatDist < 12) walkToward(-0.8);
+            mob.flyTargetY = playerFeet + 5;
+            mob.shootTimer -= delta;
+            const mouth = new THREE.Vector3(p.x, p.y + mob.height * 0.45, p.z).addScaledVector(toPlayer, mob.radius + 0.6);
+            if (mob.shootTimer <= 0 && dist < 40 && hasLineOfSight(mouth, playerCenter)) {
+              mob.shootTimer = 4 + Math.random() * 1.5;
+              launchFireball(mob, mouth, playerCenter, { speed: 11, damage: Math.round(mob.def.damage * mob.power), size: 0.9, blast: 2.2, breaks: true });
+              playSound('ghast');
+            }
+          } else if (idle) {
+            wanderAround(mob, delta, 0.5);
+            if (Math.random() < delta * 0.3) mob.flyTargetY = p.y + rand(-2, 2);
+          }
+          hoverToward(mob, 2);
+        }
+
         if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
         else if (mob.def.ai === 'lairboss') updateLairBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
 
@@ -5054,6 +5531,7 @@
       });
 
       updateArrows(delta);
+      updateFireballs(delta);
       mobCountDisplay.textContent = `Enemies: ${countMobs(false)}`;
     }
 
@@ -5081,7 +5559,8 @@
     function bossLabel(mob) {
       const emoji = mob.lair ? LAIRS[mob.lair.key].emoji : bossTierOf(mob).emoji;
       const state = mob.wetTimer > 0 ? ' 💧よわっている' : mob.enraged ? '（怒り）' : '';
-      return `${emoji} ${mob.def.name}${state}`;
+      const crystals = mob.lair && mob.lair.crystals ? `　💎 回復の結晶 ×${aliveCrystals(mob.lair).length}` : '';
+      return `${emoji} ${mob.def.name}${state}${crystals}`;
     }
 
     function updateBossBar(mob) {
@@ -5131,9 +5610,10 @@
       boss.specialTimer = 4;
       boss.summonTimer = 10;
       boss.leapTimer = 3;
-      boss.restTimer = 12;  // ドラゴンが最初に降りてくるまでの秒数
-      boss.resting = 0;
-      boss.diving = 0;
+      boss.phase = 'air';   // ドラゴン: air → landing → ground → takeoff → air ...
+      boss.phaseTimer = DRAGON_AIR_TIME;
+      boss.orbit = 0;
+      boss.calledBlazes = false;
       playSound('roar');
       showToast(`${conf.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
@@ -5162,66 +5642,7 @@
       const melee = () => Math.max(1, Math.round(mob.def.damage * power));
 
       if (mob.type === 'nether_dragon') {
-        // ドラゴン: プレイヤーの上を飛びながら火の息。ときどき急降下してぶつかる
-        mob.flapTimer = (mob.flapTimer || 0) + delta * 6;
-        if (mob.wings) {
-          const flap = Math.sin(mob.flapTimer) * 0.5;
-          mob.wings[0].rotation.z = flap;
-          mob.wings[1].rotation.z = -flap;
-        }
-        const groundY = lair.y;
-        mob.restTimer = (mob.restTimer === undefined ? 12 : mob.restTimer) - delta;
-        if (mob.resting > 0) {
-          // 降りて休んでいるあいだ。剣がとどく「せめどき」
-          mob.resting -= delta;
-          mob.moveY = THREE.MathUtils.clamp(groundY - p.y, -1, 1) * 7;
-          const reach = mob.radius + 2.2;
-          if (flatDist > reach) {
-            mob.moveX = target.x * mob.speed * 0.35;
-            mob.moveZ = target.z * mob.speed * 0.35;
-          }
-          if (dist < reach + 0.5 && mob.attackTimer <= 0) {
-            mob.attackTimer = 1.6;
-            damagePlayer(melee(), target.clone());
-          }
-          if (mob.resting <= 0) {
-            mob.restTimer = mob.enraged ? 9 : 12;
-            playSound('roar');
-          }
-        } else {
-          // 飛んでいるあいだ。高さは剣がぎりぎりとどかないくらい
-          const wantY = mob.diving > 0 ? groundY + 0.5 : groundY + (mob.enraged ? 4 : 5);
-          mob.moveY = THREE.MathUtils.clamp(wantY - p.y, -1, 1) * (mob.diving > 0 ? 9 : 3);
-          if (mob.diving > 0) {
-            mob.diving -= delta;
-            mob.moveX = target.x * mob.speed * 2.2;
-            mob.moveZ = target.z * mob.speed * 2.2;
-            if (dist < mob.radius + 2.2 && mob.attackTimer <= 0) {
-              mob.attackTimer = 1.2;
-              damagePlayer(melee(), target.clone());
-            }
-            if (mob.diving <= 0) startShockwave(mob, Math.round(10 * power)); // 着地の衝撃波
-          } else if (flatDist > 3) {
-            mob.moveX = target.x * mob.speed * 0.8;
-            mob.moveZ = target.z * mob.speed * 0.8;
-          }
-          if (mob.specialTimer <= 0 && !outside) {
-            if (dist < 22 && Math.random() < 0.5) {
-              mob.specialTimer = mob.enraged ? 2.6 : 3.8;
-              breatheFire(mob, playerCenter, Math.round(7 * power)); // 火の息
-            } else {
-              mob.specialTimer = mob.enraged ? 5 : 7;
-              mob.diving = 1.6; // 急降下
-              playSound('roar');
-            }
-          }
-          // ときどき地面に降りて休む（ずっと空にいると剣がとどかないので）
-          if (mob.restTimer <= 0 && mob.diving <= 0) {
-            mob.resting = mob.enraged ? 3.5 : 5;
-            playSound('roar');
-            showToast('🐉 ドラゴンが降りてきた！ 今がチャンス');
-          }
-        }
+        updateDragon(mob, delta, { dist, flatDist, target, power, melee, playerCenter });
       } else if (mob.type === 'spider_queen') {
         // 女王: 速く追いかけ、ときどき大ジャンプ。糸をはいて足止めし、仲間のクモを呼ぶ
         const reach = mob.radius + 1.6;
@@ -5273,6 +5694,158 @@
           summonLairMinions(mob, 'husk', 2);
         }
       }
+    }
+
+    // --- 異世界のドラゴン ---
+    // 「空を回りながら火の玉」→「地上に降りてあばれる」→「また飛び立つ」をくり返す。
+    // 空にいるあいだは、まわりの柱の上にある「回復の結晶」から体力をもらう（結晶をこわせば回復できない）。
+    // 地上にいるあいだが剣でせめるチャンス。火の玉は打ち返すとドラゴンに当たる
+    const DRAGON_AIR_TIME = 14;
+    const DRAGON_GROUND_TIME = 9;
+    const CRYSTAL_HEAL = 1.2; // 結晶1つにつき、1秒でこれだけ回復する
+
+    function dragonMouth(mob) {
+      const p = mob.group.position;
+      const s = mob.group.scale.x;
+      const ry = mob.group.rotation.y;
+      return new THREE.Vector3(p.x + Math.sin(ry) * 2.9 * s, p.y + 1.8 * s, p.z + Math.cos(ry) * 2.9 * s);
+    }
+
+    function updateDragon(mob, delta, { dist, flatDist, target, power, melee, playerCenter }) {
+      const p = mob.group.position;
+      const lair = mob.lair;
+      const groundY = lair.y;
+      const airY = groundY + 9;
+      const flying = mob.phase !== 'ground';
+      mob.flapTimer += delta * (flying ? 6 : 1.5);
+      if (mob.wings) {
+        const flap = flying ? Math.sin(mob.flapTimer) * 0.5 : -0.35 + Math.sin(mob.flapTimer) * 0.05; // 地上では つばさをたたむ
+        mob.wings[0].rotation.z = flap;
+        mob.wings[1].rotation.z = -flap;
+      }
+      mob.phaseTimer -= delta;
+      const moveTo = (x, z, speed) => {
+        const dx = x - p.x;
+        const dz = z - p.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.3) return;
+        const v = Math.min(speed, d * 2);
+        mob.moveX = (dx / d) * v;
+        mob.moveZ = (dz / d) * v;
+      };
+
+      if (mob.phase === 'air') {
+        // 広場のまわりを回りながら、火の玉を撃つ
+        mob.orbit += delta * (mob.enraged ? 0.45 : 0.32);
+        const radius = lair.half - 5;
+        moveTo(lair.x + Math.cos(mob.orbit) * radius, lair.z + Math.sin(mob.orbit) * radius, mob.speed * 1.3);
+        mob.moveY = THREE.MathUtils.clamp(airY - p.y, -1, 1) * 4;
+        if (mob.specialTimer <= 0) {
+          mob.specialTimer = mob.enraged ? 1.7 : 2.5;
+          const mouth = dragonMouth(mob);
+          const side = new THREE.Vector3(-target.z, 0, target.x); // プレイヤーへの向きに直角
+          const shots = mob.enraged ? [0, -2.5, 2.5] : [0];      // 怒ると 3 方向に撃つ
+          shots.forEach(offset => {
+            const aim = playerCenter.clone().addScaledVector(side, offset);
+            launchFireball(mob, mouth, aim, { speed: 15, damage: Math.round(9 * power), size: 1.0, blast: 2.4, breaks: false });
+          });
+          playSound('fireball');
+        }
+        healFromCrystals(mob, delta);
+        if (mob.phaseTimer <= 0) {
+          mob.phase = 'landing';
+          mob.phaseTimer = 4;
+          crystalBeams.visible = false;
+          playSound('roar');
+          showToast('🐉 ドラゴンが降りてくる！ 地上にいるあいだが せめるチャンス');
+        }
+      } else if (mob.phase === 'landing') {
+        // プレイヤーのそば（広場の中）に急降下
+        const lx = THREE.MathUtils.clamp(camera.position.x, lair.x - lair.half + 3, lair.x + lair.half - 3);
+        const lz = THREE.MathUtils.clamp(camera.position.z, lair.z - lair.half + 3, lair.z + lair.half - 3);
+        moveTo(lx, lz, mob.speed * 1.6);
+        mob.moveY = THREE.MathUtils.clamp(groundY - p.y, -1, 1) * 8;
+        if (p.y <= groundY + 0.4 || mob.phaseTimer <= 0) {
+          mob.phase = 'ground';
+          mob.phaseTimer = mob.enraged ? 7 : DRAGON_GROUND_TIME;
+          mob.specialTimer = 2;
+          startShockwave(mob, Math.round(10 * power)); // 着地の衝撃波（ジャンプでよける）
+          spawnParticles(p.clone().add(new THREE.Vector3(0, 0.3, 0)), 0x3a2a4a, 30, 6);
+        }
+      } else if (mob.phase === 'ground') {
+        // 地上: 歩いて追いかけ、かみつく。近いと火の息、遠いと しっぽで地面をたたく
+        mob.moveY = THREE.MathUtils.clamp(groundY - p.y, -1, 1) * 6;
+        const reach = mob.radius + 2.2;
+        if (flatDist > reach) {
+          mob.moveX = target.x * mob.speed * 0.55;
+          mob.moveZ = target.z * mob.speed * 0.55;
+          walkAnimation(mob, 1.4);
+        }
+        if (dist < reach + 0.6 && mob.attackTimer <= 0) {
+          mob.attackTimer = 1.3;
+          damagePlayer(melee(), target.clone());
+        }
+        if (mob.specialTimer <= 0) {
+          mob.specialTimer = mob.enraged ? 2.6 : 3.6;
+          if (dist < 9) breatheFire(mob, playerCenter, Math.round(6 * power));
+          else startShockwave(mob, Math.round(8 * power));
+        }
+        if (mob.phaseTimer <= 0) {
+          mob.phase = 'takeoff';
+          mob.phaseTimer = 1.6;
+          playSound('roar');
+        }
+      } else {
+        // 飛び立つ
+        mob.moveY = 6;
+        if (p.y >= airY - 0.5 || mob.phaseTimer <= 0) {
+          mob.phase = 'air';
+          mob.phaseTimer = mob.enraged ? 11 : DRAGON_AIR_TIME;
+          mob.orbit = Math.atan2(p.z - lair.z, p.x - lair.x);
+          mob.specialTimer = 1.5;
+        }
+      }
+
+      // 怒ったら、ブレイズを呼ぶ（1回だけ）
+      if (mob.enraged && !mob.calledBlazes) {
+        mob.calledBlazes = true;
+        summonLairMinions(mob, 'blaze', 2);
+      }
+    }
+
+    // 回復の結晶: 柱の上から、空にいるドラゴンへ光の線をのばして体力をあげる
+    const crystalBeamPositions = new Float32Array(16 * 3);
+    const crystalBeamGeo = new THREE.BufferGeometry();
+    crystalBeamGeo.setAttribute('position', new THREE.BufferAttribute(crystalBeamPositions, 3));
+    const crystalBeams = new THREE.LineSegments(crystalBeamGeo, new THREE.LineBasicMaterial({ color: 0xff6ad8 }));
+    crystalBeams.frustumCulled = false;
+    crystalBeams.visible = false;
+    scene.add(crystalBeams);
+
+    const aliveCrystals = lair => (lair.crystals || []).filter(c => getBlock(c.x, c.y, c.z) === DRAGON_CRYSTAL);
+
+    function healFromCrystals(mob, delta) {
+      const alive = aliveCrystals(mob.lair);
+      const p = mob.group.position;
+      alive.slice(0, 8).forEach((c, i) => {
+        crystalBeamPositions.set([c.x, c.y, c.z, p.x, p.y + 1.2, p.z], i * 6);
+      });
+      crystalBeamGeo.setDrawRange(0, alive.length * 2);
+      crystalBeamGeo.attributes.position.needsUpdate = true;
+      crystalBeams.visible = alive.length > 0 && mob.health < mob.maxHealth;
+      if (!crystalBeams.visible) return;
+      mob.health = Math.min(mob.maxHealth, mob.health + alive.length * CRYSTAL_HEAL * delta);
+      updateBossBar(mob);
+    }
+
+    // 結晶がこわれたとき（掘る・矢を当てる・TNT）
+    function onCrystalBroken(x, y, z) {
+      spawnParticles(new THREE.Vector3(x, y, z), 0xff6ad8, 30, 6);
+      spawnParticles(new THREE.Vector3(x, y, z), 0xffffff, 16, 4);
+      playSound('explosion');
+      const lair = bossLairs.find(l => (l.crystals || []).some(c => c.x === x && c.y === y && c.z === z));
+      const left = lair ? aliveCrystals(lair).length : 0;
+      showToast(left > 0 ? `💎 回復の結晶をこわした！ のこり ${left} こ` : '💎 回復の結晶を全部こわした！ もうドラゴンは回復できない');
     }
 
     // すみかのボスが呼ぶ仲間
@@ -5515,6 +6088,7 @@
         boss = null;
         bossBar.hidden = true;
       }
+      if (!boss) crystalBeams.visible = false;
     }
 
     function onLairBossDefeated(mob) {
@@ -5835,6 +6409,7 @@
         spawnParticles(pos, 0xb050ff, 30, 5);
         showToast('👾 敵の湧くかごを壊した！ もう敵は出てこない');
       }
+      if (target.id === DRAGON_CRYSTAL) onCrystalBroken(target.x, target.y, target.z);
       if (target.id === ANCIENT_CRACKED) showToast('🏛️ ひびの入ったレンガがくずれた…… 奥に何かある？');
       updateRaycast();
     }
@@ -5887,6 +6462,15 @@
       }
       const cell = targetPlaceCell();
       if (!cell) return;
+      // 異世界はあつすぎて、水は置いたとたんに蒸発する
+      if (item.water && inNether()) {
+        spawnParticles(new THREE.Vector3(cell.x, cell.y, cell.z), 0xf0f0f0, 24, 3);
+        playSound('fuse');
+        inventory[selectedSlot] = { id: 'bucket', count: 1 };
+        renderInventory();
+        showToast('💨 水が一瞬で蒸発した！ 異世界はあつすぎて、水は使えない');
+        return;
+      }
       // 溶岩に水をかけた（水に溶岩を流した）ときは、その場で固まる。溶岩の源に水なら黒曜石
       const existing = getBlock(cell.x, cell.y, cell.z);
       if (item.lava ? isWaterBlock(existing) : isLavaBlock(existing)) {
@@ -5937,6 +6521,21 @@
         if (hit && hit.mob.def.passive) return feedAnimal(hit.mob);
       }
 
+      // 特別な効果のある食べ物（マグマクリーム・ガストの涙）
+      if (item.effect) {
+        if (item.effect === 'fireResist') {
+          player.fireResistTimer = item.seconds;
+          player.burnTimer = 0;
+          showToast(`🧯 体が火に強くなった！（${item.seconds}秒のあいだ、溶岩や火の玉が平気）`);
+        } else {
+          player.regenBuffTimer = item.seconds;
+          player.regenBuffTick = 0;
+          showToast(`💗 体力が少しずつ回復する（${item.seconds}秒）`);
+        }
+        consumeHeldItem();
+        playSound('eat');
+        return;
+      }
       // 食べ物は食べて回復
       if (item.heal) {
         if (player.health >= player.maxHealth) {
@@ -6005,8 +6604,9 @@
       if (!controls.isLocked || player.health <= 0) return;
 
       if (e.button === 0) {
-        // 左クリック: 敵への攻撃 or ブロックを掘りはじめる（押しているあいだ掘り続ける）
+        // 左クリック: 火の玉を打ち返す or 敵への攻撃 or ブロックを掘りはじめる（押しているあいだ掘り続ける）
         swingHand();
+        if (tryReflectFireball()) return;
         const hit = checkMobHit();
         if (hit) {
           hitMob(hit.mob, heldAttackDamage(), hit.point);
@@ -6145,6 +6745,8 @@
       obsidian: { name: '黒曜石', kind: 'block', block: OBSIDIAN, color: '#2a1a40', emoji: '🟪' },
       netherrack: { name: '地獄の石', kind: 'block', block: NETHERRACK, color: '#6e2b2b', emoji: '🟥' },
       glowstone: { name: '光る石', kind: 'block', block: GLOWSTONE, color: '#f2c14a', emoji: '🌟' },
+      nether_bricks: { name: 'ネザーレンガ', kind: 'block', block: NETHER_BRICKS, color: '#3a161c', emoji: '🟫' },
+      blackstone: { name: 'ブラックストーン', kind: 'block', block: BLACKSTONE, color: '#2a2630', emoji: '⬛' },
       soul_sand: { name: 'たましいの砂', kind: 'block', block: SOUL_SAND, color: '#5a4436', emoji: '🟫' },
       flint_and_steel: { name: '火打ち石', kind: 'igniter', color: '#c8c8c8', emoji: '🔥', stack: 1, durability: 32 },
       ancient_bricks: { name: '古代のレンガ', kind: 'block', block: ANCIENT_BRICKS, color: '#8a9a7a', emoji: '🏛️' },
@@ -6156,6 +6758,10 @@
       gold: { name: '金', kind: 'material', color: '#ffd700', emoji: '🥇', particle: 0xffd700 },
       diamond: { name: 'ダイヤ', kind: 'material', color: '#44eedd', emoji: '💎', particle: 0x44eedd },
       string: { name: '糸', kind: 'material', color: '#eeeeee', emoji: '🧵' },
+      // 異世界の敵が落とすもの
+      blaze_rod: { name: 'ブレイズロッド', kind: 'material', color: '#ffb020', emoji: '🪄' },
+      magma_cream: { name: 'マグマクリーム', kind: 'food', effect: 'fireResist', seconds: 90, color: '#ff7a1a', emoji: '🟠' },
+      ghast_tear: { name: 'ガストの涙', kind: 'food', effect: 'regen', seconds: 15, color: '#e8f4ff', emoji: '💧' },
       slimeball: { name: 'スライムボール', kind: 'material', color: '#6cc24a', emoji: '🫧' },
       stick: { name: '棒', kind: 'material', color: '#8a6236', emoji: '🥢' },
       gunpowder: { name: '火薬', kind: 'material', color: '#555555', emoji: '💥' },
@@ -6989,7 +7595,7 @@
     applyStructureLoot(); // 生成した建物のチェストに中身を入れる（セーブがあればこのあと上書きされる）
     let furnaces = new Map();      // "x,y,z" -> { slots: [焼くもの, 燃料, できたもの], burn: 燃料の残り秒, progress: 焼けた秒 }
     const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat', raw_meat: 'cooked_meat' };
-    const FUEL_SECONDS = { coal: 32, charcoal: 32, wood: 8, planks: 4, stick: 2 }; // 1個焼くのに4秒
+    const FUEL_SECONDS = { coal: 32, charcoal: 32, wood: 8, planks: 4, stick: 2, blaze_rod: 96 }; // 1個焼くのに4秒
     const SMELT_TIME = 4;
 
     function getChestSlots(key) {
@@ -7253,7 +7859,7 @@
         for (let y = Math.floor(center.y - radius); y <= Math.ceil(center.y + radius); y++) {
           for (let z = Math.floor(center.z - radius); z <= Math.ceil(center.z + radius); z++) {
             const id = getBlock(x, y, z);
-            if (id === 0 || id === BEDROCK || id === CHEST || isWaterBlock(id)) continue;
+            if (id === 0 || id === BEDROCK || id === CHEST || isWaterBlock(id) || BLOCKS[id].blastProof) continue;
             if (Math.hypot(x - center.x, y - center.y, z - center.z) > radius) continue;
             if (id === TNT) {
               igniteTnt(x, y, z, 0.5);
@@ -7328,6 +7934,12 @@
         }
         a.mesh.lookAt(pos.clone().add(a.vel));
         if (target) hitMob(target, 8, pos.clone());
+        // 回復の結晶は、矢を当てるとこわれる（高い柱の上でも ねらえる）
+        const cell = [Math.round(pos.x), Math.round(pos.y), Math.round(pos.z)];
+        if (blocked && getBlock(...cell) === DRAGON_CRYSTAL) {
+          removeBlock(...cell, false);
+          onCrystalBroken(...cell);
+        }
         if (target || blocked || a.life <= 0) {
           scene.remove(a.mesh);
           playerArrows.splice(i, 1);
@@ -7443,6 +8055,7 @@
       arrows.length = 0;
       [...playerArrows].forEach(a => scene.remove(a.mesh));
       playerArrows.length = 0;
+      while (fireballs.length) removeFireball(0);
       litTnt.length = 0;
       boss = null;
       bossBar.hidden = true;
@@ -7463,6 +8076,7 @@
           Object.entries(pendingNetherSave.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
           Object.entries(pendingNetherSave.fluidLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
           decodeExplored(pendingNetherSave.explored, explored);
+          sitesFound = undergroundSites.map((_, i) => !!(pendingNetherSave.sitesFound || [])[i]);
           pendingNetherSave = null;
         }
       }
@@ -7565,7 +8179,193 @@
       }
 
       buildDragonArena();
+      generateNetherStructures();
       worldRngState = savedRng;
+    }
+
+    /* --- Nether Structures (異世界の なぞの建物) --- */
+    // 地獄のとりで（ブレイズのかご）・黒い砦（3階建て。いちばん上に宝の間）・こわれたゲート。
+    // どれもチェストがある。中に入ると「見つけた！」と出て、マップに印がつく（地下の建物と同じしくみ）
+    const NETHER_STRUCTURE_PLAN = [
+      { kind: 'fortress', count: 1, half: 22, build: buildNetherFortress },
+      { kind: 'bastion', count: 1, half: 7, build: buildBastion },
+      { kind: 'ruined_portal', count: 2, half: 4, build: buildRuinedPortal }
+    ];
+
+    function generateNetherStructures() {
+      const lootFrom = structureLoot.length;
+      NETHER_STRUCTURE_PLAN.forEach(plan => {
+        let built = 0;
+        for (let attempt = 0; attempt < scaled(200) && built < scaled(plan.count); attempt++) {
+          const cx = worldRandInt(-HALF_SIZE + plan.half + 4, HALF_SIZE - plan.half - 4);
+          const cz = worldRandInt(-HALF_SIZE + plan.half + 4, HALF_SIZE - plan.half - 4);
+          if (Math.hypot(cx, cz) < 24) continue; // はじめてゲートで来るあたりは空けておく
+          if (bossLairs.some(l => l.dim === NETHER && Math.hypot(cx - l.x, cz - l.z) < l.half + plan.half + 8)) continue;
+          if (undergroundSites.some(s => Math.hypot(cx - s.x, cz - s.z) < s.half + plan.half + 10)) continue;
+          const site = { kind: plan.kind, x: cx, y: 0, z: cz, half: plan.half, boxes: [] };
+          if (!plan.build(site)) continue;
+          undergroundSites.push(site);
+          built++;
+        }
+      });
+      // チェストの中身を入れる（異世界の storageChests は今ここにある）
+      structureLoot.splice(lootFrom).forEach(({ key, items }) => {
+        const slots = new Array(CHEST_SIZE).fill(null);
+        items.forEach((item, i) => { if (i < CHEST_SIZE) slots[i] = item; });
+        storageChests.set(key, slots);
+      });
+    }
+
+    // 下が空いていたら、地面まで柱をのばす（空中にうかないように）
+    function supportDown(x, y, z, id) {
+      for (let yy = y; yy > BEDROCK_Y && yy > y - 30; yy--) {
+        const cur = getBlock(x, yy, z);
+        if (cur !== 0 && !isLavaBlock(cur)) break;
+        forceBlock(x, yy, z, id);
+      }
+    }
+
+    // 地獄のとりで: ネザーレンガの大広間から、4方向に橋がのびている。まん中にブレイズのかご
+    function buildNetherFortress(site) {
+      const { x: cx, z: cz } = site;
+      const h = 6;
+      const height = 6;
+      const deckY = Math.max(netherFloorHeight(cx, cz) + 2, NETHER_LAVA_LEVEL + 4);
+      if (netherCeilingHeight(cx, cz) - deckY < height + 3) return false;
+      site.y = deckY;
+      // 大広間
+      for (let dx = -h; dx <= h; dx++) {
+        for (let dz = -h; dz <= h; dz++) {
+          const edge = Math.abs(dx) === h || Math.abs(dz) === h;
+          forceBlock(cx + dx, deckY, cz + dz, NETHER_BRICKS);
+          if (edge || (Math.abs(dx) === h - 1 && Math.abs(dz) === h - 1)) supportDown(cx + dx, deckY - 1, cz + dz, NETHER_BRICKS);
+          for (let dy = 1; dy <= height; dy++) {
+            let id = 0;
+            if (dy === height) id = NETHER_BRICKS;                                      // 屋根
+            else if (edge) id = dy === 3 && (dx + dz) % 3 === 0 ? 0 : NETHER_BRICKS;    // かべ（ところどころ窓）
+            forceBlock(cx + dx, deckY + dy, cz + dz, id);
+          }
+        }
+      }
+      [[-3, -3], [3, -3], [-3, 3], [3, 3]].forEach(([dx, dz]) => forceBlock(cx + dx, deckY + height, cz + dz, GLOWSTONE)); // 天井のあかり
+      // 4方向の入口と橋
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([sx, sz]) => {
+        for (let w = -1; w <= 1; w++) {
+          const [x, z] = sideCell(cx, cz, sx, sz, h, w);
+          for (let dy = 1; dy <= 3; dy++) forceBlock(x, deckY + dy, z, 0);
+        }
+        const length = worldRandInt(10, 16);
+        for (let a = h + 1; a <= h + length; a++) {
+          for (let w = -2; w <= 2; w++) {
+            const [x, z] = sideCell(cx, cz, sx, sz, a, w);
+            if (!inBounds(x, deckY, z)) continue;
+            const rail = Math.abs(w) === 2;
+            forceBlock(x, deckY, z, NETHER_BRICKS);
+            for (let dy = 1; dy <= 4; dy++) forceBlock(x, deckY + dy, z, rail && dy === 1 && a % 2 === 0 ? NETHER_BRICKS : 0);
+            if (a % 5 === 0 && Math.abs(w) === 1) supportDown(x, deckY - 1, z, NETHER_BRICKS); // 橋げた
+          }
+        }
+      });
+      forceBlock(cx, deckY + 1, cz, SPAWNER);
+      site.spawner = { x: cx, y: deckY + 1, z: cz, type: 'blaze', timer: 2 };
+      spawners.push(site.spawner);
+      placeLootChest(cx - 4, deckY + 1, cz - 4, LOOT.fortress);
+      placeLootChest(cx + 4, deckY + 1, cz + 4, LOOT.fortress);
+      site.boxes.push({ x0: cx - h, x1: cx + h, y0: deckY, y1: deckY + height, z0: cz - h, z1: cz + h });
+      return true;
+    }
+
+    // 黒い砦: ブラックストーンの3階建て。はしごで上へ。いちばん上の宝の間に、良い宝
+    function buildBastion(site) {
+      const { x: cx, z: cz } = site;
+      const h = 5;
+      const floorH = 4;
+      const floors = 3;
+      const baseY = netherFloorHeight(cx, cz) + 1;
+      if (baseY <= NETHER_LAVA_LEVEL + 2 || netherCeilingHeight(cx, cz) - baseY < floors * floorH + 3) return false;
+      site.y = baseY;
+      const wall = () => (worldRandom() < 0.08 ? GILDED_BLACKSTONE : BLACKSTONE);
+      const top = baseY + floors * floorH;
+      for (let dx = -h; dx <= h; dx++) {
+        for (let dz = -h; dz <= h; dz++) {
+          const edge = Math.abs(dx) === h || Math.abs(dz) === h;
+          supportDown(cx + dx, baseY - 1, cz + dz, BLACKSTONE);
+          for (let y = baseY; y <= top + 1; y++) {
+            const level = (y - baseY) % floorH === 0; // 各階の床
+            let id = 0;
+            if (y === top + 1) id = edge && (dx + dz) % 2 === 0 ? wall() : 0; // 屋上のでこぼこ
+            else if (edge) id = wall();
+            else if (level) id = y === top ? 0 : wall();
+            forceBlock(cx + dx, y, cz + dz, id);
+          }
+        }
+      }
+      // 屋上の床
+      for (let dx = -h + 1; dx <= h - 1; dx++) {
+        for (let dz = -h + 1; dz <= h - 1; dz++) forceBlock(cx + dx, top, cz + dz, BLACKSTONE);
+      }
+      // 入口（1階）と窓
+      for (let w = -1; w <= 0; w++) {
+        for (let dy = 1; dy <= 2; dy++) forceBlock(cx + w, baseY + dy, cz - h, 0);
+      }
+      for (let f = 1; f < floors; f++) {
+        forceBlock(cx - h, baseY + f * floorH + 2, cz, 0);
+        forceBlock(cx + h, baseY + f * floorH + 2, cz, 0);
+      }
+      // はしご（床に穴をあけて、1階から屋上まで）
+      const lx = cx + h - 1;
+      const lz = cz + h - 1;
+      for (let y = baseY + 1; y <= top; y++) forceBlock(lx, y, lz, LADDER);
+      // あかりとチェスト
+      for (let f = 0; f < floors; f++) {
+        const fy = baseY + f * floorH;
+        forceBlock(cx, fy + floorH - 1, cz, GLOWSTONE);
+        if (f < floors - 1) placeLootChest(cx - h + 1, fy + 1, cz + h - 1, LOOT.bastion);
+      }
+      const vaultY = baseY + (floors - 1) * floorH;
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) forceBlock(cx + dx, vaultY, cz + dz, GILDED_BLACKSTONE); // 宝の間の金の床
+      }
+      placeLootChest(cx, vaultY + 1, cz, LOOT.bastionTreasure);
+      // 1階には、ゾンビピグリンのかご（砦を守っている）
+      forceBlock(cx + 2, baseY + 1, cz - 2, SPAWNER);
+      site.spawner = { x: cx + 2, y: baseY + 1, z: cz - 2, type: 'zombie_piglin', timer: 2 };
+      spawners.push(site.spawner);
+      site.boxes.push({ x0: cx - h, x1: cx + h, y0: baseY, y1: top + 1, z0: cz - h, z1: cz + h });
+      return true;
+    }
+
+    // こわれたゲート: 黒曜石のわくが、ところどころ欠けている。そばにチェスト
+    function buildRuinedPortal(site) {
+      const { x: cx, z: cz } = site;
+      const baseY = netherFloorHeight(cx, cz) + 1;
+      if (baseY <= NETHER_LAVA_LEVEL + 2 || netherCeilingHeight(cx, cz) - baseY < 8) return false;
+      site.y = baseY;
+      for (let dx = -3; dx <= 3; dx++) {
+        for (let dz = -2; dz <= 2; dz++) {
+          if (Math.abs(dx) === 3 && Math.abs(dz) === 2) continue;
+          forceBlock(cx + dx, baseY - 1, cz + dz, worldRandom() < 0.5 ? BLACKSTONE : NETHERRACK);
+          supportDown(cx + dx, baseY - 2, cz + dz, NETHERRACK);
+          for (let dy = 0; dy <= 6; dy++) forceBlock(cx + dx, baseY + dy, cz + dz, 0);
+        }
+      }
+      // わく（内がわ 横2・たて3）。角以外を3つ欠けさせる
+      const frame = [];
+      for (let i = -1; i <= 2; i++) {
+        for (let j = 0; j <= 4; j++) {
+          const side = i === -1 || i === 2;
+          const cap = j === 0 || j === 4;
+          if (side || cap) frame.push([cx + i, baseY + j, cz, side && cap]);
+        }
+      }
+      const breakable = worldShuffle(frame.filter(f => !f[3]));
+      const missing = new Set(breakable.slice(0, 3));
+      frame.forEach(f => { if (!missing.has(f)) forceBlock(f[0], f[1], f[2], OBSIDIAN); });
+      // 欠けたかけらが、まわりに落ちている
+      for (let i = 0; i < 2; i++) forceBlock(cx + worldRandInt(-3, 3), baseY, cz + (worldRandom() < 0.5 ? -2 : 2), OBSIDIAN);
+      placeLootChest(cx - 2, baseY, cz + 1, LOOT.ruinedPortal);
+      site.boxes.push({ x0: cx - 3, x1: cx + 3, y0: baseY - 1, y1: baseY + 5, z0: cz - 2, z1: cz + 2 });
+      return true;
     }
 
     // ドラゴンの広場: 黒曜石の大きな円い床と、まわりの柱。天井もけずって広くする
@@ -7599,7 +8399,8 @@
           }
         }
       }
-      // まわりの柱（かくれて 火の息をよけられる）
+      // まわりの柱（かくれて 火の玉をよけられる）。てっぺんに回復の結晶
+      const crystals = [];
       for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
         const px = Math.round(cx + Math.cos(angle) * (r - 4));
@@ -7609,9 +8410,11 @@
             for (let dy = 1; dy <= 6; dy++) forceBlock(px + dx, floorY + dy, pz + dz, OBSIDIAN);
           }
         }
-        forceBlock(px, floorY + 7, pz, GLOWSTONE);
+        forceBlock(px, floorY + 7, pz, DRAGON_CRYSTAL);
+        crystals.push({ x: px, y: floorY + 7, z: pz });
       }
-      registerLair('nether_dragon', NETHER, cx, floorY + 1, cz, r, height, { x: cx, y: floorY + 1, z: cz + 5 });
+      const lair = registerLair('nether_dragon', NETHER, cx, floorY + 1, cz, r, height, { x: cx, y: floorY + 1, z: cz + 5 });
+      lair.crystals = crystals;
     }
 
     /* --- Portal (異世界のゲート) --- */
@@ -7824,11 +8627,10 @@
           }
         }
       }
-      if (inNether()) return; // ボスの部屋や地下の建物は表の世界だけ
       const feetY = camera.position.y - player.eye;
       const here = dungeonAt(px, feetY, pz);
       DUNGEONS.forEach((d, i) => {
-        if (dungeonsFound[i] || !d.entrance) return;
+        if (inNether() || dungeonsFound[i] || !d.entrance) return; // ボスの部屋は表の世界だけ
         if (Math.hypot(px - d.entrance.x, pz - d.entrance.z) < 10 || here === d) {
           dungeonsFound[i] = true;
           showToast(`${BOSS_TIERS[i].emoji} ダンジョンの入口を見つけた！ マップに印がついた`);
@@ -8116,7 +8918,7 @@
       const inWater = bodyTouches(def => def.water);
       const inLava = bodyTouches(def => def.lava);
       if (inLava) {
-        damagePlayer(3); // 無敵時間があるので、だいたい0.8秒に1回ダメージ
+        damagePlayer(3, null, { fire: true }); // 無敵時間があるので、だいたい0.8秒に1回ダメージ
         if (Math.random() < delta * 10) {
           spawnParticles(camera.position.clone().add(new THREE.Vector3(0, -0.8, 0)), 0xff8a1a, 3, 2);
         }
@@ -8137,6 +8939,29 @@
           spawnParticles(camera.position.clone().add(new THREE.Vector3(0, -0.5, 0)), 0x8aff5a, 2, 1);
         }
       }
+      // 燃えている: 1秒ごとにハート半分。水に入ると消える
+      if (player.burnTimer > 0) {
+        player.burnTimer -= delta;
+        if (inWater || player.fireResistTimer > 0) player.burnTimer = 0;
+        player.burnTick -= delta;
+        if (player.burnTick <= 0 && player.burnTimer > 0) {
+          player.burnTick = 1;
+          damagePlayer(1, null, { fire: true });
+        }
+        if (Math.random() < delta * 14) {
+          spawnParticles(camera.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, -0.9, (Math.random() - 0.5) * 0.6)), 0xff8a1a, 2, 1.5);
+        }
+      }
+      if (player.fireResistTimer > 0) player.fireResistTimer -= delta;
+      if (player.regenBuffTimer > 0) {
+        player.regenBuffTimer -= delta;
+        player.regenBuffTick -= delta;
+        if (player.regenBuffTick <= 0) {
+          player.regenBuffTick = 1;
+          healPlayer(1);
+        }
+      }
+      updateEffectDisplay();
       let speedFactor = 1;
       if (inWater) speedFactor *= 0.5;
       if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
@@ -8464,7 +9289,8 @@
         storageChests: Object.fromEntries(d.storageChests),
         fluidLevels: Object.fromEntries(d.fluidLevels),
         furnaces: Object.fromEntries(d.furnaces),
-        explored: encodeExplored(d.explored)
+        explored: encodeExplored(d.explored),
+        sitesFound: d.sitesFound
       });
       const data = {
         version: SAVE_VERSION,
@@ -8626,6 +9452,10 @@
         get sitesFound() { return sitesFound; },
         undergroundSites,
         spawners,
+        get sitesNow() { return undergroundSites; },      // 今いる世界の建物（異世界に行くと入れかわる）
+        get spawnersNow() { return spawners; },
+        get chestsNow() { return storageChests; },
+        get sitesFoundNow() { return sitesFound; },
         get spawnPoint() { return spawnPoint; },
         get boss() { return boss; },
         get bossesDefeated() { return bossesDefeated; },
@@ -8637,6 +9467,10 @@
         lairAt,
         rocks,
         shockwaves,
+        fireballs,
+        launchFireball,
+        tryReflectFireball,
+        DRAGON_CRYSTAL,
         breatheFire,
         spitWeb,
         updateLairTrigger,
