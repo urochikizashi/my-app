@@ -637,6 +637,70 @@
       height: 100%;
       background: #e87a2c;
     }
+    /* 経験値のゲージ（ホットバーの下） */
+    #xp-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 420px;
+      height: 7px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid #222;
+      border-radius: 3px;
+      z-index: 10;
+    }
+    #xp-fill {
+      width: 0;
+      height: 100%;
+      background: #7cf05a;
+      border-radius: 2px;
+    }
+    #xp-level {
+      position: absolute;
+      right: -46px;
+      top: -7px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #9cff6a;
+      text-shadow: 0 0 3px #000, 1px 1px 0 #000;
+      white-space: nowrap;
+    }
+    /* エンチャントした道具は、むらさきに光る */
+    .slot.enchanted .slot-icon {
+      box-shadow: 0 0 8px 2px rgba(190, 110, 255, 0.95), inset 1px 1px 0 rgba(255,255,255,0.4);
+    }
+    #enchant-ui[hidden] {
+      display: none;
+    }
+    .enchant-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    #enchant-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-width: 460px;
+    }
+    .enchant-option {
+      text-align: left;
+      padding: 5px 8px;
+      font-size: 13px;
+      background: rgba(90, 50, 140, 0.8);
+      color: #fff;
+      border: 1px solid #b07aff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .enchant-option:disabled {
+      background: rgba(60, 60, 60, 0.7);
+      border-color: #666;
+      color: #aaa;
+      cursor: default;
+    }
   </style>
 
   <!-- Three.js Import Map -->
@@ -686,6 +750,7 @@
 
   <!-- 持ち物（ホットバー）。中身は JavaScript の renderHotbar() で描く -->
   <div id="hotbar"></div>
+  <div id="xp-bar"><div id="xp-fill"></div><span id="xp-level">Lv 0</span></div>
 
   <!-- 開始案内画面 -->
   <div id="instructions">
@@ -707,7 +772,8 @@
         ⚠️ <b>クモ</b>: 足が速く、壁を登って追いかけてきます！<br>
         ⚠️ <b>スケルトン</b>: 遠くから弓矢で撃ってきます。物陰に隠れながら近づこう！<br>
         ⚠️ <b>スライム</b>: 地下でぴょんぴょん跳ねてきます。倒すと小さく分裂！<br>
-        🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！
+        🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！<br>
+        👀 敵は遠くでうろうろしていて、<b>あなたを見つけるとおそってきます</b>（赤い火花が目じるし）。
       </div>
       <div class="mob-info">
         🎒 <b>持ち物とクラフト</b>: 最初は空っぽ（素手）。木を掘って<b>原木</b>を集め、E キーの画面で<b>木の板</b>→<b>作業台</b>を作ろう。材料をマスに並べる形で、できるものが変わります。作り方は<b>レシピ本</b>に載り、クリックすると材料を並べてくれます。石は木のツルハシ、鉄は石のツルハシ、金とダイヤは鉄のツルハシで掘れます（<b>ツルハシは手に持っているときだけ効きます</b>）。<br>
@@ -717,7 +783,9 @@
         ⛏️ <b>地下探検</b>: ワールドは321×321ブロックの広さ（前からあるワールドは161×161のまま）。地面を掘り進めると地下40mまで続いています。地下には曲がりくねった洞窟もあり、地表の入口から入れます。深いほど 石炭 → 鉄 → 金 → ダイヤ と貴重な鉱石が見つかる！最下層の岩盤は壊せません。<br>
         🌍 <b>いろいろな地形</b>: 草原・森・砂漠（サボテンに注意）・雪原・山と湖。砂漠にはハスク、雪原にはストレイが出ます。<br>
         🗿 <b>ボス</b>: 地下深くのダンジョンに <b>3体のボス</b>がいます。まずは 🗿 ゴーレム。倒すと 🔥 マグマゴーレム、💀 やみのゴーレムが別の場所で目を覚まし、その部屋がマップに出ます（奥のボスほど深くて強い）。地面をたたく衝撃波はジャンプでよけ、背中の光るコアをねらおう。倒すと部屋の宝箱が開きます。<br>
-        🕸️ <b>糸</b>はクモを倒すか、洞窟のクモの巣を掘ると手に入ります。
+        🕸️ <b>糸</b>はクモを倒すか、洞窟のクモの巣を掘ると手に入ります。<br>
+        🔥 <b>異世界</b>: 異世界だけの強い敵（ブレイズ・ガストなど）と、なぞの建物（とりで・黒い砦・こわれたゲート）があります。<b>火の玉は左クリックで打ち返せる！</b> 水は蒸発して使えません。ドラゴンは柱の上の<b>回復の結晶</b>をこわしてから挑もう。<br>
+        ⭐ <b>エンチャント</b>: 敵をたおしたり鉱石を掘ると経験値がたまります。<b>エンチャント台</b>（金1・ダイヤ2・黒曜石4）で、道具に力をつけよう！
       </div>
     </div>
     <button class="btn-main">クリックして冒険を始める！</button>
@@ -762,6 +830,13 @@
                 <div class="furnace-label">できたもの</div>
                 <div id="furnace-output" class="slot"></div>
               </div>
+            </div>
+            <div id="enchant-ui" hidden>
+              <div class="enchant-row">
+                <div id="enchant-slot" class="slot"></div>
+                <div id="enchant-info"></div>
+              </div>
+              <div id="enchant-list"></div>
             </div>
           </div>
         </div>
@@ -895,6 +970,21 @@
           gain.gain.linearRampToValueAtTime(0.01, start + 0.15);
           osc.start(start);
           osc.stop(start + 0.15);
+        });
+      } else if (type === 'levelup') {
+        // レベルアップ「ピロリロリン」
+        [660, 830, 990, 1320].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'triangle';
+          const start = now + i * 0.08;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.15, start);
+          gain.gain.linearRampToValueAtTime(0.01, start + 0.18);
+          osc.start(start);
+          osc.stop(start + 0.18);
         });
       } else if (type === 'fireball') {
         // 火の玉「ボッ」
@@ -1637,6 +1727,27 @@
       ctx.fillStyle = '#c8962a';
       [[4, 4], [11, 3], [7, 9], [5, 13]].forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
     });
+    // エンチャント台: 上に赤い本、まわりは黒曜石
+    textures.enchantTop = createPixelTexture(ctx => {
+      speckle(ctx, '#2a1a40', ['#1e1430', '#3a2a55'], 50);
+      ctx.fillStyle = '#44eedd'; // 四すみのダイヤ
+      [[1, 1], [13, 1], [1, 13], [13, 13]].forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
+      ctx.fillStyle = '#b8342c'; // 本
+      ctx.fillRect(4, 5, 8, 6);
+      ctx.fillStyle = '#f4ecd8';
+      ctx.fillRect(5, 6, 3, 4);
+      ctx.fillRect(8, 6, 3, 4);
+      ctx.fillStyle = '#7a5ad0';
+      ctx.fillRect(6, 7, 1, 1);
+      ctx.fillRect(9, 8, 1, 1);
+    });
+    textures.enchantSide = createPixelTexture(ctx => {
+      speckle(ctx, '#2a1a40', ['#1e1430', '#3a2a55'], 60);
+      ctx.fillStyle = '#b8342c'; // 上の赤い布
+      ctx.fillRect(0, 0, 16, 4);
+      ctx.fillStyle = '#ffd23a';
+      for (let x = 1; x < 16; x += 3) ctx.fillRect(x, 3, 1, 1);
+    });
     textures.healCrystal = createPixelTexture(ctx => {
       speckle(ctx, '#d84ab8', ['#ff6ad8', '#b02a98', '#ff9ae8'], 80);
       ctx.fillStyle = '#ffe0f8'; // きらきら光る面
@@ -1860,7 +1971,7 @@
       'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
       'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner',
       'netherrack', 'glowstone', 'soulSand', 'portal', 'healCrystal',
-      'netherBrick', 'blackstone', 'gildedBlackstone'
+      'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -1961,6 +2072,7 @@
       65: { name: 'ネザーレンガ', tiles: same('netherBrick'), tier: 1, drop: 'nether_bricks', map: '#3a161c' },
       66: { name: 'ブラックストーン', tiles: same('blackstone'), tier: 1, drop: 'blackstone', map: '#2a2630' },
       67: { name: '金まじりのブラックストーン', tiles: same('gildedBlackstone'), tier: 1, drop: 'gold', map: '#6a5a2a' },
+      68: { name: 'エンチャント台', tiles: [tile('enchantTop'), tile('obsidian'), tile('enchantSide')], tier: 1, drop: 'enchant_table', enchanting: true, blastProof: true, map: '#6a2a8a' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2003,6 +2115,7 @@
     const NETHER_BRICKS = 65;
     const BLACKSTONE = 66;
     const GILDED_BLACKSTONE = 67;
+    const ENCHANT_TABLE = 68;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -3895,6 +4008,7 @@
     function damagePlayer(amount, knockbackDir = null, opts = {}) {
       if (player.invulnerableTimer > 0 || player.health <= 0) return;
       if (opts.fire && player.fireResistTimer > 0) return;
+      if (opts.fire) amount = Math.max(1, Math.round(amount * (1 - Math.min(0.8, armorEnch('fire_protection') * 0.2)))); // 火炎耐性
       // 防具を持っていればダメージが減る。盾で守っていればさらに減る
       const protection = armorProtection();
       let reduced = Math.max(1, Math.round(amount * (1 - protection)));
@@ -4714,7 +4828,7 @@
       batSpawnTimer -= delta;
       if (batSpawnTimer > 0) return;
       batSpawnTimer = 6 + Math.random() * 6;
-      if (currentDepth < 5) return;
+      if (currentDepth < 5 || inNether()) return; // 異世界には、異世界の敵だけ
       if (mobs.reduce((n, m) => n + (m.type === 'bat' ? 1 : 0), 0) >= BAT_LIMIT) return;
       const px = camera.position.x;
       const pz = camera.position.z;
@@ -5022,8 +5136,42 @@
       if (mob.health <= 0) killMob(mob);
     }
 
+    // 火属性の剣やフレイムの矢で、敵が燃える（異世界の敵は火に強いので燃えない）
+    function setMobOnFire(mob, seconds) {
+      if (mob.def.fireImmune) return;
+      mob.burnTimer = Math.max(mob.burnTimer || 0, seconds);
+    }
+
+    function updateMobFire(mob, delta) {
+      if (!(mob.burnTimer > 0)) return false;
+      mob.burnTimer -= delta;
+      mob.burnTick = (mob.burnTick || 0) - delta;
+      const p = mob.group.position;
+      if (Math.random() < delta * 12) spawnParticles(new THREE.Vector3(p.x, p.y + mob.height * Math.random(), p.z), 0xff8a1a, 2, 1.5);
+      if (mob.burnTick <= 0) {
+        mob.burnTick = 1;
+        mob.health -= 2;
+        mob.hitFlashTimer = 0.15;
+        setMobColor(mob, HIT_RED);
+        if (mob.def.boss) updateBossBar(mob);
+        if (mob.health <= 0) {
+          killMob(mob);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // たおしたときにもらえる経験値
+    function mobXp(mob) {
+      if (mob.def.passive) return rand(1, 2);
+      if (mob.def.boss) return mob.lair ? 120 : 80;
+      return Math.max(2, Math.round(mob.def.health / 5));
+    }
+
     function killMob(mob) {
       const p = mob.group.position;
+      addXp(mobXp(mob));
       spawnParticles(p.clone().add(new THREE.Vector3(0, 0.8, 0)), 0xffffff, 24, 6);
       removeMob(mob);
       if (!mob.def.passive) { // 動物は「たおした敵の数」に入れない
@@ -5064,7 +5212,9 @@
         giveOrDrop('arrow', rand(1, 2)); // 矢も落とす
         drop = Math.random() < 0.6 ? 'coal' : 'iron';
       }
-      const count = mob.def.dropCount ? rand(mob.def.dropCount[0], mob.def.dropCount[1]) : 1;
+      // ドロップ増加: 手に持っている剣の力で、落とす数が増える
+      const looting = enchLevel(inventory[selectedSlot], 'looting');
+      const count = (mob.def.dropCount ? rand(mob.def.dropCount[0], mob.def.dropCount[1]) : 1) + (looting ? rand(0, looting) : 0);
       if (drop && addItem(drop, count)) showToast(`${ITEMS[drop].emoji} ${ITEMS[drop].name}${count > 1 ? ' ×' + count : ''} を手に入れた`);
     }
 
@@ -5305,6 +5455,7 @@
         }
         if (!mob.def.passive && !mob.def.boss) updateAwareness(mob, delta, dist);
 
+        if (updateMobFire(mob, delta)) return; // 燃えつきた
         if (mob.hitFlashTimer > 0) {
           mob.hitFlashTimer -= delta;
           if (mob.hitFlashTimer <= 0) setMobColor(mob, mob.tint);
@@ -6281,8 +6432,9 @@
       if (def.render === 'cross' || def.torch || def.web) return 0.1; // 草花・松明・クモの巣はすぐ取れる
       const tier = pickaxeTier();
       const base = HARDNESS[def.tier] !== undefined ? HARDNESS[def.tier] : 0.5;
+      const efficiency = tier ? enchLevel(inventory[selectedSlot], 'efficiency') : 0; // 効率強化
       // ツルハシが要るブロックはツルハシで大きく速く、土や木は少しだけ速くなる
-      return base / (1 + tier * (def.tier >= 1 ? 0.9 : 0.25));
+      return base / (1 + tier * (def.tier >= 1 ? 0.9 : 0.25)) / (1 + efficiency * 0.5);
     }
 
     function stopMining() {
@@ -6393,6 +6545,13 @@
         if (Math.random() < 0.5) give('seeds');
       } else if (def.drop) {
         give(def.drop);
+        if (ORE_XP[target.id]) {
+          addXp(ORE_XP[target.id]);
+          // 幸運: 鉱石がおまけで出る
+          const fortune = enchLevel(inventory[selectedSlot], 'fortune');
+          const bonus = fortune ? rand(0, fortune) : 0;
+          if (bonus > 0) give(def.drop, bonus);
+        }
         if (ITEMS[def.drop].particle) {
           spawnParticles(pos, ITEMS[def.drop].particle, 14, 3);
           playSound('ore');
@@ -6502,6 +6661,7 @@
         const def = BLOCKS[t.id];
         const key = blockKey(t.x, t.y, t.z);
         if (t.id === CRAFTING_TABLE) return openInventoryScreen();
+        if (def.enchanting) return openInventoryScreen({ type: 'enchant', key });
         if (def.storage) return openInventoryScreen({ type: 'chest', key });
         if (def.furnace) return openInventoryScreen({ type: 'furnace', key });
         if (def.door) return toggleDoor(t.x, t.y, t.z);
@@ -6609,6 +6769,8 @@
         if (tryReflectFireball()) return;
         const hit = checkMobHit();
         if (hit) {
+          const fireAspect = enchLevel(inventory[selectedSlot], 'fire_aspect');
+          if (fireAspect) setMobOnFire(hit.mob, fireAspect * 3); // 火属性
           hitMob(hit.mob, heldAttackDamage(), hit.point);
           const weapon = heldItemDef();
           if (weapon && weapon.kind === 'sword') wearItem(selectedSlot);
@@ -6745,6 +6907,7 @@
       obsidian: { name: '黒曜石', kind: 'block', block: OBSIDIAN, color: '#2a1a40', emoji: '🟪' },
       netherrack: { name: '地獄の石', kind: 'block', block: NETHERRACK, color: '#6e2b2b', emoji: '🟥' },
       glowstone: { name: '光る石', kind: 'block', block: GLOWSTONE, color: '#f2c14a', emoji: '🌟' },
+      enchant_table: { name: 'エンチャント台', kind: 'block', block: ENCHANT_TABLE, color: '#6a2a8a', emoji: '📖' },
       nether_bricks: { name: 'ネザーレンガ', kind: 'block', block: NETHER_BRICKS, color: '#3a161c', emoji: '🟫' },
       blackstone: { name: 'ブラックストーン', kind: 'block', block: BLACKSTONE, color: '#2a2630', emoji: '⬛' },
       soul_sand: { name: 'たましいの砂', kind: 'block', block: SOUL_SAND, color: '#5a4436', emoji: '🟫' },
@@ -6827,10 +6990,71 @@
     const maxUses = id => (ITEMS[id] && ITEMS[id].durability) || 0;
     const usesLeft = item => (item && maxUses(item.id) ? (item.uses === undefined ? maxUses(item.id) : item.uses) : 0);
 
+    /* --- Enchantments (エンチャント) --- */
+    // 道具に「力」をつける。つけた力は item.ench に { 名前: レベル } で入る（セーブにもそのまま残る）。
+    // エンチャント台に道具をのせて、経験値のレベルを使ってつける
+    const ENCHANTS = {
+      sharpness: { name: '鋭さ', max: 5, kinds: ['sword'], desc: '攻撃力 +3' },
+      fire_aspect: { name: '火属性', max: 2, kinds: ['sword'], desc: 'なぐった敵を燃やす' },
+      looting: { name: 'ドロップ増加', max: 3, kinds: ['sword'], desc: '敵が落とすものが増える' },
+      efficiency: { name: '効率強化', max: 5, kinds: ['pickaxe'], desc: '速く掘れる' },
+      fortune: { name: '幸運', max: 3, kinds: ['pickaxe'], desc: '鉱石がたくさん出る' },
+      protection: { name: 'ダメージ軽減', max: 4, kinds: ['armor'], desc: 'ダメージ -4%' },
+      fire_protection: { name: '火炎耐性', max: 4, kinds: ['armor'], desc: '火と溶岩のダメージ -20%' },
+      power: { name: '射撃ダメージ増加', max: 5, kinds: ['bow'], desc: '矢のダメージ +3' },
+      flame: { name: 'フレイム', max: 1, kinds: ['bow'], desc: '矢で敵を燃やす' },
+      infinity: { name: '無限', max: 1, kinds: ['bow'], desc: '矢がへらない' },
+      unbreaking: { name: '耐久力', max: 3, kinds: ['sword', 'pickaxe', 'armor', 'bow', 'shield', 'hoe', 'igniter'], desc: 'こわれにくい' }
+    };
+    const enchLevel = (item, key) => (item && item.ench && item.ench[key]) || 0;
+    const enchantsFor = id => (ITEMS[id] ? Object.keys(ENCHANTS).filter(key => ENCHANTS[key].kinds.includes(ITEMS[id].kind)) : []);
+    const enchantCost = nextLevel => nextLevel + 1; // レベル1にするには 2、レベル5にするには 6 レベル使う
+    const enchText = item => Object.entries((item && item.ench) || {}).map(([key, lv]) => `${ENCHANTS[key].name}${lv}`).join('・');
+
+    // 2つの道具の力を合わせる（修理したとき。高い方のレベルを残す）
+    function mergeEnchants(a, b) {
+      const out = { ...((a && a.ench) || {}) };
+      Object.entries((b && b.ench) || {}).forEach(([key, lv]) => { out[key] = Math.max(out[key] || 0, lv); });
+      return Object.keys(out).length ? out : undefined;
+    }
+
+    /* --- Experience (経験値) --- */
+    // 敵をたおしたり、鉱石を掘ったりするとたまる。たまるとレベルが上がる
+    let xpLevel = 0;
+    let xpPoints = 0;
+    const xpNeeded = level => 5 + level * 2; // 次のレベルまでに いる経験値
+    const ORE_XP = { [COAL_ORE]: 1, [IRON_ORE]: 2, [GOLD_ORE]: 3, [DIAMOND_ORE]: 7 };
+    const xpFill = document.getElementById('xp-fill');
+    const xpLevelText = document.getElementById('xp-level');
+
+    function updateXpUI() {
+      xpFill.style.width = `${Math.min(100, (xpPoints / xpNeeded(xpLevel)) * 100)}%`;
+      xpLevelText.textContent = `Lv ${xpLevel}`;
+    }
+
+    function addXp(amount) {
+      if (amount <= 0) return;
+      xpPoints += amount;
+      let leveled = false;
+      while (xpPoints >= xpNeeded(xpLevel)) {
+        xpPoints -= xpNeeded(xpLevel);
+        xpLevel++;
+        leveled = true;
+      }
+      if (leveled) {
+        playSound('levelup');
+        showToast(`⭐ レベルアップ！ Lv ${xpLevel}（エンチャント台で使える）`);
+      }
+      updateXpUI();
+    }
+
     // 道具を1回使う。0 になったら壊れて消える
     function wearItem(index, amount = 1) {
       const item = inventory[index];
       if (!item || !maxUses(item.id)) return;
+      // 耐久力: レベルが高いほど、へらないことが多い
+      const unbreaking = enchLevel(item, 'unbreaking');
+      if (unbreaking && Math.random() < unbreaking / (unbreaking + 1)) return;
       item.uses = usesLeft(item) - amount;
       if (item.uses <= 0) {
         inventory[index] = null;
@@ -6860,10 +7084,11 @@
     const bestArmorIndex = () => bestIndexBy(def => def.protection || 0);
 
     // 空いている枠に、残り回数つきで道具を入れる（修理したときに使う）
-    function giveTool(id, uses) {
+    function giveTool(id, uses, ench = undefined) {
       const slot = inventory.findIndex((item, i) => !item && i < usableSlots());
       if (slot < 0) return false;
       inventory[slot] = { id, count: 1, uses: Math.min(uses, maxUses(id)) };
+      if (ench) inventory[slot].ench = ench;
       seenItems.add(id);
       renderInventory();
       return true;
@@ -6953,8 +7178,16 @@
 
     function armorProtection() {
       const armor = bestArmor();
-      return armor ? armor.protection : 0;
+      if (!armor) return 0;
+      const item = inventory[bestArmorIndex()];
+      return Math.min(0.85, armor.protection + enchLevel(item, 'protection') * 0.04);
     }
+
+    // 防具についている力（ダメージ軽減・火炎耐性）
+    const armorEnch = key => {
+      const i = bestArmorIndex();
+      return i < 0 ? 0 : enchLevel(inventory[i], key);
+    };
 
     function heldPickaxeName() {
       const tier = pickaxeTier();
@@ -6983,7 +7216,8 @@
 
     function heldAttackDamage() {
       const def = heldItemDef();
-      return def && def.damage ? def.damage : FIST_DAMAGE;
+      const base = def && def.damage ? def.damage : FIST_DAMAGE;
+      return base + enchLevel(inventory[selectedSlot], 'sharpness') * 3;
     }
 
     /* --- Recipes (作り方) --- */
@@ -7019,6 +7253,7 @@
       shaped('ladder', 3, ['K.K', 'KKK', 'K.K'], { K: 'stick' }),
       shaped('door', 1, ['PP', 'PP', 'PP'], { P: 'planks' }),
       shaped('lamp', 1, ['.G.', 'GTG', '.G.'], { G: 'glass', T: 'torch' }),
+      shaped('enchant_table', 1, ['.G.', 'DOD', 'OOO'], { G: 'gold', D: 'diamond', O: 'obsidian' }),
       shaped('stone_bricks', 4, ['SS', 'SS'], { S: 'stone' }),
       shapeless('brick', 4, ['dirt', 'dirt', 'coal']),
       shapeless('flint_and_steel', 1, ['iron', ['coal', 'charcoal']]),
@@ -7106,7 +7341,7 @@
       if (a.id !== b.id || !maxUses(a.id)) return null;
       const total = maxUses(a.id);
       const uses = Math.min(total, usesLeft(a) + usesLeft(b) + Math.ceil(total * 0.05));
-      return { repair: true, result: a.id, count: 1, uses };
+      return { repair: true, result: a.id, count: 1, uses, ench: mergeEnchants(a, b) };
     }
 
     function setHint(text) {
@@ -7131,8 +7366,8 @@
         return;
       }
       const uses = usesLeft(item);
-      if (!giveTool(item.id, uses)) {
-        spawnDroppedItem(item.id, 1, camera.position.clone().add(new THREE.Vector3(0, -1, 0)), null, 0.6, uses);
+      if (!giveTool(item.id, uses, item.ench)) {
+        spawnDroppedItem(item.id, 1, camera.position.clone().add(new THREE.Vector3(0, -1, 0)), null, 0.6, uses, item.ench);
       }
     }
 
@@ -7159,7 +7394,7 @@
       }
       if (recipe.repair) {
         activeCells().forEach(i => { craftGrid[i] = null; }); // 2つとも使う
-        giveTool(recipe.result, recipe.uses);
+        giveTool(recipe.result, recipe.uses, recipe.ench);
         showToast(`🔧 ${ITEMS[recipe.result].name}を直した！（残り ${recipe.uses}）`);
         playSound('place');
         renderInventory();
@@ -7308,6 +7543,12 @@
         }
         return;
       }
+      if (!item && cursor.count === 1) {
+        // 1つだけなら、そのまま置く（道具の残り回数やエンチャントを消さないように）
+        craftGrid[i] = cursor;
+        cursor = null;
+        return;
+      }
       if (!item) craftGrid[i] = { id: cursor.id, count: 1 };
       else if (item.id === cursor.id && item.count < maxStack(item.id)) item.count++;
       else return;
@@ -7356,9 +7597,12 @@
         }
       }
       const uses = total ? `（残り ${usesLeft(item)}）` : '';
+      const ench = def ? enchText(item) : '';
+      const attack = def && def.damage ? def.damage + enchLevel(item, 'sharpness') * 3 : 0;
       el.querySelector('.slot-name').textContent = !def ? '素手'
-        : def.damage ? `${def.name}（攻撃 ${def.damage}）${uses}` : `${def.name}${uses}`;
-      el.title = def ? def.name : '';
+        : (attack ? `${def.name}（攻撃 ${attack}）${uses}` : `${def.name}${uses}`) + (ench ? ` ✨${ench}` : '');
+      el.classList.toggle('enchanted', !!ench);
+      el.title = def ? def.name + (ench ? `（${ench}）` : '') : '';
     }
 
     const hotbarSlots = [];
@@ -7427,6 +7671,59 @@
       });
       return el;
     });
+
+    // エンチャント台: 道具を1つのせる枠と、つけられる力のボタン
+    const enchantSlot = [null];
+    const enchantSlotEl = document.getElementById('enchant-slot');
+    const enchantList = document.getElementById('enchant-list');
+    const enchantInfo = document.getElementById('enchant-info');
+    enchantSlotEl.innerHTML = makeSlotElement().innerHTML;
+    enchantSlotEl.addEventListener('mousedown', (e) => {
+      if (!openContainer || openContainer.type !== 'enchant') return;
+      clickStorageSlot(enchantSlot, 0, e.button, id => enchantsFor(id).length > 0);
+      renderInventory();
+    });
+
+    function renderEnchantList() {
+      const item = enchantSlot[0];
+      enchantInfo.innerHTML = `⭐ 今の経験値レベル: <b>Lv ${xpLevel}</b><br>` +
+        (item ? `${ITEMS[item.id].name}${enchText(item) ? `（✨${enchText(item)}）` : ''}` : '← 剣・ツルハシ・よろい・弓などを のせよう');
+      enchantList.innerHTML = '';
+      if (!item) return;
+      enchantsFor(item.id).forEach(key => {
+        const e = ENCHANTS[key];
+        const now = enchLevel(item, key);
+        const button = document.createElement('button');
+        button.className = 'enchant-option';
+        if (now >= e.max) {
+          button.textContent = `✨ ${e.name} ${now}（最大）… ${e.desc}`;
+          button.disabled = true;
+        } else {
+          const cost = enchantCost(now + 1);
+          button.textContent = `✨ ${e.name} ${now} → ${now + 1}　（Lv ${cost} 使う）… ${e.desc}`;
+          button.disabled = xpLevel < cost;
+          button.addEventListener('mousedown', (ev) => {
+            ev.stopPropagation();
+            applyEnchant(key);
+          });
+        }
+        enchantList.appendChild(button);
+      });
+    }
+
+    function applyEnchant(key) {
+      const item = enchantSlot[0];
+      if (!item) return;
+      const next = enchLevel(item, key) + 1;
+      const cost = enchantCost(next);
+      if (next > ENCHANTS[key].max || xpLevel < cost) return;
+      xpLevel -= cost;
+      item.ench = { ...(item.ench || {}), [key]: next };
+      updateXpUI();
+      playSound('levelup');
+      showToast(`✨ ${ITEMS[item.id].name}に「${ENCHANTS[key].name} ${next}」をつけた！`);
+      renderInventory();
+    }
 
     document.getElementById('trash-slot').addEventListener('mousedown', () => {
       if (!cursor) return;
@@ -7512,6 +7809,10 @@
         const slots = getChestSlots(openContainer.key);
         containerSlots.forEach((el, i) => fillSlot(el, slots[i]));
       }
+      if (openContainer && openContainer.type === 'enchant') {
+        fillSlot(enchantSlotEl, enchantSlot[0]);
+        renderEnchantList();
+      }
       if (openContainer && openContainer.type === 'furnace') {
         const furnace = getFurnace(openContainer.key);
         furnaceSlotEls.forEach((el, i) => fillSlot(el, furnace.slots[i]));
@@ -7530,16 +7831,21 @@
       inventoryOpen = true;
       openContainer = container;
       craftSize = isNearCraftingTable() ? 3 : 2;
-      document.getElementById('inv-title').textContent = !container ? '🎒 持ち物とクラフト'
-        : container.type === 'chest' ? '📦 チェスト' : '🏭 かまど';
+      const titles = { chest: '📦 チェスト', furnace: '🏭 かまど', enchant: '✨ エンチャント台' };
+      document.getElementById('inv-title').textContent = !container ? '🎒 持ち物とクラフト' : titles[container.type];
       document.getElementById('craft-area').hidden = !!container;
       document.getElementById('recipe-area').hidden = !!container;
       document.getElementById('container-area').hidden = !container;
       document.getElementById('craft-title').textContent = craftSize === 3 ? '🛠️ クラフト（作業台 3×3）' : '🛠️ クラフト（2×2。作業台の近くでは 3×3）';
-      document.getElementById('container-title').textContent = !container ? ''
-        : container.type === 'chest' ? '📦 チェストの中身（クリックで出し入れ）' : '🏭 焼くものと燃料（石炭・木炭・原木・木の板・棒）を入れよう';
+      const hints = {
+        chest: '📦 チェストの中身（クリックで出し入れ）',
+        furnace: '🏭 焼くものと燃料（石炭・木炭・原木・木の板・棒・ブレイズロッド）を入れよう',
+        enchant: '✨ 道具をのせて、つけたい力をえらぼう（経験値のレベルを使う。敵をたおしたり鉱石を掘るとたまる）'
+      };
+      document.getElementById('container-title').textContent = !container ? '' : hints[container.type];
       containerGrid.hidden = !container || container.type !== 'chest';
       furnaceUi.hidden = !container || container.type !== 'furnace';
+      document.getElementById('enchant-ui').hidden = !container || container.type !== 'enchant';
       inventoryScreen.hidden = false;
       instructions.style.display = 'none';
       if (controls.isLocked) controls.unlock();
@@ -7551,6 +7857,8 @@
       if (!inventoryOpen) return;
       inventoryOpen = false;
       returnGridToInventory();
+      if (enchantSlot[0]) giveItemBack(enchantSlot[0]); // エンチャント台にのせたままの道具をもどす
+      enchantSlot[0] = null;
       if (cursor) giveItemBack(cursor);
       cursor = null;
       openContainer = null;
@@ -7614,7 +7922,7 @@
       const slots = storageChests.get(key) || (furnaces.get(key) || {}).slots || [];
       slots.forEach(item => {
         if (item) spawnDroppedItem(item.id, item.count, new THREE.Vector3(x, y, z), null, 0.6,
-          maxUses(item.id) ? usesLeft(item) : undefined);
+          maxUses(item.id) ? usesLeft(item) : undefined, item.ench);
       });
       storageChests.delete(key);
       furnaces.delete(key);
@@ -7651,7 +7959,7 @@
     const dropGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
 
     // uses: 道具の残り回数（落とす前の状態を保つ。undefined なら新品あつかい）
-    function spawnDroppedItem(id, count, position, velocity = null, pickupDelay = 0.6, uses = undefined) {
+    function spawnDroppedItem(id, count, position, velocity = null, pickupDelay = 0.6, uses = undefined, ench = undefined) {
       const mesh = new THREE.Mesh(dropGeo, new THREE.MeshLambertMaterial({ color: ITEMS[id].color }));
       mesh.position.copy(position);
       mesh.castShadow = true;
@@ -7663,6 +7971,7 @@
         velocity: velocity ? velocity.clone() : new THREE.Vector3((Math.random() - 0.5) * 2, 3, (Math.random() - 0.5) * 2),
         pickupDelay,
         uses,
+        ench,
         life: 300
       });
     }
@@ -7702,7 +8011,7 @@
         if (d.pickupDelay <= 0 && pos.distanceTo(center) < 1.8) {
           if (d.uses !== undefined) {
             // 道具は「落としたときの残り回数」のまま拾う（空いた枠が1つ必要）
-            if (giveTool(d.id, d.uses)) {
+            if (giveTool(d.id, d.uses, d.ench)) {
               playSound('place');
               removeDropped(i);
               continue;
@@ -7738,7 +8047,7 @@
       camera.getWorldDirection(dir);
       const from = camera.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.3, 0));
       const uses = maxUses(held.id) ? usesLeft(held) : undefined; // 道具は残り回数をいっしょに落とす
-      spawnDroppedItem(held.id, count, from, dir.multiplyScalar(5).add(new THREE.Vector3(0, 2, 0)), 1.5, uses);
+      spawnDroppedItem(held.id, count, from, dir.multiplyScalar(5).add(new THREE.Vector3(0, 2, 0)), 1.5, uses, held.ench);
       held.count -= count;
       if (held.count <= 0) inventory[selectedSlot] = null;
       renderInventory();
@@ -7894,11 +8203,13 @@
 
     function shootPlayerArrow() {
       if (bowCooldown > 0) return;
-      if (countItem('arrow') <= 0) {
+      const bow = inventory[selectedSlot];
+      const infinite = enchLevel(bow, 'infinity') > 0; // 無限: 矢がへらない（持っていなくても撃てる）
+      if (!infinite && countItem('arrow') <= 0) {
         showToast('🏹 矢がありません（石・棒・葉で作れます）');
         return;
       }
-      removeItems('arrow', 1);
+      if (!infinite) removeItems('arrow', 1);
       bowCooldown = 0.6;
       const dir = new THREE.Vector3();
       camera.getWorldDirection(dir);
@@ -7907,7 +8218,7 @@
       const vel = dir.multiplyScalar(26);
       mesh.lookAt(mesh.position.clone().add(vel));
       scene.add(mesh);
-      playerArrows.push({ mesh, vel, life: 3 });
+      playerArrows.push({ mesh, vel, life: 3, damage: 8 + enchLevel(bow, 'power') * 3, flame: enchLevel(bow, 'flame') > 0 });
       playSound('bow');
       wearItem(selectedSlot);
     }
@@ -7933,7 +8244,8 @@
           blocked = isSolid(pos.x, pos.y, pos.z);
         }
         a.mesh.lookAt(pos.clone().add(a.vel));
-        if (target) hitMob(target, 8, pos.clone());
+        if (target && a.flame) setMobOnFire(target, 4);
+        if (target) hitMob(target, a.damage || 8, pos.clone());
         // 回復の結晶は、矢を当てるとこわれる（高い柱の上でも ねらえる）
         const cell = [Math.round(pos.x), Math.round(pos.y), Math.round(pos.z)];
         if (blocked && getBlock(...cell) === DRAGON_CRYSTAL) {
@@ -9319,6 +9631,7 @@
         explored: encodeExplored(over.explored),
         dungeonsFound,
         sitesFound: over.sitesFound,
+        xp: { level: xpLevel, points: xpPoints }, // 経験値（古いセーブには無い＝0）
         lairsDefeated,       // すみかのボス（古いセーブには無い＝まだ倒していない）
         lairChestsLooted,
         nether: nether ? packDim(nether) : null, // まだ行っていなければ null
@@ -9357,6 +9670,11 @@
       Object.entries(data.fluidLevels || data.waterLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
       spawnPoint = data.spawnPoint || null;
       lairsDefeated = data.lairsDefeated || {};
+      if (data.xp) {
+        xpLevel = data.xp.level || 0;
+        xpPoints = data.xp.points || 0;
+      }
+      updateXpUI();
       lairChestsLooted = data.lairChestsLooted || {};
       decodeExplored(data.explored);
       dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
@@ -9476,6 +9794,14 @@
         updateLairTrigger,
         openLairChest,
         get lairsDefeated() { return lairsDefeated; },
+        addXp,
+        get xpLevel() { return xpLevel; },
+        set xpLevel(v) { xpLevel = v; updateXpUI(); },
+        enchantSlot,
+        applyEnchant,
+        heldAttackDamage,
+        armorProtection,
+        useItem,
         get lairChestsLooted() { return lairChestsLooted; },
         travelThroughPortal,
         tryLightPortal,
@@ -9494,6 +9820,8 @@
         get currentDim() { return currentDim; },
         get dimensions() { return dimensions; },
         spawnGuardians: updateGuardianSpawning,
+        spawnSurfaceMob,
+        spawnUndergroundMob,
         spawnMob(type, x, y, z, size = 1) {
           const mob = createMob(type, x, y, z, size);
           applyMobStrength(mob);
