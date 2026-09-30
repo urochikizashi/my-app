@@ -4201,7 +4201,10 @@
         loveTimer: 0,  // 小麦をあげたあと、子どもが生まれるまで
         growTimer: 0,  // 子どもが大きくなるまでの秒数
         flapTimer: Math.random() * 6, // コウモリの羽ばたき
-        flyTargetY: 0  // コウモリが目指している高さ
+        flyTargetY: y + 1, // 飛ぶ敵が目指している高さ
+        aggro: false,      // プレイヤーに気づいたか（気づくまではうろうろしているだけ）
+        noticeTimer: Math.random() * 0.3,
+        home: { x, z }     // 湧いた場所（うろうろしても、ここから離れすぎない）
       };
       mobs.push(mob);
       return mob;
@@ -4300,6 +4303,7 @@
     const UNDERGROUND_MOBS = [['zombie', 20], ['creeper', 15], ['spider', 25], ['skeleton', 20], ['slime', 20], ['witch', 10]];
     // 地形によって入れかわる敵（砂漠のゾンビはハスク、雪原のスケルトンはストレイ）
     const BIOME_VARIANTS = { desert: { zombie: 'husk' }, snow: { skeleton: 'stray' } };
+    const NETHER_MOBS = UNDERGROUND_MOBS;
 
     function pickWeighted(list) {
       let r = Math.random() * list.reduce((sum, [, w]) => sum + w, 0);
@@ -4374,7 +4378,7 @@
     function spawnSurfaceMob() {
       for (let attempt = 0; attempt < 20; attempt++) {
         const angle = Math.random() * Math.PI * 2;
-        const r = 14 + Math.random() * 14;
+        const r = 24 + Math.random() * 16; // 目の前ではなく、遠く（霧のあたり）に出す
         const x = Math.round(camera.position.x + Math.cos(angle) * r);
         const z = Math.round(camera.position.z + Math.sin(angle) * r);
         if (!isInsideWorld(x, z)) continue;
@@ -4386,18 +4390,32 @@
       return false;
     }
 
-    // 地下: プレイヤーの近くで、足場があって上に2マス空いている暗い場所に出す
+    // 地下: 足場があって上に2マス空いている暗い場所に出す。
+    // 目の前に急にあらわれないように、少し離れていて、プレイヤーから見えない場所をえらぶ
     function spawnUndergroundMob() {
+      const list = inNether() ? NETHER_MOBS : UNDERGROUND_MOBS;
       const px = camera.position.x;
       const pz = camera.position.z;
       const feetCell = Math.floor(camera.position.y - player.eye + 0.5);
-      for (let attempt = 0; attempt < 60; attempt++) {
-        const x = Math.round(px + rand(-16, 16));
-        const z = Math.round(pz + rand(-16, 16));
-        if (!isInsideWorld(x, z) || Math.hypot(x - px, z - pz) < 6) continue;
-        for (let y = feetCell + 6; y >= feetCell - 8; y--) {
+      for (let attempt = 0; attempt < 80; attempt++) {
+        const x = Math.round(px + rand(-28, 28));
+        const z = Math.round(pz + rand(-28, 28));
+        const d = Math.hypot(x - px, z - pz);
+        if (!isInsideWorld(x, z) || d < 14 || d > 30) continue;
+        for (let y = feetCell + 8; y >= feetCell - 10; y--) {
           if (isSolid(x, y - 1, z) && !isSolid(x, y, z) && !isSolid(x, y + 1, z)) {
-            if (y < surfaceHeight(x, z) - 4 && spawnMobAt(pickWeighted(UNDERGROUND_MOBS), x, y - 0.5, z)) return true;
+            if (!inNether() && y >= surfaceHeight(x, z) - 4) break;
+            if (hasLineOfSight(new THREE.Vector3(x, y + 1, z), camera.position)) break; // 見えている所には出さない
+            const type = pickWeighted(list);
+            const def = MOB_DEFS[type];
+            // 飛ぶ敵は、床から少し浮いたところに出す（上に空きがあれば）
+            let spawnY = y - 0.5;
+            if (def.flying) {
+              let lift = 0;
+              while (lift < 4 && !collidesBox(x, spawnY + lift + 1, z, def.radius, def.height)) lift++;
+              spawnY += lift;
+            }
+            if (spawnMobAt(type, x, spawnY, z)) return true;
             break;
           }
         }
@@ -4459,6 +4477,7 @@
               const mob = spawnMobAt('guardian', x, y - 0.5, z);
               if (mob) {
                 mob.site = site;
+                mob.aggro = true; // 宝を守っているので、すぐにおそってくる
                 showToast('🗿 遺跡の番人が目を覚ました！');
                 return;
               }
@@ -4510,6 +4529,7 @@
           const mob = createMob(sp.type, x, y, z);
           applyMobStrength(mob);
           mob.spawner = sp;
+          mob.aggro = true;
           spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0xb050ff, 16, 3);
           spawnParticles(new THREE.Vector3(sp.x, sp.y + 0.5, sp.z), 0xff8af0, 8, 2);
           break;
@@ -4701,6 +4721,7 @@
       }
       if (mob.wetTimer > 0) damage = Math.round(damage * 1.5); // ぬれている敵は弱っている
       if (mob.def.passive) mob.fleeTimer = 6; // 動物はおどろいて逃げる
+      else alertMob(mob);                    // なぐられたら気づく
       mob.health -= damage;
       mob.hitFlashTimer = 0.2;
       playSound('hit');
@@ -4739,6 +4760,7 @@
         for (let i = 0; i < count; i++) {
           const child = createMob('slime', p.x + (Math.random() - 0.5) * 0.6, p.y + 0.3, p.z + (Math.random() - 0.5) * 0.6, 0.5);
           applyMobStrength(child);
+          child.aggro = true;
           child.velocity.set((Math.random() - 0.5) * 4, 4, (Math.random() - 0.5) * 4);
         }
         return;
@@ -4772,6 +4794,55 @@
       });
     }
 
+    // 気づくまでの動きを、自分の AI の中で決めている敵（それ以外は wanderAround でうろうろ）
+    const SELF_IDLE_AI = ['slime', 'bat', 'passive', 'blaze', 'ghast'];
+    const NOTICE_RANGE = 14; // 間に壁が無ければ、この近さで気づく
+    const HEAR_RANGE = 4;    // すぐそばなら、壁ごしでも気づく
+
+    // 敵はプレイヤーに「気づく」までは、おそってこない
+    function updateAwareness(mob, delta, dist) {
+      if (mob.aggro) {
+        if (dist > mob.def.sight + 12) mob.aggro = false; // 遠くはなれると見うしなう
+        return;
+      }
+      mob.noticeTimer -= delta;
+      if (mob.noticeTimer > 0) return;
+      mob.noticeTimer = 0.3; // 見えるかどうかの計算は重いので、ときどきだけ
+      const p = mob.group.position;
+      const eye = new THREE.Vector3(p.x, p.y + mob.height * 0.85, p.z);
+      const range = mob.def.notice || NOTICE_RANGE;
+      if (dist < HEAR_RANGE || (dist < range && hasLineOfSight(eye, camera.position))) alertMob(mob);
+    }
+
+    function alertMob(mob) {
+      if (mob.aggro || mob.def.passive) return;
+      mob.aggro = true;
+      mob.attackCooldown = Math.max(mob.attackCooldown, 0.5); // 気づいたとたんに なぐらない
+      const p = mob.group.position;
+      spawnParticles(new THREE.Vector3(p.x, p.y + mob.height + 0.3, p.z), 0xff3333, 6, 1.5); // 「！」の代わり
+    }
+
+    // その場でうろうろする（動物と、まだ気づいていない敵）
+    function wanderAround(mob, delta, speedScale) {
+      const p = mob.group.position;
+      mob.wanderTimer -= delta;
+      if (mob.wanderTimer <= 0) {
+        mob.wanderTimer = 2 + Math.random() * 4;
+        // 湧いた場所から離れすぎたら、そちらへもどる
+        const home = mob.home;
+        mob.wanderAngle = home && Math.hypot(p.x - home.x, p.z - home.z) > 8
+          ? Math.atan2(home.x - p.x, home.z - p.z)
+          : Math.random() * Math.PI * 2;
+        mob.wanderMoving = Math.random() < 0.6;
+      }
+      if (!mob.wanderMoving) return;
+      const speed = mob.speed * speedScale;
+      mob.moveX = Math.sin(mob.wanderAngle) * speed;
+      mob.moveZ = Math.cos(mob.wanderAngle) * speed;
+      mob.group.rotation.y = mob.wanderAngle;
+      if (mob.legs) walkAnimation(mob, speed / 3);
+    }
+
     function updateMobs(delta) {
       updateSpawning(delta);
       updateSpawners(delta);
@@ -4801,14 +4872,15 @@
           return;
         }
 
-        // 遠く離れた敵や、長いあいだ近づけない敵は消す（その分また湧く）
-        mob.farTimer = dist > 12 ? mob.farTimer + delta : 0;
+        // 遠く離れた敵や、おそってきたのに長いあいだ近づけない敵は消す（その分また湧く）
+        mob.farTimer = dist > 12 && mob.aggro ? mob.farTimer + delta : 0;
         if (mob.def.passive) {
           if (dist > 60) removeMob(mob); // 遠くはなれた動物だけ消す
-        } else if (!mob.def.boss && (dist > 48 || mob.farTimer > 45)) {
+        } else if (!mob.def.boss && (dist > 64 || mob.farTimer > 45)) {
           removeMob(mob);
           return;
         }
+        if (!mob.def.passive && !mob.def.boss) updateAwareness(mob, delta, dist);
 
         if (mob.hitFlashTimer > 0) {
           mob.hitFlashTimer -= delta;
@@ -4818,7 +4890,9 @@
 
         mob.moveX = 0;
         mob.moveZ = 0;
-        const sees = dist < mob.def.sight;
+        // 気づいていない敵は、プレイヤーが見えていないのと同じ
+        const sees = dist < mob.def.sight && (mob.def.boss || mob.aggro);
+        const idle = !mob.def.passive && !mob.def.boss && !mob.aggro;
         if (sees && flatDist > 0.1 && !mob.def.passive) {
           const facing = Math.atan2(toPlayer.x, toPlayer.z);
           if (mob.def.boss) {
@@ -4837,7 +4911,10 @@
         };
         const meleeDamage = () => Math.max(1, Math.round(mob.def.damage * mob.power * (mob.type === 'slime' ? mob.size : 1)));
 
-        if (mob.def.ai === 'creeper') {
+        if (idle && !SELF_IDLE_AI.includes(mob.def.ai)) {
+          // まだ気づいていない敵: 湧いた場所のあたりを、ゆっくりうろうろする
+          wanderAround(mob, delta, 0.45);
+        } else if (mob.def.ai === 'creeper') {
           if (dist < 3.0) {
             // 起爆シーケンス中: 白く点滅＆膨張
             if (!mob.exploding) {
@@ -4903,18 +4980,7 @@
             walkToward(1); // 小麦についてくる
             mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
           } else {
-            mob.wanderTimer -= delta;
-            if (mob.wanderTimer <= 0) {
-              mob.wanderTimer = 2 + Math.random() * 4;
-              mob.wanderAngle = Math.random() * Math.PI * 2;
-              mob.wanderMoving = Math.random() < 0.6;
-            }
-            if (mob.wanderMoving) {
-              mob.moveX = Math.sin(mob.wanderAngle) * mob.speed;
-              mob.moveZ = Math.cos(mob.wanderAngle) * mob.speed;
-              mob.group.rotation.y = mob.wanderAngle;
-              walkAnimation(mob, mob.speed / 3);
-            }
+            wanderAround(mob, delta, 1);
           }
         } else if (mob.def.ai === 'slime') {
           // ぴょんぴょん跳ねて近づく
@@ -4924,15 +4990,22 @@
             mob.hopTimer -= delta;
             if (sees && mob.hopTimer <= 0) {
               mob.hopTimer = 0.8 + Math.random() * 0.8;
-              mob.velocity.y = 6.5;
+              mob.velocity.y = mob.def.hop || 6.5;
               mob.hopX = toPlayer.x * mob.speed;
               mob.hopZ = toPlayer.z * mob.speed;
-              playSound('slime');
+              if (dist < 20) playSound('slime');
+            } else if (idle && mob.hopTimer <= 0) {
+              // 気づいていないときは、ときどき その場でぴょんと跳ねる
+              mob.hopTimer = 2 + Math.random() * 3;
+              const angle = Math.random() * Math.PI * 2;
+              mob.velocity.y = 5;
+              mob.hopX = Math.sin(angle) * mob.speed * 0.4;
+              mob.hopZ = Math.cos(angle) * mob.speed * 0.4;
             }
           }
           mob.moveX = mob.hopX || 0;
           mob.moveZ = mob.hopZ || 0;
-          if (dist < mob.radius + 0.9 && mob.attackCooldown <= 0) {
+          if (!idle && dist < mob.radius + 0.9 && mob.attackCooldown <= 0) {
             mob.attackCooldown = 1.0;
             damagePlayer(meleeDamage(), toPlayer.clone());
           }
@@ -5214,6 +5287,7 @@
         if (collidesBox(x, y, z, def.radius, def.height)) continue;
         const minion = createMob(type, x, y, z);
         minion.minionOf = mob;
+        minion.aggro = true;
         spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9a5ad0, 14, 3);
         spawned++;
       }
@@ -5357,6 +5431,7 @@
         if (collidesBox(x, y, z, def.radius, def.height)) continue;
         const minion = createMob(type, x, y, z);
         minion.minionOf = mob;
+        minion.aggro = true;
         spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9a5ad0, 14, 3);
         spawned++;
       }
