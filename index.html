@@ -197,6 +197,17 @@
       transition: background-color 0.08s ease-out;
     }
 
+    /* 赤い月の夜: 画面のふちが赤くにじむ */
+    #blood-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(160, 0, 0, 0) 55%, rgba(160, 0, 10, 0.45) 100%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 14;
+      transition: opacity 1.5s ease;
+    }
+
     /* 手・武器の表示（HUD） */
     #player-hand {
       position: absolute;
@@ -901,6 +912,7 @@
   <div id="canvas-container"></div>
   <div id="crosshair"></div>
   <div id="damage-flash"></div>
+  <div id="blood-overlay"></div>
   <div id="save-toast" hidden></div>
   <div id="achievement-toast" hidden></div>
   <canvas id="minimap" width="162" height="162"></canvas>
@@ -959,6 +971,7 @@
         ⚠️ <b>スケルトン</b>: 遠くから弓矢で撃ってきます。物陰に隠れながら近づこう！<br>
         ⚠️ <b>スライム</b>: 地下でぴょんぴょん跳ねてきます。倒すと小さく分裂！<br>
         🌙 敵は<b>夜</b>と<b>暗い地下</b>に出てきます。朝になると地上の敵は燃えて消えます。深い場所の敵ほど大きく赤っぽく、強くなるぞ！<br>
+        🔴 <b>赤い月</b>: 4 日に 1 回、夜に赤い月がのぼり、<b>強い敵の群れ</b>が松明があってもおそってきます。ベッドでは眠れません。朝まで生きのびるとほうび（たくさんたおすほど豪華）！<br>
         👀 敵は遠くでうろうろしていて、<b>あなたを見つけるとおそってきます</b>（赤い火花が目じるし）。
       </div>
       <div class="mob-info">
@@ -4032,6 +4045,7 @@
       return {
         playSeconds: 0, kills: {}, seenMobs: {}, blocksMined: 0, blocksPlaced: 0, crafted: 0, deaths: 0,
         potions: 0, enchants: 0, portalTrips: 0, nightsSlept: 0, babies: 0, ruinsFound: 0, maxLevel: 0, distance: 0,
+        bloodMoonsSurvived: 0, bloodMoonBestKills: 0, // 赤い月
         bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
         achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
       };
@@ -4337,6 +4351,7 @@
 
       if (player.health <= 0) {
         bumpStat('deaths');
+        if (bloodMoon.active) bloodMoon.failed = true; // 赤い月のほうびは無し
         controls.unlock();
         gameOverScreen.style.display = 'flex';
       }
@@ -5100,15 +5115,104 @@
     function desiredMobCount() {
       if (inNether()) return 8;
       if (currentDepth >= 5) return Math.min(8, 3 + Math.floor(currentDepth / 8));
+      if (bloodMoon.active) return Math.min(18, 8 + Math.floor(killCount / 4)); // 赤い月: 群れ
       if (daylight < 0.3) return Math.min(10, 4 + Math.floor(killCount / 4));
       return 0;
     }
 
-    function spawnMobAt(type, x, y, z) {
+    /* --- Blood Moon (赤い月) --- */
+    // BLOOD_MOON_EVERY 日に 1 回、夜に赤い月がのぼる。昼のうちに知らせ、夜になると強い敵の群れ(松明も効かない・
+    // はじめから気づいている)が近く(18〜32 マス)に次々と出る。ベッドでは眠れない。
+    // 朝まで生きのびるとほうび(その夜にたおした数で豪華になる)。倒れると `failed` になり、ほうびは無し。
+    // `dayCount` と `bloodMoon` はセーブする(古いセーブには無い＝1 日目から)。
+    const BLOOD_MOON_EVERY = 4;
+    let dayCount = 1;
+    let bloodMoon = { active: false, failed: false, kills: 0, warned: false };
+    const isBloodMoonDay = () => dayCount % BLOOD_MOON_EVERY === 0;
+    const nextBloodMoonDay = () => dayCount + ((BLOOD_MOON_EVERY - (dayCount % BLOOD_MOON_EVERY)) % BLOOD_MOON_EVERY); // 今日が赤い月の日なら今日
+    const bloodOverlay = document.getElementById('blood-overlay');
+
+    function startBloodMoon() {
+      bloodMoon = { active: true, failed: false, kills: 0, warned: true };
+      playSound('roar');
+      showToast('🔴 赤い月がのぼった！ 敵の群れがおそってくる。朝まで生きのびろ！');
+      pendingSpawns.length = 0;
+    }
+
+    // 朝が来た。生きのびていればほうび
+    function endBloodMoon() {
+      const { failed, kills } = bloodMoon;
+      bloodMoon = { active: false, failed: false, kills: 0, warned: false };
+      if (failed) {
+        showToast(`🌅 朝が来た… 倒れてしまったので、ほうびは無し（次の赤い月は ${nextBloodMoonDay()} 日目の夜）`);
+        return;
+      }
+      stats.bloodMoonsSurvived = (stats.bloodMoonsSurvived || 0) + 1;
+      stats.bloodMoonBestKills = Math.max(stats.bloodMoonBestKills || 0, kills);
+      const loot = [['diamond', 2], ['golden_apple', 1], ['arrow', 16]];
+      if (kills >= 10) loot.push(['diamond', 2], ['gunpowder', 6]);
+      if (kills >= 20) loot.push(['diamond', 4], ['golden_apple', 2]);
+      const potions = ['potion_strength', 'potion_speed', 'potion_healing', 'potion_regen', 'potion_fire', 'potion_night'];
+      loot.push([potions[Math.floor(Math.random() * potions.length)], 1]);
+      loot.forEach(([id, count]) => giveOrDrop(id, count));
+      addXp(50 + kills * 2);
+      playSound('chest');
+      showToast(`🌅 赤い月を生きのびた！（たおした敵 ${kills}）ほうび: ${loot.map(([id, c]) => `${ITEMS[id].emoji}×${c}`).join(' ')}`);
+      checkAchievements();
+    }
+
+    // 赤い月の敵: 強くて赤く、はじめから気づいている
+    function empowerBloodMoonMob(mob) {
+      mob.health = Math.round(mob.health * 1.5);
+      mob.power *= 1.3;
+      mob.speed *= 1.1;
+      mob.aggro = true;
+      mob.bloodMoon = true;
+      mob.tint = new THREE.Color(1.4, 0.45, 0.45);
+      setMobColor(mob, mob.tint);
+    }
+
+    // 空にうかぶ赤い月（カメラからいつも同じ向きに見える）
+    const bloodMoonSprite = (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 20, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255, 90, 60, 1)');
+      g.addColorStop(0.7, 'rgba(200, 20, 20, 0.95)');
+      g.addColorStop(1, 'rgba(120, 0, 0, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false, fog: false }));
+      sprite.scale.set(34, 34, 1);
+      sprite.visible = false;
+      scene.add(sprite);
+      return sprite;
+    })();
+
+    function updateBloodMoon() {
+      if (inNether()) {
+        bloodMoonSprite.visible = false;
+        bloodOverlay.style.opacity = 0;
+        return;
+      }
+      const night = timeOfDay >= NIGHT_START;
+      if (!bloodMoon.active && night && isBloodMoonDay()) startBloodMoon();
+      if (!bloodMoon.warned && !night && isBloodMoonDay() && timeOfDay >= NIGHT_START - 0.2) {
+        bloodMoon.warned = true;
+        showToast('⚠️ 今夜は赤い月！ 敵の群れがおそってくる。松明も効かない。そなえよう');
+      }
+      const onSurface = currentDepth < 5;
+      bloodMoonSprite.visible = bloodMoon.active && onSurface;
+      if (bloodMoonSprite.visible) bloodMoonSprite.position.set(camera.position.x - 90, camera.position.y + 85, camera.position.z - 95);
+      bloodOverlay.style.opacity = bloodMoon.active && onSurface ? 1 : 0;
+    }
+
+    function spawnMobAt(type, x, y, z, ignoreTorch = false) {
       const def = MOB_DEFS[type];
       if (collidesBox(x, y, z, def.radius, def.height)) return null;
-      // 松明のそばには敵は出ない（動物と、遺跡を守る番人は出る）
-      if (!def.passive && !def.ignoresTorch && isNearTorch(x, y, z, 8)) return null;
+      // 松明のそばには敵は出ない（動物と、遺跡を守る番人、赤い月の群れは出る）
+      if (!ignoreTorch && !def.passive && !def.ignoresTorch && isNearTorch(x, y, z, 8)) return null;
       // 液体の中には出さない（溶岩の上で立ち往生しないように）
       if (FLUIDS[getBlock(Math.round(x), Math.round(y + 0.5), Math.round(z))]) return null;
       const mob = createMob(type, x, y, z);
@@ -5121,14 +5225,18 @@
     function spawnSurfaceMob() {
       for (let attempt = 0; attempt < 20; attempt++) {
         const angle = Math.random() * Math.PI * 2;
-        const r = 24 + Math.random() * 16; // 目の前ではなく、遠く（霧のあたり）に出す
+        const r = bloodMoon.active ? 18 + Math.random() * 14 : 24 + Math.random() * 16; // 目の前ではなく、遠く（霧のあたり）に出す。赤い月は少し近く
         const x = Math.round(camera.position.x + Math.cos(angle) * r);
         const z = Math.round(camera.position.z + Math.sin(angle) * r);
         if (!isInsideWorld(x, z)) continue;
         const groundY = findGroundY(x, z);
         if (isWaterBlock(getBlock(x, groundY + 0.5, z))) continue; // 湖の底には出さない
         const type = pickWeighted(SURFACE_MOBS);
-        if (spawnMobAt((BIOME_VARIANTS[biomeAt(x, z)] || {})[type] || type, x, groundY, z)) return true;
+        const mob = spawnMobAt((BIOME_VARIANTS[biomeAt(x, z)] || {})[type] || type, x, groundY, z, bloodMoon.active);
+        if (mob) {
+          if (bloodMoon.active) empowerBloodMoonMob(mob);
+          return true;
+        }
       }
       return false;
     }
@@ -5236,7 +5344,7 @@
       updateBatSpawning(delta);
       updateGuardianSpawning(delta);
       while (countMobs(false) + pendingSpawns.length < desiredMobCount()) {
-        pendingSpawns.push(5 + Math.random() * 7); // 5〜12秒後に出現
+        pendingSpawns.push(bloodMoon.active ? 2 + Math.random() * 3 : 5 + Math.random() * 7); // 5〜12秒後に出現（赤い月は 2〜5 秒）
       }
       for (let i = pendingSpawns.length - 1; i >= 0; i--) {
         pendingSpawns[i] -= delta;
@@ -5525,6 +5633,7 @@
         killCountDisplay.textContent = `Kills: ${killCount}`;
       }
       stats.kills[mob.type] = (stats.kills[mob.type] || 0) + 1; // 図鑑用（動物も数える）
+      if (bloodMoon.active && !mob.def.passive) bloodMoon.kills++;
       noteMobSeen(mob.type);
       checkAchievements();
 
@@ -8802,10 +8911,13 @@
       spawnPoint = { x, y: y + 0.5, z };
       if (daylight >= 0.3) {
         showToast('🛏️ 復活地点をここにした（夜に使うと朝まで眠れる）');
+      } else if (bloodMoon.active) {
+        showToast('🔴 赤い月の夜は眠れない！ 朝まで生きのびよう');
       } else if (mobs.some(mob => !mob.def.boss && mob.group.position.distanceTo(camera.position) < 10)) {
         showToast('😨 近くに敵がいて眠れない！');
       } else {
         timeOfDay = 0.02;
+        dayCount++; // 眠って朝になったぶんも 1 日進む
         bumpStat('nightsSlept');
         showToast('🛏️ おやすみ… おはよう！ 朝になった');
       }
@@ -9967,9 +10079,17 @@
       return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     }
 
+    const BLOOD_SKY = new THREE.Color(0x2c0608); // 赤い月の夜空
+
     function updateAtmosphere(delta) {
+      const before = timeOfDay;
       timeOfDay = (timeOfDay + delta / DAY_CYCLE_SECONDS) % 1;
+      if (timeOfDay < before) { // 夜明け: 日付が進む
+        dayCount++;
+        if (bloodMoon.active) endBloodMoon();
+      }
       daylight = daylightAt(timeOfDay);
+      updateBloodMoon();
 
       const feetY = camera.position.y - player.eye;
       // 異世界には地表が無いので、天井からの深さであつかう
@@ -9980,6 +10100,8 @@
 
       // 異世界はどこにいても赤黒い。昼夜は関係ない
       if (inNether()) {
+        ambientLight.color.setHex(0xffffff);
+        sunLight.color.setHex(0xffffff);
         ambientLight.intensity = 0.32;
         sunLight.intensity = 0.1;
         torchLight.intensity = 2.2;
@@ -9999,7 +10121,11 @@
       if (effectLevel('night') > 0) ambientLight.intensity = Math.max(ambientLight.intensity, 0.75); // 暗視のポーション
       sunLight.intensity = THREE.MathUtils.lerp(0.05, 0.9, daylight);
       torchLight.intensity = Math.max(THREE.MathUtils.lerp(0, 4, underground), THREE.MathUtils.lerp(2, 0, daylight));
-      skyColor.lerpColors(NIGHT_SKY, DAY_SKY, daylight);
+      // 赤い月の夜は、空も光も赤みがかる
+      const bloody = bloodMoon.active && underground < 1;
+      ambientLight.color.setHex(bloody ? 0xffb0b0 : 0xffffff);
+      sunLight.color.setHex(bloody ? 0xff9090 : 0xffffff);
+      skyColor.lerpColors(bloody ? BLOOD_SKY : NIGHT_SKY, DAY_SKY, daylight);
       scene.background.lerpColors(skyColor, CAVE_DARK, underground);
       scene.fog.color.copy(scene.background);
       // 水の中では、青くてぼんやりした景色にする（水の中にいる感じを出す）
@@ -10018,9 +10144,13 @@
       biomeDisplay.textContent = `${biome.emoji} ${biome.name}`;
       const isDay = timeOfDay < NIGHT_START;
       const secondsLeft = ((isDay ? NIGHT_START : 1) - timeOfDay) * DAY_CYCLE_SECONDS;
-      timeDisplay.textContent = isDay
-        ? `☀️ 昼（夜まで ${formatSeconds(secondsLeft)}）`
-        : `🌙 夜（朝まで ${formatSeconds(secondsLeft)}）`;
+      if (bloodMoon.active) {
+        timeDisplay.textContent = `🔴 ${dayCount}日目 赤い月（朝まで ${formatSeconds(secondsLeft)}）たおした ${bloodMoon.kills}${bloodMoon.failed ? '・ほうび無し' : ''}`;
+      } else if (isDay) {
+        timeDisplay.textContent = `☀️ ${dayCount}日目 昼（夜まで ${formatSeconds(secondsLeft)}）${isBloodMoonDay() ? ' ⚠️今夜は赤い月' : ''}`;
+      } else {
+        timeDisplay.textContent = `🌙 ${dayCount}日目 夜（朝まで ${formatSeconds(secondsLeft)}）`;
+      }
     }
 
     // 近くの松明に光を割り当てる
@@ -10140,6 +10270,9 @@
       { id: 'boss_dragon', emoji: '🐉', name: 'ドラゴンスレイヤー', desc: '異世界のドラゴンをたおす', check: () => !!lairsDefeated.nether_dragon },
       { id: 'boss_all', emoji: '👑', name: 'ボスマスター', desc: '6 体のボスをぜんぶたおす', check: () => bossesDefeated.every(Boolean) && Object.keys(LAIRS).every(key => lairsDefeated[key]) },
       { id: 'speed_golem', emoji: '⏱️', name: 'スピードファイター', desc: 'ゴーレムを 2 分以内にたおす', check: () => !!bossRecord('golem') && bossRecord('golem').fight <= 120 },
+      { id: 'blood_moon', emoji: '🔴', name: '赤い月を生きのびた', desc: '赤い月の夜を朝まで生きのびる', check: () => (stats.bloodMoonsSurvived || 0) >= 1 },
+      { id: 'blood_moon_20', emoji: '🩸', name: '赤い月の英雄', desc: '赤い月の夜に敵を 20 体たおして生きのびる', check: () => (stats.bloodMoonBestKills || 0) >= 20 },
+      { id: 'blood_moon_5', emoji: '🌕', name: '月をこえて', desc: '赤い月を 5 回生きのびる', check: () => (stats.bloodMoonsSurvived || 0) >= 5 },
       { id: 'nether', emoji: '🌋', name: '異世界へようこそ', desc: '異世界ゲートをくぐる', check: () => stats.portalTrips >= 1 },
       { id: 'level_10', emoji: '⭐', name: 'レベル 10', desc: '経験値のレベルを 10 にする', check: () => stats.maxLevel >= 10 },
       { id: 'level_30', emoji: '🌠', name: 'レベル 30', desc: '経験値のレベルを 30 にする', check: () => stats.maxLevel >= 30 },
@@ -10460,6 +10593,8 @@
         ['🛠️ 作ったもの', `${stats.crafted} 回`],
         ['🕳️ 最深記録', `${deepestDepth} m`],
         ['⭐ 最高レベル', `Lv ${Math.max(stats.maxLevel || 0, xpLevel)}`],
+        ['📅 何日目', `${dayCount} 日目（次の赤い月は ${isBloodMoonDay() && !bloodMoon.active && timeOfDay < NIGHT_START ? '今夜' : nextBloodMoonDay() + ' 日目'}）`],
+        ['🔴 赤い月を生きのびた回数', `${stats.bloodMoonsSurvived || 0} 回（1 夜でたおした最高 ${stats.bloodMoonBestKills || 0} 体）`],
         ['🌋 異世界に行った回数', `${stats.portalTrips} 回`],
         ['🧪 ポーションを飲んだ回数', `${stats.potions} 回`],
         ['✨ エンチャントした回数', `${stats.enchants} 回`],
@@ -10549,6 +10684,8 @@
         lairsDefeated,       // すみかのボス（古いセーブには無い＝まだ倒していない）
         lairChestsLooted,
         stats,               // 記録と実績（古いセーブには無い＝0 から数える）
+        dayCount,            // 何日目か（赤い月の周期。古いセーブには無い＝1 日目から）
+        bloodMoon,
         nether: nether ? packDim(nether) : null, // まだ行っていなければ null
         savedAt: Date.now()
       };
@@ -10592,6 +10729,8 @@
       updateXpUI();
       lairChestsLooted = data.lairChestsLooted || {};
       stats = { ...defaultStats(), ...(data.stats || {}) };
+      dayCount = data.dayCount || 1;
+      if (data.bloodMoon) bloodMoon = { active: false, failed: false, kills: 0, warned: false, ...data.bloodMoon };
       stats.maxLevel = Math.max(stats.maxLevel || 0, xpLevel);
       decodeExplored(data.explored);
       dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
@@ -10766,6 +10905,16 @@
         get daylight() { return daylight; },
         get currentDepth() { return currentDepth; },
         get stats() { return stats; },
+        get dayCount() { return dayCount; },
+        set dayCount(v) { dayCount = v; },
+        get bloodMoon() { return bloodMoon; },
+        startBloodMoon,
+        endBloodMoon,
+        updateAtmosphere,
+        updateSpawning,
+        damagePlayer,
+        desiredMobCount,
+        spawnSurfaceMob,
         ACHIEVEMENTS,
         checkAchievements,
         openCodex,
