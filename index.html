@@ -6630,10 +6630,11 @@
         showToast('💨 水が一瞬で蒸発した！ 異世界はあつすぎて、水は使えない');
         return;
       }
-      // 溶岩に水をかけた（水に溶岩を流した）ときは、その場で固まる。溶岩の源に水なら黒曜石
+      // 溶岩に水をかけた（水に溶岩を流した）ときは、その場で固まる。
+      // バケツの溶岩は源なので、水の中に置けば必ず黒曜石。水をかけたときは、溶岩の源なら黒曜石・流れなら石
       const existing = getBlock(cell.x, cell.y, cell.z);
       if (item.lava ? isWaterBlock(existing) : isLavaBlock(existing)) {
-        const becomes = !item.lava && existing === LAVA ? OBSIDIAN : STONE;
+        const becomes = item.lava || existing === LAVA ? OBSIDIAN : STONE;
         removeBlock(cell.x, cell.y, cell.z, false);
         addBlock(cell.x, cell.y, cell.z, becomes, false);
         spawnParticles(new THREE.Vector3(cell.x, cell.y + 0.5, cell.z), becomes === OBSIDIAN ? 0x7a52b0 : 0xdddddd, 8, 3);
@@ -6645,6 +6646,8 @@
         return;
       }
       if (addBlock(cell.x, cell.y, cell.z, item.lava ? LAVA : WATER, true)) {
+        // 水のとなりに溶岩を置いたときも、流れ出す前にその場で黒曜石にする
+        if (item.lava && lavaMeetsWater(cell.x, cell.y, cell.z)) showToast('🟪 溶岩が固まって黒曜石になった！（ダイヤのツルハシで掘れる）');
         inventory[selectedSlot] = { id: 'bucket', count: 1 };
         renderInventory();
         updateRaycast();
