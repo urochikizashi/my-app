@@ -491,7 +491,7 @@
       color: #fff;
       z-index: 25;
     }
-    #inventory-screen[hidden], #furnace-ui[hidden] {
+    #inventory-screen[hidden], #furnace-ui[hidden], #brew-ui[hidden] {
       display: none;
     }
     .inv-window {
@@ -626,16 +626,32 @@
       font-size: 11px;
       color: #ddd;
     }
-    #furnace-progress {
+    #furnace-progress, #brew-progress {
       width: 60px;
       height: 10px;
       background: #333;
       border: 1px solid #aaa;
     }
-    #furnace-progress-fill {
+    #furnace-progress-fill, #brew-progress-fill {
       width: 0;
       height: 100%;
       background: #e87a2c;
+    }
+    #brew-progress-fill {
+      background: #c86aff;
+    }
+    /* 醸造台の作り方の一覧 */
+    #brew-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 3px 12px;
+      margin-top: 10px;
+      max-width: 520px;
+      font-size: 12px;
+      color: #ddd;
+    }
+    #brew-list .unknown {
+      color: #888;
     }
     /* 経験値のゲージ（ホットバーの下） */
     #xp-bar {
@@ -830,6 +846,27 @@
                 <div class="furnace-label">できたもの</div>
                 <div id="furnace-output" class="slot"></div>
               </div>
+            </div>
+            <div id="brew-ui" hidden>
+              <div class="furnace-ui">
+                <div>
+                  <div class="furnace-label">材料</div>
+                  <div id="brew-ingredient" class="slot"></div>
+                  <div class="furnace-label">燃料（ブレイズパウダー）</div>
+                  <div id="brew-fuel" class="slot"></div>
+                </div>
+                <div>
+                  <div class="furnace-label">ビン（1回に3本まで）</div>
+                  <div id="brew-bottle" class="slot"></div>
+                  <div class="furnace-label" id="brew-fuel-left"></div>
+                </div>
+                <div id="brew-progress"><div id="brew-progress-fill"></div></div>
+                <div>
+                  <div class="furnace-label">できたもの</div>
+                  <div id="brew-output" class="slot"></div>
+                </div>
+              </div>
+              <div id="brew-list"></div>
             </div>
             <div id="enchant-ui" hidden>
               <div class="enchant-row">
@@ -1748,6 +1785,32 @@
       ctx.fillStyle = '#ffd23a';
       for (let x = 1; x < 16; x += 3) ctx.fillRect(x, 3, 1, 1);
     });
+    // 醸造台: 石の台に、ブレイズロッドの柱とビン
+    textures.brewTop = createPixelTexture(ctx => {
+      speckle(ctx, '#7a7a7a', ['#6a6a6a', '#8a8a8a'], 50);
+      ctx.fillStyle = '#ffb020'; // まん中の柱
+      ctx.fillRect(7, 7, 2, 2);
+      ctx.fillStyle = '#c86aff'; // ビン 3 本
+      [[2, 3], [11, 3], [6, 12]].forEach(([x, y]) => ctx.fillRect(x, y, 3, 3));
+      ctx.fillStyle = '#f0e0ff';
+      [[2, 3], [11, 3], [6, 12]].forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+    });
+    textures.brewSide = createPixelTexture(ctx => {
+      ctx.fillStyle = '#2a2a34';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#ffb020'; // 柱
+      ctx.fillRect(7, 1, 2, 11);
+      ctx.fillStyle = '#c86aff'; // 左右のビン
+      ctx.fillRect(1, 7, 4, 5);
+      ctx.fillRect(11, 7, 4, 5);
+      ctx.fillStyle = '#e8e8f0';
+      ctx.fillRect(2, 5, 2, 2);
+      ctx.fillRect(12, 5, 2, 2);
+      ctx.fillStyle = '#7a7a7a'; // 石の台
+      ctx.fillRect(0, 12, 16, 4);
+      ctx.fillStyle = '#5a5a5a';
+      ctx.fillRect(0, 12, 16, 1);
+    });
     textures.healCrystal = createPixelTexture(ctx => {
       speckle(ctx, '#d84ab8', ['#ff6ad8', '#b02a98', '#ff9ae8'], 80);
       ctx.fillStyle = '#ffe0f8'; // きらきら光る面
@@ -1971,7 +2034,8 @@
       'wheat1', 'wheat2', 'wheat3', 'sapling', 'tallGrass', 'flowerRed', 'flowerYellow', 'flowerBlue',
       'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner',
       'netherrack', 'glowstone', 'soulSand', 'portal', 'healCrystal',
-      'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide'
+      'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide',
+      'brewTop', 'brewSide'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -2073,6 +2137,8 @@
       66: { name: 'ブラックストーン', tiles: same('blackstone'), tier: 1, drop: 'blackstone', map: '#2a2630' },
       67: { name: '金まじりのブラックストーン', tiles: same('gildedBlackstone'), tier: 1, drop: 'gold', map: '#6a5a2a' },
       68: { name: 'エンチャント台', tiles: [tile('enchantTop'), tile('obsidian'), tile('enchantSide')], tier: 1, drop: 'enchant_table', enchanting: true, blastProof: true, map: '#6a2a8a' },
+      // 醸造台: ポーションを作る。中身はかまどと同じ furnaces に入れる（brew: true の印つき）
+      69: { name: '醸造台', tiles: [tile('brewTop'), tile('stone'), tile('brewSide')], tier: 1, drop: 'brewing_stand', furnace: true, brewing: true, map: '#8a6ab0' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2116,6 +2182,7 @@
     const BLACKSTONE = 66;
     const GILDED_BLACKSTONE = 67;
     const ENCHANT_TABLE = 68;
+    const BREWING_STAND = 69;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -3915,6 +3982,7 @@
       fireResistTimer: 0,  // マグマクリームを食べると、しばらく火と溶岩が平気
       regenBuffTimer: 0,   // ガストの涙を食べると、しばらく体力が回復し続ける
       regenBuffTick: 0,
+      effects: {},           // ポーションの力 { 名前: { time: 残り秒, level: 強さ } }（strength / speed / jump / night / water）
       portalTimer: 0,        // ゲートの中にいる秒数（1.2秒で向こうへ）
       justTeleported: false, // ゲートから出るまで、もう一度飛ばない
       fallFrom: 0, // 落ち始めたときの足の高さ（落下ダメージの計算に使う）
@@ -4062,6 +4130,44 @@
       }
     }
 
+    // ポーションの力の強さ（かかっていなければ 0）
+    const effectLevel = name => {
+      const e = player.effects[name];
+      return e && e.time > 0 ? e.level : 0;
+    };
+    const EFFECT_LABELS = { strength: '💪 力', speed: '💨 速さ', jump: '🦘 跳躍', night: '👁️ 暗視', water: '🫧 水中呼吸' };
+
+    // ポーションを飲む
+    function drinkPotion(p) {
+      const roman = p.level > 1 ? 'Ⅱ' : '';
+      if (p.effect === 'heal') {
+        healPlayer(p.level * 8);
+        showToast(`💗 体力が ${p.level * 4} ハート回復した！`);
+      } else if (p.effect === 'cure') {
+        player.poisonTimer = 0;
+        player.burnTimer = 0;
+        player.slowTimer = 0;
+        healPlayer(2);
+        showToast('🍵 毒・しおれ・やけど・足止めが消えた！');
+      } else if (p.effect === 'fireResist') {
+        player.fireResistTimer = Math.max(player.fireResistTimer, p.seconds);
+        player.burnTimer = 0;
+        showToast(`🧯 ${p.seconds}秒のあいだ、溶岩や火の玉が平気！`);
+      } else if (p.effect === 'regen') {
+        player.regenBuffTimer = Math.max(player.regenBuffTimer, p.seconds);
+        player.regenBuffTick = 0;
+        showToast(`💗 ${p.seconds}秒のあいだ、体力が少しずつ回復する`);
+      } else {
+        const now = player.effects[p.effect];
+        // 強いほうを優先。同じ強さなら長いほう
+        if (!now || now.time <= 0 || p.level > now.level || (p.level === now.level && p.seconds > now.time)) {
+          player.effects[p.effect] = { time: p.seconds, level: p.level };
+        }
+        showToast(`🧪 ${EFFECT_LABELS[p.effect]}${roman} が ${p.seconds}秒 ついた！`);
+      }
+      updateEffectDisplay();
+    }
+
     // 画面左上に、今かかっている効果を出す
     const effectDisplay = document.getElementById('effect-display');
     let effectText = '';
@@ -4071,6 +4177,9 @@
       if (player.poisonTimer > 0) list.push('🧪 毒');
       if (player.fireResistTimer > 0) list.push(`🧯 火に強い ${Math.ceil(player.fireResistTimer)}秒`);
       if (player.regenBuffTimer > 0) list.push(`💗 回復中 ${Math.ceil(player.regenBuffTimer)}秒`);
+      Object.entries(player.effects).forEach(([name, e]) => {
+        if (e.time > 0) list.push(`${EFFECT_LABELS[name]}${e.level > 1 ? 'Ⅱ' : ''} ${Math.ceil(e.time)}秒`);
+      });
       const text = list.join('　');
       if (text === effectText) return;
       effectText = text;
@@ -4101,6 +4210,12 @@
       player.air = player.maxAir;
       player.drownTimer = 0;
       player.invulnerableTimer = 3; // 復活直後は3秒無敵
+      // ポーションや毒の効き目は、倒れたら消える
+      player.effects = {};
+      player.fireResistTimer = 0;
+      player.regenBuffTimer = 0;
+      player.poisonTimer = 0;
+      player.burnTimer = 0;
       // ボス戦の途中で倒されたら、ボスは眠りにもどる（また部屋に入ると目覚める）
       if (boss) {
         removeMob(boss);
@@ -5201,6 +5316,12 @@
       if (mob.type === 'witch' && Math.random() < 0.25) {
         giveOrDrop('golden_apple', 1);
         showToast('🍎 ウィッチが金のりんごを落とした！');
+      }
+      if (mob.type === 'witch' && Math.random() < 0.3) {
+        const kinds = ['potion_healing', 'potion_speed', 'potion_fire', 'potion_water', 'potion_night', 'potion_cure'];
+        const id = kinds[Math.floor(Math.random() * kinds.length)];
+        giveOrDrop(id, 1);
+        showToast(`🧪 ウィッチが${ITEMS[id].name}を落とした！`);
       }
       if (mob.type === 'guardian' && Math.random() < 0.2) {
         giveOrDrop('diamond', 1);
@@ -6666,6 +6787,7 @@
         if (t.id === CRAFTING_TABLE) return openInventoryScreen();
         if (def.enchanting) return openInventoryScreen({ type: 'enchant', key });
         if (def.storage) return openInventoryScreen({ type: 'chest', key });
+        if (def.brewing) return openInventoryScreen({ type: 'brew', key });
         if (def.furnace) return openInventoryScreen({ type: 'furnace', key });
         if (def.door) return toggleDoor(t.x, t.y, t.z);
         if (def.bed) return useBed(t.x, t.y, t.z);
@@ -6684,6 +6806,23 @@
         if (hit && hit.mob.def.passive) return feedAnimal(hit.mob);
       }
 
+      // ガラスのビン: 水に向けて使うと、水をくめる
+      if (item.kind === 'bottle') {
+        const hit = raycastBlock(camera.position, lookDirection, REACH, true);
+        if (!hit || !isWaterBlock(hit.id)) return showToast('🫙 水に向けて右クリックすると、水をくめる');
+        consumeHeldItem();
+        giveOrDrop('water_bottle', 1);
+        playSound('place');
+        return;
+      }
+      // ポーション: 飲むと力がつく。ビンはもどってくる
+      if (item.kind === 'potion') {
+        consumeHeldItem();
+        drinkPotion(item.potion);
+        giveOrDrop('glass_bottle', 1);
+        playSound('eat');
+        return;
+      }
       // 特別な効果のある食べ物（マグマクリーム・ガストの涙）
       if (item.effect) {
         if (item.effect === 'fireResist') {
@@ -6816,7 +6955,8 @@
           break;
         case 'Space':
           if (player.onGround && player.health > 0) {
-            player.velocity.y = player.jumpVelocity;
+            // 跳躍のポーション: 強さ1つにつき1マス高く跳べる
+            player.velocity.y = Math.sqrt(player.jumpVelocity ** 2 + 2 * GRAVITY * effectLevel('jump'));
             player.onGround = false;
             playSound('jump');
           }
@@ -6964,7 +7104,12 @@
       bucket: { name: 'バケツ', kind: 'bucket', color: '#b8b8b8', emoji: '🪣', stack: 1 },
       water_bucket: { name: '水入りバケツ', kind: 'bucket', water: true, color: '#2f6fd6', emoji: '💧', stack: 1 },
       lava_bucket: { name: '溶岩入りバケツ', kind: 'bucket', lava: true, color: '#ff7a1a', emoji: '🌋', stack: 1 },
-      big_bag: { name: '大きなカバン', kind: 'bag', color: '#8a5a2a', emoji: '🎒', stack: 1 }
+      big_bag: { name: '大きなカバン', kind: 'bag', color: '#8a5a2a', emoji: '🎒', stack: 1 },
+      // ポーションづくり
+      brewing_stand: { name: '醸造台', kind: 'block', block: BREWING_STAND, color: '#8a6ab0', emoji: '⚗️' },
+      blaze_powder: { name: 'ブレイズパウダー', kind: 'material', color: '#ffc840', emoji: '✨' },
+      glass_bottle: { name: 'ガラスのビン', kind: 'bottle', color: '#bcdcf0', emoji: '🫙' },
+      water_bottle: { name: '水のビン', kind: 'material', color: '#3c7ce8', emoji: '🫙', stack: 16 }
     };
     // 色つきブロックと染料
     const COLOR_LIST = [
@@ -6979,6 +7124,38 @@
       ITEMS[`${c.key}_block`] = { name: `${c.name}のブロック`, kind: 'block', block: c.block, color: c.color, emoji: c.emoji };
       ITEMS[`${c.key}_dye`] = { name: `${c.name}の染料`, kind: 'material', color: c.color, emoji: c.dye };
     });
+
+    /* --- Potions (ポーション) --- */
+    // effect: どんな力か（下の EFFECTS）。level: 強さ。seconds: 続く秒数（回復・解毒はすぐ効くので無し）
+    // 作り方: 水のビン＋材料 → ポーション。ポーション＋ダイヤ → 強いポーション（strongOf）
+    const POTIONS = {
+      potion_strength: { name: '力のポーション', effect: 'strength', level: 1, seconds: 180, color: '#c83a3a', from: 'blaze_powder', strong: 'potion_strength2' },
+      potion_strength2: { name: '力のポーションⅡ', effect: 'strength', level: 2, seconds: 90, color: '#ff3a3a' },
+      potion_speed: { name: '速さのポーション', effect: 'speed', level: 1, seconds: 180, color: '#7ac8ff', from: 'feather', strong: 'potion_speed2' },
+      potion_speed2: { name: '速さのポーションⅡ', effect: 'speed', level: 2, seconds: 90, color: '#3aa8ff' },
+      potion_jump: { name: '跳躍のポーション', effect: 'jump', level: 1, seconds: 180, color: '#8aff5a', from: 'slimeball', strong: 'potion_jump2' },
+      potion_jump2: { name: '跳躍のポーションⅡ', effect: 'jump', level: 2, seconds: 90, color: '#4aff2a' },
+      potion_healing: { name: '回復のポーション', effect: 'heal', level: 1, color: '#ff5a8a', from: 'gold', strong: 'potion_healing2' },
+      potion_healing2: { name: '回復のポーションⅡ', effect: 'heal', level: 2, color: '#ff2a6a' },
+      potion_regen: { name: '再生のポーション', effect: 'regen', level: 1, seconds: 45, color: '#ff8ad8', from: 'ghast_tear' },
+      potion_fire: { name: '火炎耐性のポーション', effect: 'fireResist', level: 1, seconds: 240, color: '#ff8a1a', from: 'magma_cream' },
+      potion_night: { name: '暗視のポーション', effect: 'night', level: 1, seconds: 240, color: '#2a3aa8', from: 'glowstone' },
+      potion_water: { name: '水中呼吸のポーション', effect: 'water', level: 1, seconds: 240, color: '#2ad8c8', from: 'blue_flower' },
+      potion_cure: { name: '解毒のポーション', effect: 'cure', level: 1, color: '#f0f0d0', from: 'apple' }
+    };
+    Object.entries(POTIONS).forEach(([id, p]) => {
+      ITEMS[id] = { name: p.name, kind: 'potion', potion: p, color: p.color, emoji: '🧪', stack: 16 };
+    });
+    // 醸造台の作り方: 「ビンの中身」と「材料」の組み合わせ → できるもの
+    const BREWS = [];
+    Object.entries(POTIONS).forEach(([id, p]) => {
+      if (p.from) BREWS.push({ bottle: 'water_bottle', ingredient: p.from, result: id });
+      if (p.strong) BREWS.push({ bottle: id, ingredient: 'diamond', result: p.strong });
+    });
+    const findBrew = (bottleId, ingredientId) => BREWS.find(b => b.bottle === bottleId && b.ingredient === ingredientId);
+    const BREW_TIME = 10;     // 1回に10秒
+    const BREWS_PER_POWDER = 10; // ブレイズパウダー1個で10回
+
     const PICKAXE_NAMES = { 1: '木のツルハシ', 2: '石のツルハシ', 3: '鉄のツルハシ', 4: 'ダイヤのツルハシ' };
 
     const maxStack = id => ITEMS[id].stack || MAX_STACK;
@@ -7220,7 +7397,8 @@
     function heldAttackDamage() {
       const def = heldItemDef();
       const base = def && def.damage ? def.damage : FIST_DAMAGE;
-      return base + enchLevel(inventory[selectedSlot], 'sharpness') * 3;
+      const damage = base + enchLevel(inventory[selectedSlot], 'sharpness') * 3;
+      return Math.round(damage * (1 + effectLevel('strength') * 0.3)); // 力のポーション: 1つにつき +30%
     }
 
     /* --- Recipes (作り方) --- */
@@ -7257,6 +7435,9 @@
       shaped('door', 1, ['PP', 'PP', 'PP'], { P: 'planks' }),
       shaped('lamp', 1, ['.G.', 'GTG', '.G.'], { G: 'glass', T: 'torch' }),
       shaped('enchant_table', 1, ['.G.', 'DOD', 'OOO'], { G: 'gold', D: 'diamond', O: 'obsidian' }),
+      shapeless('blaze_powder', 2, ['blaze_rod']),
+      shaped('brewing_stand', 1, ['.B.', 'SSS'], { B: 'blaze_rod', S: 'stone' }),
+      shaped('glass_bottle', 3, ['G.G', '.G.'], { G: 'glass' }),
       shaped('stone_bricks', 4, ['SS', 'SS'], { S: 'stone' }),
       shapeless('brick', 4, ['dirt', 'dirt', 'coal']),
       shapeless('flint_and_steel', 1, ['iron', ['coal', 'charcoal']]),
@@ -7675,6 +7856,43 @@
       return el;
     });
 
+    // 醸造台: 材料・燃料・ビン・できたもの の4つの枠
+    const brewSlotEls = ['brew-ingredient', 'brew-fuel', 'brew-bottle', 'brew-output'].map((id, i) => {
+      const el = document.getElementById(id);
+      el.innerHTML = makeSlotElement().innerHTML;
+      el.addEventListener('mousedown', (e) => {
+        if (!openContainer || openContainer.type !== 'brew') return;
+        const brewer = getBrewer(openContainer.key);
+        if (i === 0) clickStorageSlot(brewer.slots, 0, e.button, itemId => BREWS.some(b => b.ingredient === itemId));
+        if (i === 1) clickStorageSlot(brewer.slots, 1, e.button, itemId => itemId === 'blaze_powder');
+        if (i === 2) clickStorageSlot(brewer.slots, 2, e.button, itemId => BREWS.some(b => b.bottle === itemId));
+        // できたものは取り出すだけ（同じものをつかんでいれば、まとめて持つ）
+        if (i === 3 && brewer.slots[3] && (!cursor || cursor.id === brewer.slots[3].id)) {
+          const out = brewer.slots[3];
+          const move = cursor ? Math.min(out.count, maxStack(out.id) - cursor.count) : out.count;
+          if (!cursor) cursor = { id: out.id, count: 0 };
+          cursor.count += move;
+          out.count -= move;
+          if (out.count <= 0) brewer.slots[3] = null;
+          seenItems.add(out.id);
+        }
+        renderInventory();
+      });
+      return el;
+    });
+
+    // 作り方の一覧。材料を一度も手に入れていないものは「？」にしておく
+    function renderBrewList() {
+      const list = document.getElementById('brew-list');
+      list.innerHTML = BREWS.map(b => {
+        const known = seenItems.has(b.ingredient);
+        const what = b.bottle === 'water_bottle' ? '水のビン' : ITEMS[b.bottle].name;
+        return known
+          ? `<div>${what}＋${ITEMS[b.ingredient].emoji}${ITEMS[b.ingredient].name} → ${ITEMS[b.result].name}</div>`
+          : `<div class="unknown">${what}＋❓ → ${ITEMS[b.result].name}</div>`;
+      }).join('');
+    }
+
     // エンチャント台: 道具を1つのせる枠と、つけられる力のボタン
     const enchantSlot = [null];
     const enchantSlotEl = document.getElementById('enchant-slot');
@@ -7816,6 +8034,13 @@
         fillSlot(enchantSlotEl, enchantSlot[0]);
         renderEnchantList();
       }
+      if (openContainer && openContainer.type === 'brew') {
+        const brewer = getBrewer(openContainer.key);
+        brewSlotEls.forEach((el, i) => fillSlot(el, brewer.slots[i]));
+        document.getElementById('brew-progress-fill').style.width = `${(brewer.progress / BREW_TIME) * 100}%`;
+        document.getElementById('brew-fuel-left').textContent = `🔥 燃料の残り: ${brewer.fuel}回`;
+        renderBrewList();
+      }
       if (openContainer && openContainer.type === 'furnace') {
         const furnace = getFurnace(openContainer.key);
         furnaceSlotEls.forEach((el, i) => fillSlot(el, furnace.slots[i]));
@@ -7834,7 +8059,7 @@
       inventoryOpen = true;
       openContainer = container;
       craftSize = isNearCraftingTable() ? 3 : 2;
-      const titles = { chest: '📦 チェスト', furnace: '🏭 かまど', enchant: '✨ エンチャント台' };
+      const titles = { chest: '📦 チェスト', furnace: '🏭 かまど', enchant: '✨ エンチャント台', brew: '⚗️ 醸造台' };
       document.getElementById('inv-title').textContent = !container ? '🎒 持ち物とクラフト' : titles[container.type];
       document.getElementById('craft-area').hidden = !!container;
       document.getElementById('recipe-area').hidden = !!container;
@@ -7843,12 +8068,14 @@
       const hints = {
         chest: '📦 チェストの中身（クリックで出し入れ）',
         furnace: '🏭 焼くものと燃料（石炭・木炭・原木・木の板・棒・ブレイズロッド）を入れよう',
-        enchant: '✨ 道具をのせて、つけたい力をえらぼう（経験値のレベルを使う。敵をたおしたり鉱石を掘るとたまる）'
+        enchant: '✨ 道具をのせて、つけたい力をえらぼう（経験値のレベルを使う。敵をたおしたり鉱石を掘るとたまる）',
+        brew: '⚗️ 水のビン（ガラスのビンで水をくむ）と材料と燃料を入れると、10秒でポーションができる。ポーション＋ダイヤで強くなる'
       };
       document.getElementById('container-title').textContent = !container ? '' : hints[container.type];
       containerGrid.hidden = !container || container.type !== 'chest';
       furnaceUi.hidden = !container || container.type !== 'furnace';
       document.getElementById('enchant-ui').hidden = !container || container.type !== 'enchant';
+      document.getElementById('brew-ui').hidden = !container || container.type !== 'brew';
       inventoryScreen.hidden = false;
       instructions.style.display = 'none';
       if (controls.isLocked) controls.unlock();
@@ -7919,6 +8146,43 @@
       return furnaces.get(key);
     }
 
+    // 醸造台も furnaces に入れる（セーブもかまどといっしょ）。slots: [材料, 燃料, ビン, できたもの]、fuel: 残りの回数
+    function getBrewer(key) {
+      if (!furnaces.has(key)) furnaces.set(key, { brew: true, slots: [null, null, null, null], fuel: 0, progress: 0 });
+      return furnaces.get(key);
+    }
+
+    // ビンを1回に3本まで、ポーションに変える
+    function updateBrewer(brewer, delta) {
+      const [ingredient, powder, bottle, output] = brewer.slots;
+      const brew = ingredient && bottle && findBrew(bottle.id, ingredient.id);
+      const amount = bottle ? Math.min(3, bottle.count) : 0;
+      const canBrew = brew && (!output || (output.id === brew.result && output.count + amount <= maxStack(brew.result)));
+      if (!canBrew) {
+        brewer.progress = 0;
+        return;
+      }
+      if (brewer.fuel <= 0) {
+        if (!powder) {
+          brewer.progress = 0;
+          return;
+        }
+        brewer.fuel = BREWS_PER_POWDER;
+        powder.count--;
+        if (powder.count <= 0) brewer.slots[1] = null;
+      }
+      brewer.progress += delta;
+      if (brewer.progress < BREW_TIME) return;
+      brewer.progress = 0;
+      brewer.fuel--;
+      ingredient.count--;
+      if (ingredient.count <= 0) brewer.slots[0] = null;
+      bottle.count -= amount;
+      if (bottle.count <= 0) brewer.slots[2] = null;
+      if (output) output.count += amount;
+      else brewer.slots[3] = { id: brew.result, count: amount };
+    }
+
     // こわしたチェストやかまどの中身は、その場に落ちる
     function spillContainer(x, y, z) {
       const key = blockKey(x, y, z);
@@ -7933,6 +8197,7 @@
 
     function updateFurnaces(delta) {
       furnaces.forEach(furnace => {
+        if (furnace.brew) return updateBrewer(furnace, delta);
         const [input, fuel, output] = furnace.slots;
         const result = input && SMELTING[input.id];
         const canSmelt = result && (!output || (output.id === result && output.count < maxStack(result)));
@@ -9268,6 +9533,13 @@
         }
       }
       if (player.fireResistTimer > 0) player.fireResistTimer -= delta;
+      Object.entries(player.effects).forEach(([name, e]) => {
+        e.time -= delta;
+        if (e.time <= 0) {
+          delete player.effects[name];
+          showToast(`⌛ ${EFFECT_LABELS[name]} の効き目が切れた`);
+        }
+      });
       if (player.regenBuffTimer > 0) {
         player.regenBuffTimer -= delta;
         player.regenBuffTick -= delta;
@@ -9277,14 +9549,17 @@
         }
       }
       updateEffectDisplay();
-      let speedFactor = 1;
+      let speedFactor = 1 + effectLevel('speed') * 0.25; // 速さのポーション
       if (inWater) speedFactor *= 0.5;
       if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
 
       // 息: 顔（カメラの位置）が水につかっているあいだだけ減る
       const headUnderwater = isWaterBlock(getBlock(
         Math.round(camera.position.x), Math.round(camera.position.y), Math.round(camera.position.z)));
-      if (headUnderwater) {
+      if (headUnderwater && effectLevel('water') > 0) {
+        player.air = player.maxAir; // 水中呼吸のポーション: 息が減らない
+        player.drownTimer = 0;
+      } else if (headUnderwater) {
         player.air -= delta;
         if (player.air <= 0) {
           player.air = 0;
@@ -9380,8 +9655,9 @@
         player.fallFrom = Math.max(player.fallFrom, feetY);
       } else {
         const fallen = player.fallFrom - feetY;
-        if (player.onGround && fallen > 3) {
-          damagePlayer(Math.round(fallen - 3));
+        const safeFall = 3 + effectLevel('jump'); // 跳躍のポーションを飲むと、少し高くても平気
+        if (player.onGround && fallen > safeFall) {
+          damagePlayer(Math.round(fallen - safeFall));
           spawnParticles(new THREE.Vector3(camera.position.x, feetY + 0.1, camera.position.z), 0xcccccc, 10, 3);
         }
         player.fallFrom = feetY;
@@ -9455,11 +9731,13 @@
         depthDisplay.textContent = `異世界（天井から ${depth}m）`;
         biomeDisplay.textContent = '🔥 異世界';
         timeDisplay.textContent = '🌑 ここに朝は来ない';
+        if (effectLevel('night') > 0) ambientLight.intensity = 0.75; // 暗視のポーション
         return;
       }
 
       const underground = THREE.MathUtils.clamp((depth - 3) / 10, 0, 1);
       ambientLight.intensity = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.2, 0.7, daylight), 0.12, underground);
+      if (effectLevel('night') > 0) ambientLight.intensity = Math.max(ambientLight.intensity, 0.75); // 暗視のポーション
       sunLight.intensity = THREE.MathUtils.lerp(0.05, 0.9, daylight);
       torchLight.intensity = Math.max(THREE.MathUtils.lerp(0, 4, underground), THREE.MathUtils.lerp(2, 0, daylight));
       skyColor.lerpColors(NIGHT_SKY, DAY_SKY, daylight);
@@ -9562,7 +9840,7 @@
 
       // かまどは持ち物画面を開いているあいだも焼き続ける
       updateFurnaces(delta);
-      if (inventoryOpen && openContainer && openContainer.type === 'furnace') refreshScreen();
+      if (inventoryOpen && openContainer && (openContainer.type === 'furnace' || openContainer.type === 'brew')) refreshScreen();
 
       updateSunPosition();
       updateChunks();
@@ -9754,6 +10032,14 @@
         fluidLevels,
         activeFluid,
         getFurnace,
+        getBrewer,
+        updateFurnaces,
+        drinkPotion,
+        effectLevel,
+        selectSlot,
+        ambientLight,
+        POTIONS,
+        BREWS,
         growingBlocks,
         RECIPES,
         craftGrid,
