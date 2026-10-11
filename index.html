@@ -717,6 +717,174 @@
       color: #aaa;
       cursor: default;
     }
+
+    /* 実績と図鑑（L キー） */
+    #codex-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: safe center;
+      justify-content: center;
+      padding: 16px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.65);
+      color: #fff;
+      z-index: 26;
+    }
+    #codex-screen[hidden] {
+      display: none;
+    }
+    .codex-window {
+      max-width: 960px;
+    }
+    #codex-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0;
+    }
+    .codex-tab {
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #ddd;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .codex-tab.active {
+      color: #222;
+      background: #ffdd55;
+      border-color: #ffdd55;
+    }
+    #codex-body {
+      max-height: 70vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .codex-summary {
+      margin: 4px 0 10px;
+      font-size: 13px;
+      color: #ffdd55;
+    }
+    .codex-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 8px;
+    }
+    .codex-card {
+      display: flex;
+      gap: 10px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .codex-card.locked {
+      opacity: 0.5;
+    }
+    .codex-card.done {
+      background: rgba(255, 221, 85, 0.14);
+      border-color: rgba(255, 221, 85, 0.6);
+    }
+    .codex-card .codex-icon {
+      flex: 0 0 56px;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .codex-card .codex-icon img {
+      width: 56px;
+      height: 56px;
+      image-rendering: auto;
+    }
+    .codex-card.unseen .codex-icon img {
+      filter: brightness(0) opacity(0.6);
+    }
+    .codex-card b {
+      font-size: 13px;
+      color: #ffdd55;
+    }
+    .codex-card.locked b {
+      color: #ddd;
+    }
+    .codex-card .codex-sub {
+      color: #bbb;
+    }
+    .codex-section {
+      margin: 12px 0 4px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #ffdd55;
+    }
+    .codex-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .codex-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+    }
+    .codex-chip.unknown {
+      opacity: 0.35;
+    }
+    .codex-chip .chip-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+      font-size: 11px;
+      text-align: center;
+      border-radius: 3px;
+    }
+    .codex-table {
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .codex-table td {
+      padding: 4px 14px 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .codex-table td:first-child {
+      color: #bbb;
+    }
+    /* 実績を手に入れたときのお知らせ（画面の上のまん中） */
+    #achievement-toast {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 18px;
+      color: #222;
+      background: linear-gradient(#ffe88a, #f2b63c);
+      border: 2px solid #fff;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      box-shadow: 0 0 14px rgba(255, 200, 60, 0.9);
+      z-index: 31;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #achievement-toast[hidden] {
+      display: none;
+    }
   </style>
 
   <!-- Three.js Import Map -->
@@ -734,6 +902,7 @@
   <div id="crosshair"></div>
   <div id="damage-flash"></div>
   <div id="save-toast" hidden></div>
+  <div id="achievement-toast" hidden></div>
   <canvas id="minimap" width="162" height="162"></canvas>
   <div id="map-overlay" hidden>
     <div>🗺️ マップ（M キーで閉じる）</div>
@@ -781,6 +950,7 @@
       <div><b>E</b> : 持ち物とクラフト（2×2。作業台の近くでは 3×3）</div>
       <div><b>Q</b> : 手に持っているアイテムを1つ捨てる（Shift+Q で全部）</div>
       <div><b>M</b> : マップを開く／閉じる（行った場所だけ見える）</div>
+      <div><b>L</b> : 実績と図鑑（敵・ボス・アイテムの図鑑、記録）</div>
       <div><b>ESC</b> : 一時停止（自動でセーブされます。30秒ごとにも自動セーブ）</div>
       <div class="mob-info">
         ⚠️ <b>クリーパー (Creeper)</b>: 近づくと「シューッ」と点滅し、大爆発して地形を破壊します！離れるか剣で仕留めよう！<br>
@@ -808,6 +978,7 @@
     <div class="save-buttons">
       <button class="btn-sub" id="save-btn">💾 セーブ</button>
       <button class="btn-sub" id="new-world-btn">🆕 新しいワールド</button>
+      <button class="btn-sub" id="codex-btn">📖 実績と図鑑</button>
     </div>
     <div id="save-status">🌍 ワールドを作っています…（少し時間がかかります）</div>
   </div>
@@ -890,6 +1061,18 @@
       </div>
     </div>
     <div id="cursor-item" hidden></div>
+  </div>
+
+  <!-- 実績と図鑑（L キー / 一時停止画面のボタン） -->
+  <div id="codex-screen" hidden>
+    <div class="inv-window codex-window">
+      <div class="inv-header">
+        <span>📖 実績と図鑑</span>
+        <button class="btn-sub" id="codex-close">✖ 閉じる（L）</button>
+      </div>
+      <div id="codex-tabs"></div>
+      <div id="codex-body"></div>
+    </div>
   </div>
 
   <!-- ゲームオーバー画面 -->
@@ -2318,7 +2501,7 @@
     });
 
     controls.addEventListener('unlock', () => {
-      if (player.health > 0 && !inventoryOpen) {
+      if (player.health > 0 && !inventoryOpen && !codexOpen) {
         instructions.style.display = 'flex';
       }
     });
@@ -3842,6 +4025,51 @@
     let lairsDefeated = {};      // key -> true（セーブする）
     let lairChestsLooted = {};   // key -> true（セーブする）
 
+    /* --- Stats (記録) --- */
+    // 遊んだ時間・たおした敵の数(種類ごと)・会った敵・ボスをたおすまでの時間・実績。全部セーブする(`stats`)。
+    // 実績の一覧と図鑑の画面は、ずっと下の「Achievements & Codex」にある
+    function defaultStats() {
+      return {
+        playSeconds: 0, kills: {}, seenMobs: {}, blocksMined: 0, blocksPlaced: 0, crafted: 0, deaths: 0,
+        potions: 0, enchants: 0, portalTrips: 0, nightsSlept: 0, babies: 0, ruinsFound: 0, maxLevel: 0, distance: 0,
+        bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
+        achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
+      };
+    }
+    let stats = defaultStats();
+    let achievementsReady = false; // 実績の一覧ができる前に呼ばれても大丈夫なように
+    function bumpStat(key, amount = 1) {
+      stats[key] = (stats[key] || 0) + amount;
+      checkAchievements();
+    }
+    function noteMobSeen(type) {
+      if (stats.seenMobs[type]) return;
+      stats.seenMobs[type] = true;
+      checkAchievements();
+    }
+    function recordBossDefeat(mob) {
+      const fight = Math.round(mob.fightSeconds || 0);
+      const rec = stats.bossRecords[mob.type];
+      if (!rec) stats.bossRecords[mob.type] = { fight, at: Math.round(stats.playSeconds), times: 1, last: fight };
+      else {
+        rec.times++;
+        rec.last = fight;
+        rec.fight = Math.min(rec.fight, fight);
+      }
+      checkAchievements();
+      return fight;
+    }
+    // 秒数を「1時間23分」「2分05秒」のように
+    function formatDuration(seconds) {
+      seconds = Math.max(0, Math.round(seconds));
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const sec = seconds % 60;
+      if (h > 0) return `${h}時間${String(m).padStart(2, '0')}分`;
+      if (m > 0) return `${m}分${String(sec).padStart(2, '0')}秒`;
+      return `${sec}秒`;
+    }
+
     function registerLair(key, dim, x, y, z, half, height, chest) {
       const lair = { key, dim, x, y, z, half, height, chest };
       bossLairs.push(lair);
@@ -4108,6 +4336,7 @@
       updateHealthUI();
 
       if (player.health <= 0) {
+        bumpStat('deaths');
         controls.unlock();
         gameOverScreen.style.display = 'flex';
       }
@@ -4140,6 +4369,7 @@
     // ポーションを飲む
     function drinkPotion(p) {
       const roman = p.level > 1 ? 'Ⅱ' : '';
+      bumpStat('potions');
       if (p.effect === 'heal') {
         healPlayer(p.level * 8);
         showToast(`💗 体力が ${p.level * 4} ハート回復した！`);
@@ -4769,6 +4999,7 @@
       setMobScale(baby, 0.55);
       spawnParticles(p.clone().add(new THREE.Vector3(0, 1, 0)), 0xff77aa, 16, 3);
       showToast(`${mob.def.emoji} ${mob.def.name}の赤ちゃんが生まれた！`);
+      bumpStat('babies');
     }
 
     // 小麦をあげる（子どもにあげると早く大きくなる）
@@ -5293,6 +5524,9 @@
         killCount++;
         killCountDisplay.textContent = `Kills: ${killCount}`;
       }
+      stats.kills[mob.type] = (stats.kills[mob.type] || 0) + 1; // 図鑑用（動物も数える）
+      noteMobSeen(mob.type);
+      checkAchievements();
 
       if (mob.def.boss) {
         if (mob.lair) onLairBossDefeated(mob);
@@ -5574,6 +5808,7 @@
           removeMob(mob);
           return;
         }
+        if (dist < 14) noteMobSeen(mob.type); // 近くまで来たら図鑑にのる
         if (!mob.def.passive && !mob.def.boss) updateAwareness(mob, delta, dist);
 
         if (updateMobFire(mob, delta)) return; // 燃えつきた
@@ -5862,6 +6097,8 @@
       boss.throwTimer = 3;
       boss.summonTimer = 6;
       boss.enraged = false;
+      boss.fightSeconds = 0; // たおすまでの時間の記録
+      noteMobSeen(boss.type);
       playSound('roar');
       showToast(`${tier.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
@@ -5886,6 +6123,8 @@
       boss.phaseTimer = DRAGON_AIR_TIME;
       boss.orbit = 0;
       boss.calledBlazes = false;
+      boss.fightSeconds = 0; // たおすまでの時間の記録
+      noteMobSeen(boss.type);
       playSound('roar');
       showToast(`${conf.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
@@ -6313,6 +6552,7 @@
 
     function updateBossEffects(delta) {
       const feetY = camera.position.y - player.eye;
+      if (boss) boss.fightSeconds = (boss.fightSeconds || 0) + delta;
 
       // 衝撃波: 輪が広がり、地面に立っているプレイヤーに当たる（ジャンプでよけられる）
       for (let i = shockwaves.length - 1; i >= 0; i--) {
@@ -6369,12 +6609,13 @@
       lairsDefeated[lair.key] = true;
       bossBar.hidden = true;
       mobs.filter(m => m.minionOf === mob).forEach(m => killMob(m));
+      const fight = recordBossDefeat(mob);
       const center = mob.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
       spawnParticles(center, 0xffffff, 60, 10);
       spawnParticles(center, 0xffd700, 40, 8);
       playSound('explosion');
       playSound('chest');
-      showToast(`🏆 ${mob.def.name}を倒した！ すみかの宝箱を開けよう`);
+      showToast(`🏆 ${mob.def.name}を倒した！（⏱️ ${formatDuration(fight)}）すみかの宝箱を開けよう`);
       saveGame();
     }
 
@@ -6385,12 +6626,13 @@
       bossBar.hidden = true;
       // 呼ばれた仲間もいっしょに消える
       mobs.filter(m => m.minionOf === mob).forEach(m => killMob(m));
+      const fight = recordBossDefeat(mob);
       const center = mob.group.position.clone().add(new THREE.Vector3(0, 1.5, 0));
       spawnParticles(center, 0xffffff, 60, 10);
       spawnParticles(center, 0xffd700, 40, 8);
       playSound('explosion');
       playSound('chest');
-      showToast(`🏆 ${mob.def.name}を倒した！ 部屋の宝箱を開けよう`);
+      showToast(`🏆 ${mob.def.name}を倒した！（⏱️ ${formatDuration(fight)}）部屋の宝箱を開けよう`);
       // 次のボスの部屋が、マップに出る
       const next = DUNGEONS[index + 1];
       if (next) {
@@ -6647,6 +6889,7 @@
       if (def.storage || def.furnace) spillContainer(target.x, target.y, target.z);
       if (def.tier >= 1 && pickaxeTier() > 0) wearItem(selectedSlot); // 手に持っているツルハシだけへる
       removeBlock(target.x, target.y, target.z, true);
+      bumpStat('blocksMined');
 
       const pos = new THREE.Vector3(target.x, target.y, target.z);
       const give = (id, count = 1) => {
@@ -6722,6 +6965,7 @@
       }
       if (addBlock(cell.x, cell.y, cell.z, item.block, true)) {
         consumeHeldItem();
+        bumpStat('blocksPlaced');
         updateRaycast();
       }
     }
@@ -6972,6 +7216,12 @@
           break;
         case 'Escape':
           if (inventoryOpen) closeInventoryScreen(false);
+          if (codexOpen) closeCodex(false);
+          break;
+        case 'KeyL':
+          // 実績と図鑑
+          if (codexOpen) closeCodex();
+          else if (controls.isLocked) openCodex(true);
           break;
         default:
           if (/^Digit[1-8]$/.test(e.code)) selectSlot(Number(e.code.slice(5)) - 1);
@@ -7224,6 +7474,8 @@
       if (leveled) {
         playSound('levelup');
         showToast(`⭐ レベルアップ！ Lv ${xpLevel}（エンチャント台で使える）`);
+        stats.maxLevel = Math.max(stats.maxLevel || 0, xpLevel);
+        checkAchievements();
       }
       updateXpUI();
     }
@@ -7270,6 +7522,7 @@
       inventory[slot] = { id, count: 1, uses: Math.min(uses, maxUses(id)) };
       if (ench) inventory[slot].ench = ench;
       seenItems.add(id);
+      checkAchievements();
       renderInventory();
       return true;
     }
@@ -7296,6 +7549,7 @@
         else inventory[inventory.findIndex((item, index) => !item && index < slots)] = { id, count: 1 };
       }
       seenItems.add(id);
+      checkAchievements();
       renderInventory();
       return true;
     }
@@ -7596,6 +7850,7 @@
         addItem(recipe.result, recipe.count);
         if (!quiet) showToast(`🛠️ ${ITEMS[recipe.result].name}${recipe.count > 1 ? ' ×' + recipe.count : ''} を作った！`);
       }
+      bumpStat('crafted');
       if (!quiet) {
         playSound('place');
         renderRecipeBook();
@@ -7940,6 +8195,7 @@
       if (next > ENCHANTS[key].max || xpLevel < cost) return;
       xpLevel -= cost;
       item.ench = { ...(item.ench || {}), [key]: next };
+      bumpStat('enchants');
       updateXpUI();
       playSound('levelup');
       showToast(`✨ ${ITEMS[item.id].name}に「${ENCHANTS[key].name} ${next}」をつけた！`);
@@ -8550,6 +8806,7 @@
         showToast('😨 近くに敵がいて眠れない！');
       } else {
         timeOfDay = 0.02;
+        bumpStat('nightsSlept');
         showToast('🛏️ おやすみ… おはよう！ 朝になった');
       }
       saveGame();
@@ -9157,6 +9414,7 @@
       player.fallFrom = spot.y;
       player.portalTimer = 0;
       player.justTeleported = true; // ゲートから出るまで、もう一度飛ばない
+      bumpStat('portalTrips');
       exploreAround(Math.round(spot.x), Math.round(spot.z));
       showToast(to === NETHER
         ? (fresh ? '🔥 異世界に来た！ 溶岩に気をつけて' : '🔥 異世界にもどってきた')
@@ -9222,6 +9480,7 @@
           feetY >= b.y0 - 0.5 && feetY <= b.y1 + 0.5);
         if (!inside) return;
         sitesFound[i] = true;
+        bumpStat('ruinsFound');
         const kind = SITE_KINDS[site.kind];
         showToast(`${kind.emoji} ${kind.name}を見つけた！ マップに印がついた`);
         playSound('ore');
@@ -9408,7 +9667,7 @@
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyM') toggleMap();
+      if (e.code === 'KeyM' && !codexOpen) toggleMap();
     });
 
     function updateMap(delta) {
@@ -9818,6 +10077,7 @@
         updateTnt(delta);
         updatePortal(delta);
         updatePlayerArrows(delta);
+        updateStats(delta);
 
         torchLightTimer -= delta;
         if (torchLightTimer <= 0) {
@@ -9845,6 +10105,379 @@
       updateSunPosition();
       updateChunks();
       renderer.render(scene, camera);
+    }
+
+    /* --- Achievements & Codex (実績と図鑑) --- */
+    // 実績: 条件(check)を満たしたら手に入る。チェックは「何かが起きたとき」(bumpStat / addItem / killMob など)と 2 秒に 1 回。
+    // 図鑑: 敵と動物(近くまで来ると「会った」ことになる `stats.seenMobs`)・ボス(たおすまでの時間)・アイテム(`seenItems`)・記録。
+    const killsOf = type => stats.kills[type] || 0;
+    const bossRecord = type => stats.bossRecords[type];
+    const ACHIEVEMENTS = [
+      { id: 'first_wood', emoji: '🪵', name: 'はじめの一歩', desc: '原木を手に入れる', check: () => seenItems.has('wood') },
+      { id: 'table', emoji: '🛠️', name: 'ものづくり', desc: '作業台を作る', check: () => seenItems.has('table') },
+      { id: 'pickaxe', emoji: '⛏️', name: '掘るぞ！', desc: 'ツルハシを手に入れる', check: () => ['wood_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe'].some(id => seenItems.has(id)) },
+      { id: 'torch', emoji: '🔥', name: '明かりをともす', desc: '松明を作る', check: () => seenItems.has('torch') },
+      { id: 'iron', emoji: '🔩', name: '鉄の時代', desc: '鉄を手に入れる', check: () => seenItems.has('iron') },
+      { id: 'diamond', emoji: '💎', name: 'ダイヤモンド！', desc: 'ダイヤを手に入れる', check: () => seenItems.has('diamond') },
+      { id: 'diamond_pickaxe', emoji: '⛏️', name: 'さいきょうのツルハシ', desc: 'ダイヤのツルハシを手に入れる', check: () => seenItems.has('diamond_pickaxe') },
+      { id: 'obsidian', emoji: '🟪', name: 'いちばんかたい石', desc: '黒曜石を手に入れる', check: () => seenItems.has('obsidian') },
+      { id: 'first_kill', emoji: '⚔️', name: 'はじめての勝利', desc: '敵を 1 体たおす', check: () => killCount >= 1 },
+      { id: 'kill_50', emoji: '🗡️', name: 'モンスターハンター', desc: '敵を 50 体たおす', check: () => killCount >= 50 },
+      { id: 'kill_300', emoji: '👹', name: '伝説のハンター', desc: '敵を 300 体たおす', check: () => killCount >= 300 },
+      { id: 'spiders', emoji: '🕷️', name: 'クモ退治', desc: 'クモを 10 体たおす', check: () => killsOf('spider') >= 10 },
+      { id: 'creepers', emoji: '💥', name: 'シューッ…させない', desc: 'クリーパーを 5 体たおす', check: () => killsOf('creeper') >= 5 },
+      { id: 'archers', emoji: '🏹', name: '弓矢なんてこわくない', desc: 'スケルトンかストレイを 10 体たおす', check: () => killsOf('skeleton') + killsOf('stray') >= 10 },
+      { id: 'bow', emoji: '🏹', name: '弓使い', desc: '弓を手に入れる', check: () => seenItems.has('bow') },
+      { id: 'depth_20', emoji: '🕳️', name: '地底探検家', desc: '深さ 20 m までもぐる', check: () => deepestDepth >= 20 },
+      { id: 'bedrock', emoji: '🪨', name: '岩盤にタッチ', desc: '深さ 39 m までもぐる', check: () => deepestDepth >= 39 },
+      { id: 'site', emoji: '🏛️', name: '発見！', desc: '地下の建物を見つける', check: () => stats.ruinsFound >= 1 },
+      { id: 'site_5', emoji: '🗺️', name: '考古学者', desc: '地下の建物を 5 つ見つける', check: () => stats.ruinsFound >= 5 },
+      { id: 'boss_golem', emoji: '🗿', name: 'ゴーレムをたおした', desc: '1 体目のボス、ゴーレムをたおす', check: () => bossesDefeated[0] },
+      { id: 'boss_magma', emoji: '🔥', name: 'マグマゴーレムをたおした', desc: '2 体目のボス、マグマゴーレムをたおす', check: () => bossesDefeated[1] },
+      { id: 'boss_shadow', emoji: '💀', name: 'やみのゴーレムをたおした', desc: '3 体目のボス、やみのゴーレムをたおす', check: () => bossesDefeated[2] },
+      { id: 'boss_queen', emoji: '🕷️', name: '女王をたおした', desc: '大グモの女王をたおす', check: () => !!lairsDefeated.spider_queen },
+      { id: 'boss_mummy', emoji: '🏺', name: 'ファラオをたおした', desc: 'ファラオのミイラをたおす', check: () => !!lairsDefeated.mummy },
+      { id: 'boss_dragon', emoji: '🐉', name: 'ドラゴンスレイヤー', desc: '異世界のドラゴンをたおす', check: () => !!lairsDefeated.nether_dragon },
+      { id: 'boss_all', emoji: '👑', name: 'ボスマスター', desc: '6 体のボスをぜんぶたおす', check: () => bossesDefeated.every(Boolean) && Object.keys(LAIRS).every(key => lairsDefeated[key]) },
+      { id: 'speed_golem', emoji: '⏱️', name: 'スピードファイター', desc: 'ゴーレムを 2 分以内にたおす', check: () => !!bossRecord('golem') && bossRecord('golem').fight <= 120 },
+      { id: 'nether', emoji: '🌋', name: '異世界へようこそ', desc: '異世界ゲートをくぐる', check: () => stats.portalTrips >= 1 },
+      { id: 'level_10', emoji: '⭐', name: 'レベル 10', desc: '経験値のレベルを 10 にする', check: () => stats.maxLevel >= 10 },
+      { id: 'level_30', emoji: '🌠', name: 'レベル 30', desc: '経験値のレベルを 30 にする', check: () => stats.maxLevel >= 30 },
+      { id: 'enchant', emoji: '✨', name: 'まほうの力', desc: '道具にエンチャントをつける', check: () => stats.enchants >= 1 },
+      { id: 'potion', emoji: '🧪', name: 'ポーションづくり', desc: 'ポーションを手に入れる', check: () => Object.keys(POTIONS).some(id => seenItems.has(id)) },
+      { id: 'drink_10', emoji: '🥤', name: 'ごくごく', desc: 'ポーションを 10 回飲む', check: () => stats.potions >= 10 },
+      { id: 'cook', emoji: '🍗', name: 'お料理', desc: '焼いた肉を手に入れる', check: () => seenItems.has('cooked_meat') },
+      { id: 'farmer', emoji: '🌾', name: '農家', desc: '小麦を収穫する', check: () => seenItems.has('wheat') },
+      { id: 'bread', emoji: '🍞', name: 'パン屋さん', desc: 'パンを作る', check: () => seenItems.has('bread') },
+      { id: 'golden_apple', emoji: '🍏', name: '金ぴかのりんご', desc: '金のりんごを手に入れる', check: () => seenItems.has('golden_apple') },
+      { id: 'baby', emoji: '🐣', name: '赤ちゃんが生まれた', desc: '動物に小麦をあげて赤ちゃんを生ませる', check: () => stats.babies >= 1 },
+      { id: 'sleep', emoji: '🛏️', name: 'おやすみなさい', desc: 'ベッドで朝まで眠る', check: () => stats.nightsSlept >= 1 },
+      { id: 'tnt', emoji: '🧨', name: 'ドカーン', desc: 'TNT を作る', check: () => seenItems.has('tnt') },
+      { id: 'big_bag', emoji: '🎒', name: 'たくさん入る', desc: '大きなカバンを作る', check: () => bagSize === BAG_LARGE },
+      { id: 'items_50', emoji: '🧺', name: 'コレクター', desc: '50 種類のアイテムを手に入れる', check: () => seenItems.size >= 50 },
+      { id: 'items_100', emoji: '🏅', name: '大コレクター', desc: '100 種類のアイテムを手に入れる', check: () => seenItems.size >= 100 },
+      { id: 'build_500', emoji: '🏗️', name: '建築家', desc: 'ブロックを 500 個置く', check: () => stats.blocksPlaced >= 500 },
+      { id: 'mine_1000', emoji: '⛏️', name: '掘り職人', desc: 'ブロックを 1000 個掘る', check: () => stats.blocksMined >= 1000 },
+      { id: 'death', emoji: '💀', name: 'まだまだ！', desc: 'いちど倒れる（復活してつづけよう）', check: () => stats.deaths >= 1 },
+      { id: 'hour', emoji: '⏰', name: '1 時間の冒険', desc: '合計 1 時間遊ぶ', check: () => stats.playSeconds >= 3600 },
+      { id: 'walk_10km', emoji: '👟', name: '長い旅', desc: '合計 10 km 歩く', check: () => stats.distance >= 10000 },
+      { id: 'mobs_all', emoji: '📖', name: '図鑑コンプリート', desc: 'すべての敵と動物に会う（ボス以外）', check: () => codexMobTypes().every(type => stats.seenMobs[type]) },
+      { id: 'all', emoji: '🌟', name: '実績マスター', desc: 'ほかの実績をぜんぶ手に入れる', check: () => ACHIEVEMENTS.every(a => a.id === 'all' || hasAchievement(a.id)) }
+    ];
+
+    // 実績を手に入れたときのお知らせ（画面の上のまん中。つづけて手に入れたら順番に出す）
+    const achievementToast = document.getElementById('achievement-toast');
+    const achievementQueue = [];
+    let achievementTimer = null;
+    function pushAchievementToast(text) {
+      achievementQueue.push(text);
+      if (!achievementTimer) nextAchievementToast();
+    }
+    function nextAchievementToast() {
+      const text = achievementQueue.shift();
+      if (!text) {
+        achievementToast.hidden = true;
+        achievementTimer = null;
+        return;
+      }
+      achievementToast.textContent = text;
+      achievementToast.hidden = false;
+      achievementTimer = setTimeout(nextAchievementToast, 3500);
+    }
+
+    const hasAchievement = id => stats.achievements[id] !== undefined;
+    function unlockAchievement(a, quiet = false) {
+      stats.achievements[a.id] = Math.max(1, Math.round(stats.playSeconds)); // 0 だと「まだ」とまちがえるので 1 秒以上にする
+      if (quiet) return;
+      playSound('levelup');
+      pushAchievementToast(`🏆 実績「${a.emoji} ${a.name}」を手に入れた！（L キーで見る）`);
+    }
+
+    function checkAchievements(quiet = false) {
+      if (!achievementsReady) return 0;
+      let count = 0;
+      for (const a of ACHIEVEMENTS) {
+        if (hasAchievement(a.id)) continue;
+        let ok = false;
+        try { ok = !!a.check(); } catch (e) { ok = false; }
+        if (ok) {
+          unlockAchievement(a, quiet);
+          count++;
+        }
+      }
+      if (codexOpen) renderCodex();
+      return count;
+    }
+
+    // 前からのセーブで、もう条件を満たしている実績をまとめて渡す（1 つずつ知らせると大さわぎになるので、1 行だけ）
+    function grantEarnedAchievements(quiet) {
+      achievementsReady = true;
+      const count = checkAchievements(quiet);
+      if (quiet && count > 0) pushAchievementToast(`🏆 実績を ${count} 個手に入れた！（L キーで見る）`);
+    }
+
+    // 遊んだ時間と歩いた距離を数え、2 秒に 1 回 実績を調べる
+    let statsCheckTimer = 0;
+    const lastStatPos = new THREE.Vector3();
+    let lastStatPosValid = false;
+    function updateStats(delta) {
+      stats.playSeconds += delta;
+      const p = camera.position;
+      if (lastStatPosValid) {
+        const d = Math.hypot(p.x - lastStatPos.x, p.z - lastStatPos.z);
+        if (d < 3) stats.distance += d; // ゲートや復活で飛んだぶんは数えない
+      }
+      lastStatPos.copy(p);
+      lastStatPosValid = true;
+      statsCheckTimer -= delta;
+      if (statsCheckTimer <= 0) {
+        statsCheckTimer = 2;
+        checkAchievements();
+      }
+    }
+
+    /* 図鑑の中身 */
+    const MOB_GROUPS = [
+      ['🌙 地上の敵（夜に出る）', ['zombie', 'skeleton', 'creeper', 'spider', 'husk', 'stray', 'witch']],
+      ['🕳️ 地下の敵', ['slime', 'bat', 'guardian']],
+      ['🔥 異世界の敵', ['zombie_piglin', 'wither_skeleton', 'magma_cube', 'blaze', 'ghast']],
+      ['🐾 動物', ['pig', 'cow', 'chicken']]
+    ];
+    const MOB_INFO = {
+      zombie: { emoji: '🧟', where: '夜の地上', tip: '両手をのばして追いかけてきてパンチする。朝になると燃える。腐った肉を落とす' },
+      husk: { emoji: '🏜️', where: '砂漠の夜', tip: '砂漠のゾンビ。昼になっても燃えない' },
+      creeper: { emoji: '💥', where: '夜の地上', tip: '近づくとシューッと点滅して大爆発！ 火薬を落とす（TNT の材料）' },
+      spider: { emoji: '🕷️', where: '夜の地上・洞窟', tip: '足が速くて壁を登る。糸を 1〜3 本落とす（弓の材料）' },
+      skeleton: { emoji: '💀', where: '夜の地上・地下', tip: '遠くから弓矢を撃つ。物かげにかくれて近づこう。矢と石炭か鉄を落とす' },
+      stray: { emoji: '☃️', where: '雪原の夜', tip: '雪原のスケルトン。矢に当たると足が遅くなる' },
+      witch: { emoji: '🧙', where: '夜の地上', tip: '毒のビンを投げる（毒は体力 1 で止まる）。たまに金のりんごやポーションを落とす' },
+      slime: { emoji: '🟢', where: '地下', tip: 'ぴょんぴょん跳ねる。大きいのをたおすと小さいのに分裂する。スライムボールを落とす' },
+      bat: { emoji: '🦇', where: '地下', tip: '飛びまわるだけで、おそってこない' },
+      guardian: { emoji: '🗿', where: '古代遺跡の中', tip: '宝を守っている。松明でも止まらない。金と、たまにダイヤを落とす' },
+      zombie_piglin: { emoji: '🐗', where: '異世界', tip: '火に強い。金を落とす' },
+      wither_skeleton: { emoji: '🖤', where: '異世界', tip: 'なぐられると「しおれ」の呪いで体力が減り続ける。石炭を落とす' },
+      magma_cube: { emoji: '🟠', where: '異世界', tip: '高く跳ねるスライム。マグマクリーム（食べると火に強くなる）を落とす' },
+      blaze: { emoji: '🔥', where: '異世界', tip: '飛びながら火の玉を撃つ。左クリックで打ち返せる。ブレイズロッド（醸造の材料）を落とす' },
+      ghast: { emoji: '👻', where: '異世界の空', tip: '大きな火の玉を撃つ。打ち返して当てよう。ガストの涙（回復）を落とす' },
+      pig: { emoji: '🐷', where: '明るい草原', tip: '生肉を落とす（かまどで焼ける）。小麦を持つとついてくる' },
+      cow: { emoji: '🐮', where: '明るい草原', tip: '生肉をたくさん落とす。小麦をあげた 2 匹から赤ちゃんが生まれる' },
+      chicken: { emoji: '🐔', where: '明るい草原', tip: '羽根（矢の材料）を落とす' },
+      golem: { emoji: '🗿', tip: 'パンチ・岩投げ・地面たたきの衝撃波（ジャンプでよける）。背中の光るコアに後ろから当てると 3 倍。バケツの水で 5 秒しびれる' },
+      magma_golem: { emoji: '🔥', tip: '投げる岩がもっと痛い。ゴーレムをたおすと目を覚ます。弱点は同じ（コアと水）' },
+      shadow_golem: { emoji: '💀', tip: '仲間を呼ぶ。水は効かない。マグマゴーレムをたおすと目を覚ます' },
+      spider_queen: { emoji: '🕷️', tip: '速くて壁を登り、糸で足止めしてクモを呼ぶ。たおすと女王のキバ' },
+      mummy: { emoji: '🏺', tip: '毒をかけ、ハスクを呼ぶ。たおすとファラオの黄金のマスク' },
+      nether_dragon: { emoji: '🐉', tip: '空から火の玉 → 地上であばれる、をくり返す。柱の上の回復の結晶をこわしてから挑もう。たおすとドラゴンの剣' }
+    };
+    const codexMobTypes = () => MOB_GROUPS.flatMap(([, types]) => types);
+    const mobEmoji = type => (MOB_INFO[type] && MOB_INFO[type].emoji) || MOB_DEFS[type].emoji || '👾';
+    function codexBosses() {
+      return [
+        ...BOSS_TIERS.map((tier, i) => ({ type: tier.type, emoji: tier.emoji, where: `地下 ${-tier.floorY} m のダンジョン`, defeated: bossesDefeated[i] })),
+        ...Object.values(LAIRS).map(l => ({ type: l.type, emoji: l.emoji, where: l.hint, defeated: !!lairsDefeated[l.key] }))
+      ];
+    }
+
+    // 敵の絵: 本物と同じ作り方(build)で小さく作って、別の画面に 1 回だけ描いて画像にする
+    let portraitRenderer = null;
+    const portraitCache = {};
+    function mobPortrait(type) {
+      if (type in portraitCache) return portraitCache[type];
+      let url = null;
+      try {
+        if (!portraitRenderer) {
+          portraitRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+          portraitRenderer.setSize(128, 128);
+          portraitRenderer.setClearColor(0x000000, 0);
+        }
+        const pScene = new THREE.Scene();
+        pScene.add(new THREE.AmbientLight(0xffffff, 1.6));
+        const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+        sun.position.set(2, 4, 5);
+        pScene.add(sun);
+        const model = MOB_DEFS[type].build(1);
+        pScene.add(model.group);
+        const box = new THREE.Box3().setFromObject(model.group);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
+        const cam = new THREE.PerspectiveCamera(32, 1, 0.05, 200);
+        const dist = radius / Math.tan(THREE.MathUtils.degToRad(16)) * 1.1;
+        const dir = new THREE.Vector3(0.55, 0.35, 0.76).normalize();
+        cam.position.copy(center).addScaledVector(dir, dist);
+        cam.lookAt(center);
+        portraitRenderer.render(pScene, cam);
+        url = portraitRenderer.domElement.toDataURL();
+        model.group.traverse(child => {
+          if (!child.isMesh) return;
+          child.geometry.dispose();
+          (Array.isArray(child.material) ? child.material : [child.material]).forEach(m => m.dispose()); // 絵(テクスチャ)は共用なので消さない
+        });
+      } catch (e) {
+        url = null; // 描けなければ絵文字にする
+      }
+      portraitCache[type] = url;
+      return url;
+    }
+
+    /* 図鑑の画面 */
+    const codexScreen = document.getElementById('codex-screen');
+    const codexTabsEl = document.getElementById('codex-tabs');
+    const codexBodyEl = document.getElementById('codex-body');
+    const CODEX_TABS = [['achievements', '🏆 実績'], ['mobs', '👾 敵と動物'], ['bosses', '👑 ボス'], ['items', '🎒 アイテム'], ['records', '📊 記録']];
+    let codexOpen = false;
+    let codexRelock = true;   // 閉じたらゲームにもどる(true) / 一時停止画面にもどる(false)
+    let codexTab = 'achievements';
+
+    function openCodex(relock = true) {
+      codexOpen = true;
+      codexRelock = relock;
+      codexScreen.hidden = false;
+      instructions.style.display = 'none';
+      mapOverlay.hidden = true;
+      if (controls.isLocked) controls.unlock();
+      renderCodex();
+    }
+
+    function closeCodex(relock = codexRelock) {
+      if (!codexOpen) return;
+      codexOpen = false;
+      codexScreen.hidden = true;
+      if (player.health <= 0) return;
+      if (relock) controls.lock();
+      else instructions.style.display = 'flex';
+    }
+
+    document.getElementById('codex-close').addEventListener('click', () => closeCodex());
+    codexScreen.addEventListener('click', (e) => e.stopPropagation()); // 後ろの画面(一時停止)のクリックにしない
+
+    const mobIconHtml = (type, seen) => {
+      const url = mobPortrait(type);
+      return url ? `<img src="${url}" alt="">` : (seen ? mobEmoji(type) : '❓');
+    };
+
+    function renderCodex() {
+      codexTabsEl.innerHTML = CODEX_TABS.map(([key, label]) =>
+        `<button class="codex-tab${key === codexTab ? ' active' : ''}" data-tab="${key}">${label}</button>`).join('');
+      codexTabsEl.querySelectorAll('.codex-tab').forEach(btn => btn.addEventListener('click', () => {
+        codexTab = btn.dataset.tab;
+        renderCodex();
+      }));
+      const render = { achievements: renderAchievementsTab, mobs: renderMobsTab, bosses: renderBossesTab, items: renderItemsTab, records: renderRecordsTab }[codexTab];
+      codexBodyEl.innerHTML = render();
+    }
+
+    function renderAchievementsTab() {
+      const done = ACHIEVEMENTS.filter(a => hasAchievement(a.id)).length;
+      const cards = ACHIEVEMENTS.map(a => {
+        const at = hasAchievement(a.id) ? stats.achievements[a.id] : null;
+        return `<div class="codex-card ${at ? 'done' : 'locked'}">
+          <div class="codex-icon">${at ? a.emoji : '🔒'}</div>
+          <div><b>${a.name}</b><br>${a.desc}${at ? `<br><span class="codex-sub">✅ 遊びはじめて ${formatDuration(at)} で手に入れた</span>` : ''}</div>
+        </div>`;
+      });
+      return `<div class="codex-summary">🏆 ${done} / ${ACHIEVEMENTS.length} 個　手に入れた</div><div class="codex-grid">${cards.join('')}</div>`;
+    }
+
+    function mobCard(type, extra = '') {
+      const def = MOB_DEFS[type];
+      const info = MOB_INFO[type] || {};
+      const seen = !!stats.seenMobs[type];
+      const kills = killsOf(type);
+      const body = seen
+        ? `<b>${mobEmoji(type)} ${def.name}</b><br>❤️ ${def.health}${def.damage ? `　⚔️ ${def.damage}` : '　（おそってこない）'}<br>${info.tip || ''}
+           ${extra}<br><span class="codex-sub">${info.where ? `📍 ${info.where}　` : ''}${def.passive ? '' : `たおした数: ${kills}`}</span>`
+        : `<b>？？？</b><br>まだ会っていない<br><span class="codex-sub">${info.where ? `📍 ${info.where}` : ''}</span>`;
+      return `<div class="codex-card${seen ? '' : ' unseen locked'}"><div class="codex-icon">${mobIconHtml(type, seen)}</div><div>${body}</div></div>`;
+    }
+
+    function renderMobsTab() {
+      const all = codexMobTypes();
+      const seen = all.filter(type => stats.seenMobs[type]).length;
+      const sections = MOB_GROUPS.map(([title, types]) =>
+        `<div class="codex-section">${title}</div><div class="codex-grid">${types.map(type => mobCard(type)).join('')}</div>`);
+      return `<div class="codex-summary">👾 ${seen} / ${all.length} 種類に会った（近くまで行くと図鑑にのる）</div>${sections.join('')}`;
+    }
+
+    function renderBossesTab() {
+      const bosses = codexBosses();
+      const done = bosses.filter(b => b.defeated).length;
+      const cards = bosses.map(b => {
+        const def = MOB_DEFS[b.type];
+        const info = MOB_INFO[b.type] || {};
+        const rec = bossRecord(b.type);
+        const seen = !!stats.seenMobs[b.type] || b.defeated;
+        let record = '';
+        if (rec) {
+          record = `<br>⏱️ たおすまで: <b>${formatDuration(rec.fight)}</b>（はじめてたおしたのは、遊びはじめて ${formatDuration(rec.at)}）`;
+          if (rec.times > 1) record += `<br><span class="codex-sub">たおした回数 ${rec.times}・前回 ${formatDuration(rec.last)}</span>`;
+        } else if (b.defeated) {
+          record = '<br>⏱️ たおすまで: 記録なし（記録の仕組みができる前にたおした）';
+        }
+        const body = seen
+          ? `<b>${b.emoji} ${def.name}</b>${b.defeated ? ' 🏆' : ''}<br>❤️ ${def.health}　⚔️ ${def.damage}<br>${info.tip || ''}${record}<br><span class="codex-sub">📍 ${b.where}</span>`
+          : `<b>？？？</b><br>まだ会っていない<br><span class="codex-sub">📍 ${b.where}</span>`;
+        return `<div class="codex-card${b.defeated ? ' done' : ''}${seen ? '' : ' unseen locked'}"><div class="codex-icon">${mobIconHtml(b.type, seen)}</div><div>${body}</div></div>`;
+      });
+      return `<div class="codex-summary">👑 ${done} / ${bosses.length} 体たおした</div><div class="codex-grid">${cards.join('')}</div>`;
+    }
+
+    const ITEM_GROUPS = [
+      ['🧱 ブロック', def => def.kind === 'block'],
+      ['🔩 材料', def => def.kind === 'material'],
+      ['🍖 食べ物', def => def.kind === 'food'],
+      ['⚔️ 武器と防具', def => def.kind === 'sword' || def.kind === 'armor'],
+      ['🧰 道具', def => ['pickaxe', 'hoe', 'bow', 'shield', 'bucket', 'bag', 'igniter', 'bottle', 'seeds'].includes(def.kind)],
+      ['🧪 ポーション', def => def.kind === 'potion']
+    ];
+    function renderItemsTab() {
+      const ids = Object.keys(ITEMS);
+      const seen = ids.filter(id => seenItems.has(id)).length;
+      const used = new Set();
+      const sections = ITEM_GROUPS.map(([title, match]) => {
+        const group = ids.filter(id => !used.has(id) && match(ITEMS[id]));
+        group.forEach(id => used.add(id));
+        const got = group.filter(id => seenItems.has(id)).length;
+        const chips = group.map(id => {
+          const def = ITEMS[id];
+          const known = seenItems.has(id);
+          return `<span class="codex-chip${known ? '' : ' unknown'}" title="${def.name}"><span class="chip-icon" style="background:${def.color}">${def.emoji}</span>${def.name}</span>`;
+        });
+        return `<div class="codex-section">${title}（${got} / ${group.length}）</div><div class="codex-chips">${chips.join('')}</div>`;
+      });
+      return `<div class="codex-summary">🎒 ${seen} / ${ids.length} 種類を手に入れた（うすいものは、まだ）</div>${sections.join('')}`;
+    }
+
+    function renderRecordsTab() {
+      const km = stats.distance >= 1000 ? `${(stats.distance / 1000).toFixed(1)} km` : `${Math.round(stats.distance)} m`;
+      const rows = [
+        ['⏰ 遊んだ時間', formatDuration(stats.playSeconds)],
+        ['⚔️ たおした敵', `${killCount} 体`],
+        ['💀 倒れた回数', `${stats.deaths} 回`],
+        ['⛏️ 掘ったブロック', `${stats.blocksMined} 個`],
+        ['🏗️ 置いたブロック', `${stats.blocksPlaced} 個`],
+        ['👟 歩いた距離', km],
+        ['🛠️ 作ったもの', `${stats.crafted} 回`],
+        ['🕳️ 最深記録', `${deepestDepth} m`],
+        ['⭐ 最高レベル', `Lv ${Math.max(stats.maxLevel || 0, xpLevel)}`],
+        ['🌋 異世界に行った回数', `${stats.portalTrips} 回`],
+        ['🧪 ポーションを飲んだ回数', `${stats.potions} 回`],
+        ['✨ エンチャントした回数', `${stats.enchants} 回`],
+        ['🛏️ 眠った夜', `${stats.nightsSlept} 回`],
+        ['🐣 生まれた赤ちゃん', `${stats.babies} 匹`],
+        ['🏛️ 見つけた地下の建物', `${stats.ruinsFound} か所`],
+        ['🎒 手に入れたアイテムの種類', `${seenItems.size} / ${Object.keys(ITEMS).length}`],
+        ['🏆 実績', `${ACHIEVEMENTS.filter(a => hasAchievement(a.id)).length} / ${ACHIEVEMENTS.length}`]
+      ];
+      const bossRows = codexBosses().filter(b => bossRecord(b.type)).map(b =>
+        `<tr><td>${b.emoji} ${MOB_DEFS[b.type].name}</td><td>⏱️ ${formatDuration(bossRecord(b.type).fight)}（遊びはじめて ${formatDuration(bossRecord(b.type).at)} のとき）</td></tr>`);
+      const killRows = Object.entries(stats.kills).filter(([type]) => MOB_DEFS[type]).sort((a, b) => b[1] - a[1]).slice(0, 8)
+        .map(([type, n]) => `<tr><td>${mobEmoji(type)} ${MOB_DEFS[type].name}</td><td>${n} 体</td></tr>`);
+      return `<table class="codex-table">${rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
+        <div class="codex-section">👑 ボスをたおすまでの時間</div>
+        ${bossRows.length ? `<table class="codex-table">${bossRows.join('')}</table>` : '<div class="codex-sub">まだボスをたおしていない</div>'}
+        <div class="codex-section">⚔️ たくさんたおした敵</div>
+        ${killRows.length ? `<table class="codex-table">${killRows.join('')}</table>` : '<div class="codex-sub">まだ敵をたおしていない</div>'}`;
     }
 
     /* --- Save / Load (localStorage) --- */
@@ -9915,6 +10548,7 @@
         xp: { level: xpLevel, points: xpPoints }, // 経験値（古いセーブには無い＝0）
         lairsDefeated,       // すみかのボス（古いセーブには無い＝まだ倒していない）
         lairChestsLooted,
+        stats,               // 記録と実績（古いセーブには無い＝0 から数える）
         nether: nether ? packDim(nether) : null, // まだ行っていなければ null
         savedAt: Date.now()
       };
@@ -9957,6 +10591,8 @@
       }
       updateXpUI();
       lairChestsLooted = data.lairChestsLooted || {};
+      stats = { ...defaultStats(), ...(data.stats || {}) };
+      stats.maxLevel = Math.max(stats.maxLevel || 0, xpLevel);
       decodeExplored(data.explored);
       dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
       sitesFound = undergroundSites.map((_, i) => !!(data.sitesFound || [])[i]);
@@ -9969,12 +10605,17 @@
     }
 
     if (savedGame) restoreSave(savedGame);
+    grantEarnedAchievements(true); // 前からのセーブで、もう条件を満たしている実績はまとめて渡す
 
     document.getElementById('save-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       saveGame(true);
     });
 
+    document.getElementById('codex-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openCodex(false); // 閉じたら一時停止画面にもどる
+    });
     document.getElementById('new-world-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       if (!confirm('今のワールドを消して、新しいワールドを作りますか？')) return;
@@ -10081,6 +10722,7 @@
         breatheFire,
         spitWeb,
         updateLairTrigger,
+        updateBossTrigger,
         openLairChest,
         get lairsDefeated() { return lairsDefeated; },
         addXp,
@@ -10122,7 +10764,15 @@
         get timeOfDay() { return timeOfDay; },
         set timeOfDay(value) { timeOfDay = value; },
         get daylight() { return daylight; },
-        get currentDepth() { return currentDepth; }
+        get currentDepth() { return currentDepth; },
+        get stats() { return stats; },
+        ACHIEVEMENTS,
+        checkAchievements,
+        openCodex,
+        closeCodex,
+        renderCodex,
+        mobPortrait,
+        get codexOpen() { return codexOpen; }
       };
     }
 
