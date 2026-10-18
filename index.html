@@ -697,8 +697,36 @@
     .slot.enchanted .slot-icon {
       box-shadow: 0 0 8px 2px rgba(190, 110, 255, 0.95), inset 1px 1px 0 rgba(255,255,255,0.4);
     }
-    #enchant-ui[hidden] {
+    #enchant-ui[hidden], #trade-ui[hidden] {
       display: none;
+    }
+    #trade-info {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    #trade-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-width: 520px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+    .trade-option {
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 14px;
+      background: rgba(30, 110, 60, 0.85);
+      color: #fff;
+      border: 1px solid #5ae08a;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .trade-option:disabled {
+      background: rgba(60, 60, 60, 0.7);
+      border-color: #666;
+      color: #aaa;
+      cursor: default;
     }
     .enchant-row {
       display: flex;
@@ -1058,6 +1086,10 @@
                 <div id="enchant-info"></div>
               </div>
               <div id="enchant-list"></div>
+            </div>
+            <div id="trade-ui" hidden>
+              <div id="trade-info"></div>
+              <div id="trade-list"></div>
             </div>
           </div>
         </div>
@@ -1670,6 +1702,22 @@
       ctx.fillStyle = '#2a4a2a';
       ctx.fillRect(9, 11, 1, 1); // いぼ
     });
+    // 村人: 大きな鼻と、つながったまゆげ
+    textures.villagerFace = createPixelTexture(ctx => {
+      speckle(ctx, '#c8946a', ['#b8845a', '#d4a07a'], 30);
+      ctx.fillStyle = '#4a2a1a';
+      ctx.fillRect(3, 4, 10, 1); // まゆげ
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(3, 6, 3, 2);
+      ctx.fillRect(10, 6, 3, 2);
+      ctx.fillStyle = '#2a8a3a';
+      ctx.fillRect(4, 6, 1, 2);  // 緑の目
+      ctx.fillRect(11, 6, 1, 2);
+      ctx.fillStyle = '#a8704a';
+      ctx.fillRect(7, 7, 2, 6);  // 大きな鼻
+      ctx.fillStyle = '#6a3a2a';
+      ctx.fillRect(5, 14, 6, 1);
+    });
     textures.guardianFace = createPixelTexture(ctx => {
       ctx.fillStyle = '#8a7f6a';
       ctx.fillRect(0, 0, 16, 16);
@@ -2007,6 +2055,50 @@
       ctx.fillStyle = '#5a5a5a';
       ctx.fillRect(0, 12, 16, 1);
     });
+    // 村のブロック: エメラルドの鉱石・鐘・土の道・本棚
+    textures.emeraldOre = oreTexture('#1fc85a', '#a0ffc0');
+    textures.bellTop = createPixelTexture(ctx => {
+      speckle(ctx, '#8a6236', ['#7a5530', '#9a7040'], 30);
+      ctx.fillStyle = '#e8b830';
+      ctx.fillRect(4, 4, 8, 8);
+      ctx.fillStyle = '#fff0a0';
+      ctx.fillRect(5, 5, 3, 2);
+    });
+    textures.bellSide = createPixelTexture(ctx => {
+      ctx.fillStyle = '#5a3a20';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#8a6236'; // つり下げる横木
+      ctx.fillRect(0, 0, 16, 3);
+      ctx.fillStyle = '#e8b830'; // 金の鐘
+      ctx.fillRect(5, 4, 6, 2);
+      ctx.fillRect(4, 6, 8, 6);
+      ctx.fillRect(3, 12, 10, 2);
+      ctx.fillStyle = '#fff0a0';
+      ctx.fillRect(5, 6, 2, 5);
+      ctx.fillStyle = '#a07a10';
+      ctx.fillRect(7, 14, 2, 2); // 舌
+    });
+    textures.dirtPath = createPixelTexture(ctx => speckle(ctx, '#a08050', ['#8a6a40', '#b89a68', '#947448'], 70));
+    textures.pathSide = createPixelTexture(ctx => {
+      speckle(ctx, '#866043', ['#6f4f37', '#9a7050'], 50);
+      ctx.fillStyle = '#a08050';
+      ctx.fillRect(0, 0, 16, 2);
+    });
+    textures.bookshelf = createPixelTexture(ctx => {
+      ctx.fillStyle = '#b8894f';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#8a6236';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 7, 16, 2);
+      ctx.fillRect(0, 15, 16, 1);
+      const colors = ['#c83a3a', '#3a6ac8', '#3aa84a', '#e8c82c', '#8a3aa8', '#e8e8e8'];
+      for (const top of [1, 9]) {
+        for (let x = 1; x < 15; x += 2) {
+          ctx.fillStyle = colors[rand(0, colors.length - 1)];
+          ctx.fillRect(x, top + rand(0, 1), 2, 6 - rand(0, 1));
+        }
+      }
+    });
     textures.healCrystal = createPixelTexture(ctx => {
       speckle(ctx, '#d84ab8', ['#ff6ad8', '#b02a98', '#ff9ae8'], 80);
       ctx.fillStyle = '#ffe0f8'; // きらきら光る面
@@ -2231,7 +2323,7 @@
       'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner',
       'netherrack', 'glowstone', 'soulSand', 'portal', 'healCrystal',
       'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide',
-      'brewTop', 'brewSide'
+      'brewTop', 'brewSide', 'emeraldOre', 'bellTop', 'bellSide', 'dirtPath', 'pathSide', 'bookshelf'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -2335,6 +2427,11 @@
       68: { name: 'エンチャント台', tiles: [tile('enchantTop'), tile('obsidian'), tile('enchantSide')], tier: 1, drop: 'enchant_table', enchanting: true, blastProof: true, map: '#6a2a8a' },
       // 醸造台: ポーションを作る。中身はかまどと同じ furnaces に入れる（brew: true の印つき）
       69: { name: '醸造台', tiles: [tile('brewTop'), tile('stone'), tile('brewSide')], tier: 1, drop: 'brewing_stand', furnace: true, brewing: true, map: '#8a6ab0' },
+      // 村のブロック。鐘は村のまん中にあって、鳴らすと村のようすがわかる（こわせない）
+      70: { name: 'エメラルドの鉱石', tiles: same('emeraldOre'), tier: 3, drop: 'emerald', map: '#3ad86a' },
+      71: { name: '村の鐘', tiles: [tile('bellTop'), tile('bellTop'), tile('bellSide')], tier: 99, bell: true, light: true, blastProof: true, map: '#e8b830' },
+      72: { name: '土の道', tiles: [tile('dirtPath'), tile('dirt'), tile('pathSide')], tier: 0, drop: 'dirt', map: '#a08050' },
+      73: { name: '本棚', tiles: [tile('planks'), tile('planks'), tile('bookshelf')], tier: 0, drop: 'bookshelf', map: '#8a5a2a' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2379,6 +2476,10 @@
     const GILDED_BLACKSTONE = 67;
     const ENCHANT_TABLE = 68;
     const BREWING_STAND = 69;
+    const EMERALD_ORE = 70;
+    const BELL = 71;
+    const DIRT_PATH = 72;
+    const BOOKSHELF = 73;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -3318,7 +3419,9 @@
       placeCobwebs();
       generateDungeon();
       generateStructures();
-      generateUnderground(); // いちばん最後（前からあるワールドの地上がずれないように）
+      generateUnderground(); // 前からあるワールドの地上がずれないように、建物の中ではあと
+      generateVillages();    // 村とエメラルドは、さらにそのあと（地下の建物の場所もずれないように）
+      placeEmeraldOre();
     }
 
     // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
@@ -3513,6 +3616,8 @@
                         ['diamond_armor', 0.3, 1, 1], ['diamond_pickaxe', 0.3, 1, 1]],
       ruinedPortal: [['obsidian', 0.95, 3, 7], ['flint_and_steel', 0.6, 1, 1], ['gold', 0.6, 2, 6], ['golden_apple', 0.25, 1, 1],
                      ['iron', 0.5, 1, 4], ['magma_cream', 0.25, 1, 1]],
+      village: [['bread', 0.8, 2, 5], ['emerald', 0.7, 1, 4], ['iron', 0.6, 2, 5], ['apple', 0.5, 1, 3], ['iron_pickaxe', 0.2, 1, 1],
+                ['iron_sword', 0.2, 1, 1], ['shield', 0.15, 1, 1], ['coal', 0.5, 2, 6]],
       spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
                 ['golden_apple', 0.1, 1, 1], ['bow', 0.15, 1, 1], ['iron_sword', 0.15, 1, 1]]
     };
@@ -3788,7 +3893,9 @@
       // 異世界の建物
       fortress: { name: '地獄のとりで', emoji: '🏯' },
       bastion: { name: '黒い砦', emoji: '🏴' },
-      ruined_portal: { name: 'こわれたゲート', emoji: '🌀' }
+      ruined_portal: { name: 'こわれたゲート', emoji: '🌀' },
+      // 地上の村（見つけるしくみだけ、地下の建物といっしょ）
+      village: { name: '村', emoji: '🏘️' }
     };
     let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
     let spawners = [];         // { x, y, z, type, timer }
@@ -4046,6 +4153,7 @@
         playSeconds: 0, kills: {}, seenMobs: {}, blocksMined: 0, blocksPlaced: 0, crafted: 0, deaths: 0,
         potions: 0, enchants: 0, portalTrips: 0, nightsSlept: 0, babies: 0, ruinsFound: 0, maxLevel: 0, distance: 0,
         bloodMoonsSurvived: 0, bloodMoonBestKills: 0, // 赤い月
+        trades: 0, villagesFound: 0, villagesDefended: 0, booksApplied: 0, // 村
         bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
         achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
       };
@@ -4160,6 +4268,306 @@
       if (inNether()) return null; // ボスの部屋は表の世界だけ
       return DUNGEONS.find(d => Math.abs(px - d.x) <= d.half && Math.abs(pz - d.z) <= d.half &&
         feetY >= d.floorY - 1 && feetY <= d.floorY + d.height) || null;
+    }
+
+    /* --- Villages (村) --- */
+    // 草原にある村。まん中に鐘、まわりに家（職業ごとに中身がちがう）と畑がある。家 1 軒に村人が 1 人住んでいる。
+    // 村人は保存しない（近くに来ると家の前に出てくる）。何人住んでいるかだけ villageState[i].pop に入れてセーブする。
+    // 生成のいちばん最後（地下の建物のあと）に作るので、前からあるワールドのほかの建物の場所はずれない
+    const VILLAGER_JOBS = {
+      farmer: {
+        name: '農家', emoji: '👨‍🌾', robe: 0xa8823a,
+        trades: [
+          { give: ['wheat', 18], get: ['emerald', 1] },
+          { give: ['raw_meat', 8], get: ['emerald', 1] },
+          { give: ['emerald', 1], get: ['bread', 6] },
+          { give: ['emerald', 1], get: ['apple', 5] },
+          { give: ['emerald', 1], get: ['seeds', 12] },
+          { give: ['emerald', 2], get: ['cooked_meat', 8] },
+          { give: ['emerald', 4], get: ['golden_apple', 1] }
+        ]
+      },
+      librarian: {
+        name: '司書', emoji: '📚', robe: 0xe8e8e8,
+        // エンチャントの本は、家ごとに 4 つえらんで並べる（下の BOOK_OFFERS から）
+        trades: [
+          { give: ['string', 12], get: ['emerald', 1] },
+          { give: ['emerald', 2], get: ['bookshelf', 3] }
+        ]
+      },
+      smith: {
+        name: '鍛冶屋', emoji: '⚒️', robe: 0x3a3a3a,
+        trades: [
+          { give: ['coal', 14], get: ['emerald', 1] },
+          { give: ['iron', 5], get: ['emerald', 1] },
+          { give: ['emerald', 3], get: ['shield', 1] },
+          { give: ['emerald', 5], get: ['iron_pickaxe', 1], ench: { efficiency: 2 } },
+          { give: ['emerald', 12], get: ['diamond_sword', 1], ench: { sharpness: 1 } },
+          { give: ['emerald', 14], get: ['diamond_pickaxe', 1] },
+          { give: ['emerald', 18], get: ['diamond_armor', 1] }
+        ]
+      },
+      cleric: {
+        name: '聖職者', emoji: '⛪', robe: 0x8a3aa8,
+        trades: [
+          { give: ['rotten_meat', 14], get: ['emerald', 1] },
+          { give: ['gold', 3], get: ['emerald', 1] },
+          { give: ['emerald', 2], get: ['potion_healing', 1] },
+          { give: ['emerald', 3], get: ['glowstone', 4] },
+          { give: ['emerald', 4], get: ['blaze_rod', 1] }
+        ]
+      },
+      fletcher: {
+        name: '矢師', emoji: '🏹', robe: 0x6a8a3a,
+        trades: [
+          { give: ['stick', 24], get: ['emerald', 1] },
+          { give: ['feather', 10], get: ['emerald', 1] },
+          { give: ['emerald', 1], get: ['arrow', 16] },
+          { give: ['emerald', 2], get: ['flint_and_steel', 1] },
+          { give: ['emerald', 5], get: ['bow', 1], ench: { power: 2 } }
+        ]
+      }
+    };
+    const JOB_ORDER = ['farmer', 'librarian', 'smith', 'cleric', 'fletcher'];
+    // 司書が売るエンチャントの本: [力, エメラルドの数]
+    const BOOK_OFFERS = [
+      [{ sharpness: 3 }, 10], [{ efficiency: 3 }, 8], [{ protection: 3 }, 10], [{ unbreaking: 3 }, 9], [{ looting: 2 }, 12],
+      [{ fortune: 2 }, 14], [{ power: 3 }, 9], [{ infinity: 1 }, 16], [{ fire_aspect: 1 }, 10], [{ flame: 1 }, 8],
+      [{ fire_protection: 3 }, 8], [{ sharpness: 5 }, 22], [{ efficiency: 5 }, 18]
+    ];
+    const VILLAGE_RADIUS = 18;        // 鐘から、いちばん外の家まで（見つけた判定と、赤い月の「守っている」判定に使う）
+    const villages = [];              // { x, y, z, houses: [{ x, y, z, job, spot, offers }], bell }
+    let villageState = [];            // { pop } 村ごと（今住んでいる人数。セーブする）
+
+    // 村の家: 木の板の壁と、レンガの三角屋根。ドアは鐘の方を向く。中に職業の道具がある
+    function buildVillageHouse(house, faceX, faceZ) {
+      const { x: cx, y: fy, z: cz, job } = house;
+      const h = 2;
+      prepareSite(cx, cz, h + 1, fy, 7, DIRT);
+      for (let dx = -h; dx <= h; dx++) {
+        for (let dz = -h; dz <= h; dz++) {
+          forceBlock(cx + dx, fy, cz + dz, PLANKS);
+          if (Math.abs(dx) !== h && Math.abs(dz) !== h) continue;
+          const corner = Math.abs(dx) === h && Math.abs(dz) === h;
+          for (let dy = 1; dy <= 3; dy++) {
+            const window = dy === 2 && !corner && (dx === 0 || dz === 0);
+            forceBlock(cx + dx, fy + dy, cz + dz, corner ? WOOD : window ? GLASS : PLANKS);
+          }
+        }
+      }
+      for (let layer = 0; layer < 3; layer++) {
+        const r = h + 1 - layer;
+        for (let dx = -r; dx <= r; dx++) {
+          for (let dz = -r; dz <= r; dz++) forceBlock(cx + dx, fy + 4 + layer, cz + dz, BRICKS);
+        }
+      }
+      forceBlock(cx + faceX * h, fy + 1, cz + faceZ * h, DOOR_OPEN); // 入口（開けてある）
+      forceBlock(cx + faceX * h, fy + 2, cz + faceZ * h, 0);
+      // 中の家具: 手前の左にベッド、奥のかべぎわに職業の道具
+      const [bx, bz] = sideCell(cx, cz, faceX, faceZ, 1, -1);
+      forceBlock(bx, fy + 1, bz, BED);
+      const back = s => sideCell(cx, cz, -faceX, -faceZ, 1, s);
+      if (job === 'librarian') {
+        [-1, 0, 1].forEach(s => {
+          const [x, z] = back(s);
+          forceBlock(x, fy + 1, z, BOOKSHELF);
+          forceBlock(x, fy + 2, z, BOOKSHELF);
+        });
+      } else if (job === 'smith') {
+        const [fx, fz] = back(-1);
+        forceBlock(fx, fy + 1, fz, FURNACE);
+        const [kx, kz] = back(1);
+        placeLootChest(kx, fy + 1, kz, LOOT.village);
+      } else if (job === 'cleric') {
+        const [x, z] = back(0);
+        forceBlock(x, fy + 1, z, BREWING_STAND);
+      } else {
+        const [x, z] = back(job === 'farmer' ? 1 : -1);
+        forceBlock(x, fy + 1, z, CRAFTING_TABLE);
+      }
+      forceTorch(cx, fy + 3, cz);
+    }
+
+    // 土の道: 草の上だけを道にかえる（家や畑のブロックはさわらない）
+    function layVillagePath(x0, z0, x1, z1) {
+      const steps = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0));
+      for (let i = 0; i <= steps; i++) {
+        const x = Math.round(x0 + ((x1 - x0) * i) / Math.max(1, steps));
+        const z = Math.round(z0 + ((z1 - z0) * i) / Math.max(1, steps));
+        const y = Math.round(findGroundY(x, z) - 0.5);
+        if (![GRASS, DIRT, SNOW_GRASS].includes(getBlock(x, y, z))) continue;
+        forceBlock(x, y, z, DIRT_PATH);
+        const above = getBlock(x, y + 1, z);
+        if (above && BLOCKS[above].render === 'cross') forceBlock(x, y + 1, z, 0); // 草むらや花はどける
+      }
+    }
+
+    // 畑: まん中に水の通り道、そのまわりに実った小麦
+    function buildVillageFarm(cx, fy, cz) {
+      prepareSite(cx, cz, 4, fy, 3, DIRT);
+      for (let dx = -4; dx <= 4; dx++) {
+        for (let dz = -3; dz <= 3; dz++) {
+          const edge = Math.abs(dx) === 4 || Math.abs(dz) === 3;
+          if (edge) {
+            forceBlock(cx + dx, fy, cz + dz, WOOD);
+          } else if (dz === 0) {
+            forceBlock(cx + dx, fy, cz + dz, WATER);
+          } else {
+            forceBlock(cx + dx, fy, cz + dz, FARMLAND);
+            forceBlock(cx + dx, fy + 1, cz + dz, worldRandom() < 0.75 ? WHEAT_STAGES[3] : WHEAT_STAGES[worldRandInt(1, 2)]);
+          }
+        }
+      }
+    }
+
+    // 村を建ててよい場所か（草原がつづいていて、あまり水につからず、ほかの建物から離れている）。
+    // だめなら null、よければ { good: その地形の割合, dry: 水の上に出ている割合, range: 高さの差 }
+    function villageSpot(cx, cz, biomes) {
+      if (Math.hypot(cx, cz) < 40) return null;
+      if (Math.abs(cx) > HALF_SIZE - 28 || Math.abs(cz) > HALF_SIZE - 28) return null;
+      if (surfaceHeight(cx, cz) <= WATER_LEVEL + 1) return null;
+      if (villages.some(v => Math.hypot(cx - v.x, cz - v.z) < 90)) return null;
+      if (structuresPlaced.some(st => Math.hypot(cx - st.x, cz - st.z) < 32)) return null; // いちばん外の畑まで 25 マス＋建物の大きさ
+      if (DUNGEONS.some(d => d.entrance && Math.hypot(cx - d.entrance.x, cz - d.entrance.z) < 34)) return null;
+      let good = 0;
+      let dry = 0;
+      let total = 0;
+      let low = Infinity;
+      let high = -Infinity;
+      for (let dx = -VILLAGE_RADIUS - 4; dx <= VILLAGE_RADIUS + 4; dx += 4) {
+        for (let dz = -VILLAGE_RADIUS - 4; dz <= VILLAGE_RADIUS + 4; dz += 4) {
+          total++;
+          const y = surfaceHeight(cx + dx, cz + dz);
+          if (biomes.includes(biomeAt(cx + dx, cz + dz))) good++;
+          if (y > WATER_LEVEL) dry++;
+          low = Math.min(low, y);
+          high = Math.max(high, y);
+        }
+      }
+      return { good: good / total, dry: dry / total, range: high - low };
+    }
+
+    function buildVillage(vx, vz) {
+      const index = villages.length;
+      const vy = surfaceHeight(vx, vz);
+      // 村の中の木やサボテンは切っておく（家や道をふさがないように）
+      const clearR = VILLAGE_RADIUS + 8;
+      for (let dx = -clearR; dx <= clearR; dx++) {
+        for (let dz = -clearR; dz <= clearR; dz++) {
+          if (dx * dx + dz * dz > clearR * clearR) continue;
+          const top = surfaceHeight(vx + dx, vz + dz);
+          for (let y = top + 1; y <= top + 12; y++) {
+            if ([WOOD, LEAVES, SPRUCE_LOG, SPRUCE_LEAVES, CACTUS].includes(getBlock(vx + dx, y, vz + dz))) forceBlock(vx + dx, y, vz + dz, 0);
+          }
+        }
+      }
+      // まん中の広場と鐘
+      prepareSite(vx, vz, 3, vy, 6, DIRT);
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) forceBlock(vx + dx, vy, vz + dz, STONE_BRICKS);
+      }
+      for (let dy = 1; dy <= 3; dy++) {
+        forceBlock(vx - 1, vy + dy, vz, WOOD);
+        forceBlock(vx + 1, vy + dy, vz, WOOD);
+      }
+      forceBlock(vx, vy + 3, vz, PLANKS);
+      forceBlock(vx, vy + 2, vz, BELL);
+      for (const [px, pz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) forceTorch(vx + px, vy + 1, vz + pz);
+
+      // まわりの家
+      const count = worldRandInt(4, 6);
+      const jobs = worldShuffle([...JOB_ORDER]);
+      while (jobs.length < count) jobs.push(JOB_ORDER[worldRandInt(0, JOB_ORDER.length - 1)]);
+      const baseAngle = worldRandom() * Math.PI * 2;
+      const houses = [];
+      for (let i = 0; i < count; i++) {
+        const angle = baseAngle + (i * Math.PI * 2) / count + (worldRandom() - 0.5) * 0.4;
+        const r = worldRandInt(10, 14);
+        const hx = Math.round(vx + Math.cos(angle) * r);
+        const hz = Math.round(vz + Math.sin(angle) * r);
+        if (houses.some(h => Math.hypot(h.x - hx, h.z - hz) < 8)) continue;
+        // ドアは鐘のある方へ（東西南北のどれか）
+        const tx = vx - hx;
+        const tz = vz - hz;
+        const [faceX, faceZ] = Math.abs(tx) > Math.abs(tz) ? [Math.sign(tx), 0] : [0, Math.sign(tz)];
+        const job = jobs[i];
+        const house = {
+          x: hx, y: Math.max(WATER_LEVEL + 1, surfaceHeight(hx, hz)), z: hz, job,
+          spot: { x: hx + faceX * 4, z: hz + faceZ * 4 }, // 村人が立っている所（ドアの前）
+          offers: job === 'librarian' ? worldShuffle([...BOOK_OFFERS]).slice(0, 4) : []
+        };
+        buildVillageHouse(house, faceX, faceZ);
+        houses.push(house);
+      }
+      // 道（家のドアの前から広場まで）と、道ばたの明かり
+      houses.forEach(h => {
+        layVillagePath(h.spot.x, h.spot.z, vx, vz);
+        const mx = Math.round((h.spot.x + vx) / 2) + 1;
+        const mz = Math.round((h.spot.z + vz) / 2) + 1;
+        const gy = Math.round(findGroundY(mx, mz) + 0.5);
+        if (getBlock(mx, gy, mz) === 0 && getBlock(mx, gy + 1, mz) === 0) {
+          forceBlock(mx, gy, mz, WOOD);
+          forceTorch(mx, gy + 1, mz);
+        }
+      });
+      // 畑（家の輪の外がわ）
+      const farmAngle = baseAngle + Math.PI / count;
+      const fx = Math.round(vx + Math.cos(farmAngle) * 21);
+      const fz = Math.round(vz + Math.sin(farmAngle) * 21);
+      buildVillageFarm(fx, Math.max(WATER_LEVEL + 1, surfaceHeight(fx, fz)), fz);
+
+      villages.push({ x: vx, y: vy, z: vz, houses, bell: { x: vx, y: vy + 2, z: vz } });
+      villageState.push({ pop: houses.length });
+      // 中に入ると「見つけた！」になり、マップに印が出る（地下の建物と同じしくみ）
+      undergroundSites.push({
+        kind: 'village', x: vx, y: vy, z: vz, half: VILLAGE_RADIUS, village: index,
+        boxes: [{ x0: vx - VILLAGE_RADIUS, x1: vx + VILLAGE_RADIUS, y0: vy - 6, y1: vy + 14, z0: vz - VILLAGE_RADIUS, z1: vz + VILLAGE_RADIUS }]
+      });
+    }
+
+    function generateVillages() {
+      const want = Math.max(1, Math.round(WORLD_AREA / 2)); // 161×161 では 1 つ、321×321 では 2 つ
+      // 広い草原をさがす。見つからなければ森でもよいことにする
+      const rules = [
+        { biomes: ['plains'], need: 0.8, dry: 0.75, range: 12 },
+        { biomes: ['plains', 'forest'], need: 0.7, dry: 0.7, range: 14 }
+      ];
+      for (const rule of rules) {
+        for (let attempt = 0; attempt < scaled(500) && villages.length < want; attempt++) {
+          const cx = worldRandInt(-HALF_SIZE + 28, HALF_SIZE - 28);
+          const cz = worldRandInt(-HALF_SIZE + 28, HALF_SIZE - 28);
+          if (!rule.biomes.includes(biomeAt(cx, cz))) continue;
+          const spot = villageSpot(cx, cz, rule.biomes);
+          if (spot && spot.good >= rule.need && spot.dry >= rule.dry && spot.range <= rule.range) buildVillage(cx, cz);
+        }
+      }
+      // それでも 1 つも無いワールドでは、いちばんましな場所に建てる（どのワールドにも村が 1 つはあるように）
+      if (villages.length === 0) {
+        let best = null;
+        for (let cx = -HALF_SIZE + 28; cx <= HALF_SIZE - 28; cx += 6) {
+          for (let cz = -HALF_SIZE + 28; cz <= HALF_SIZE - 28; cz += 6) {
+            if (['desert', 'mountain'].includes(biomeAt(cx, cz))) continue;
+            const spot = villageSpot(cx, cz, ['plains', 'forest', 'snow']);
+            if (!spot) continue;
+            const score = spot.good + spot.dry * 2 - spot.range / 10;
+            if (!best || score > best.score) best = { cx, cz, score };
+          }
+        }
+        if (best) buildVillage(best.cx, best.cz);
+      }
+    }
+
+    // エメラルドの鉱石: 山の中に多く、深い地下にも少しだけ
+    function placeEmeraldOre() {
+      for (let i = 0; i < scaled(90); i++) {
+        const x = worldRandInt(-HALF_SIZE + 2, HALF_SIZE - 2);
+        const z = worldRandInt(-HALF_SIZE + 2, HALF_SIZE - 2);
+        const deep = i % 3 === 0;
+        if (!deep && biomeAt(x, z) !== 'mountain') continue;
+        const top = deep ? -16 : surfaceHeight(x, z) - 6;
+        const y = worldRandInt(deep ? -38 : Math.max(BEDROCK_Y + 2, top - 24), top);
+        if (getBlock(x, y, z) === STONE) forceBlock(x, y, z, EMERALD_ORE);
+      }
     }
 
     /* --- Build the World (ワールドを作る) --- */
@@ -4709,6 +5117,20 @@
       return { group, head, legs: [legL, legR] };
     }
 
+    // 村人: 長いローブで、腕を前で組んでいる。ローブの色は職業でかわる（robe を塗りかえる）
+    function buildVillager() {
+      const group = new THREE.Group();
+      const skinMat = new THREE.MeshLambertMaterial({ color: 0xc8946a });
+      const head = addBox(group, [0.5, 0.6, 0.5], faceMaterials({ color: 0xc8946a }, textures.villagerFace), [0, 1.62, 0]);
+      addBox(group, [0.12, 0.22, 0.12], skinMat, [0, 1.5, 0.31]); // 鼻
+      const robe = addBox(group, [0.5, 1.0, 0.32], new THREE.MeshLambertMaterial({ color: 0x8a6a3a }), [0, 0.82, 0]);
+      addBox(group, [0.62, 0.18, 0.24], skinMat, [0, 1.08, 0.24]); // 組んだ腕
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
+      const legL = addBox(group, [0.2, 0.34, 0.22], legMat, [-0.12, 0.17, 0]);
+      const legR = addBox(group, [0.2, 0.34, 0.22], legMat, [0.12, 0.17, 0]);
+      return { group, head, robe, legs: [legL, legR] };
+    }
+
     // 遺跡の番人: 古代遺跡の宝を守っている石の戦士。かたくて強いが、動きはおそい
     function buildGuardian() {
       const group = new THREE.Group();
@@ -4911,7 +5333,9 @@
       // 動物（おそってこない。小麦であげると増える）
       pig: { name: 'ブタ', emoji: '🐷', ai: 'passive', passive: true, noBurn: true, health: 10, speed: 1.4, radius: 0.35, height: 1.0, sight: 10, drop: 'raw_meat', dropCount: [1, 2], build: buildPig },
       cow: { name: 'ウシ', emoji: '🐮', ai: 'passive', passive: true, noBurn: true, health: 12, speed: 1.2, radius: 0.4, height: 1.3, sight: 10, drop: 'raw_meat', dropCount: [2, 3], build: buildCow },
-      chicken: { name: 'ニワトリ', emoji: '🐔', ai: 'passive', passive: true, noBurn: true, health: 6, speed: 1.6, radius: 0.25, height: 0.9, sight: 10, drop: 'feather', dropCount: [1, 2], build: buildChicken }
+      chicken: { name: 'ニワトリ', emoji: '🐔', ai: 'passive', passive: true, noBurn: true, health: 6, speed: 1.6, radius: 0.25, height: 0.9, sight: 10, drop: 'feather', dropCount: [1, 2], build: buildChicken },
+      // 村人（おそってこない。右クリックで交換。赤い月の夜は敵にねらわれる）
+      villager: { name: '村人', emoji: '🧑‍🌾', ai: 'villager', passive: true, villager: true, noBurn: true, health: 20, speed: 1.3, radius: 0.3, height: 1.9, sight: 10, build: buildVillager }
     };
     const ANIMALS = ['pig', 'cow', 'chicken'];
 
@@ -5088,8 +5512,8 @@
       animalSpawnTimer -= delta;
       if (animalSpawnTimer > 0) return;
       animalSpawnTimer = 4 + Math.random() * 4;
-      // コウモリは passive だが動物ではないので、動物の数には入れない
-      const animalCount = mobs.reduce((n, m) => n + (m.def.passive && m.type !== 'bat' ? 1 : 0), 0);
+      // コウモリと村人は passive だが動物ではないので、動物の数には入れない
+      const animalCount = mobs.reduce((n, m) => n + (m.def.passive && m.type !== 'bat' && !m.def.villager ? 1 : 0), 0);
       if (animalCount >= ANIMAL_LIMIT || currentDepth >= 5) return;
       for (let attempt = 0; attempt < 12; attempt++) {
         const angle = Math.random() * Math.PI * 2;
@@ -5133,7 +5557,7 @@
     const bloodOverlay = document.getElementById('blood-overlay');
 
     function startBloodMoon() {
-      bloodMoon = { active: true, failed: false, kills: 0, warned: true };
+      bloodMoon = { active: true, failed: false, kills: 0, warned: true, defend: {}, lost: 0 };
       playSound('roar');
       showToast('🔴 赤い月がのぼった！ 敵の群れがおそってくる。朝まで生きのびろ！');
       pendingSpawns.length = 0;
@@ -5142,6 +5566,8 @@
     // 朝が来た。生きのびていればほうび
     function endBloodMoon() {
       const { failed, kills } = bloodMoon;
+      const villageNote = settleVillagesAfterBloodMoon(bloodMoon);
+      if (villageNote) setTimeout(() => showToast(villageNote), 2600);
       bloodMoon = { active: false, failed: false, kills: 0, warned: false };
       if (failed) {
         showToast(`🌅 朝が来た… 倒れてしまったので、ほうびは無し（次の赤い月は ${nextBloodMoonDay()} 日目の夜）`);
@@ -5159,6 +5585,26 @@
       playSound('chest');
       showToast(`🌅 赤い月を生きのびた！（たおした敵 ${kills}）ほうび: ${loot.map(([id, c]) => `${ITEMS[id].emoji}×${c}`).join(' ')}`);
       checkAchievements();
+    }
+
+    // 赤い月の朝、村ごとに: 守った村はお礼（エメラルド）、守らなかった村は村人が 1 人へる
+    function settleVillagesAfterBloodMoon({ failed, kills, defend = {}, lost = 0 }) {
+      const notes = [];
+      villages.forEach((v, i) => {
+        const state = villageState[i];
+        const guarded = (defend[i] || 0) >= VILLAGE_DEFEND_SECONDS;
+        if (guarded && !failed && state.pop > 0) {
+          const emeralds = Math.min(16, 4 + Math.floor(kills / 3)) - lost;
+          giveOrDrop('emerald', Math.max(2, emeralds));
+          giveOrDrop('bread', 4);
+          stats.villagesDefended = (stats.villagesDefended || 0) + 1;
+          notes.push(`🏘️ 村を守った！ 村人からお礼に 💚エメラルド×${Math.max(2, emeralds)} 🍞×4`);
+        } else if (!guarded && villageFound(i) && state.pop > 1) { // まだ見つけていない村は、知らないうちにへらない
+          state.pop--;
+          notes.push(`🏚️ 守る人がいなかった村がおそわれて、村人が 1 人いなくなった（村人 ${state.pop} 人）`);
+        }
+      });
+      return notes.join('　');
     }
 
     // 赤い月の敵: 強くて赤く、はじめから気づいている
@@ -5343,6 +5789,7 @@
       updateAnimalSpawning(delta);
       updateBatSpawning(delta);
       updateGuardianSpawning(delta);
+      updateVillages(delta);
       while (countMobs(false) + pendingSpawns.length < desiredMobCount()) {
         pendingSpawns.push(bloodMoon.active ? 2 + Math.random() * 3 : 5 + Math.random() * 7); // 5〜12秒後に出現（赤い月は 2〜5 秒）
       }
@@ -5355,6 +5802,202 @@
           else spawnSurfaceMob(); // 失敗しても次フレームで再予約される
         }
       }
+    }
+
+    /* --- Villagers (村人) --- */
+    // 村の近く（56 マス以内）に来ると、住んでいる人数（villageState[i].pop）だけ家の前に出てくる。
+    // 遠くへ行くと消える（動物と同じ）。赤い月の夜は、敵が村人をねらう。
+    // 赤い月の夜に村のそばに VILLAGE_DEFEND_SECONDS 秒いれば「守った」ことになって、朝にお礼がもらえる。
+    // 守らなかった村は、村人が 1 人へる。へった人数は、ふつうの朝が来るたびに 1 人ずつもどる
+    const VILLAGE_DEFEND_SECONDS = 45;
+    const VILLAGER_RANGE = 56;
+    let villagerTimer = 0;
+
+    // (x, z) がどの村の中か（extra マスまで外がわも入れる）。どこでもなければ -1
+    function villageIndexAt(x, z, extra = 0) {
+      if (currentDim !== OVERWORLD) return -1;
+      return villages.findIndex(v => Math.hypot(x - v.x, z - v.z) <= VILLAGE_RADIUS + extra);
+    }
+
+    function spawnVillager(index, houseIndex) {
+      const house = villages[index].houses[houseIndex];
+      const { x, z } = house.spot;
+      // 家の床のあたりで、立てる高さをさがす（木の上などに出ないように）
+      let y = null;
+      for (let cy = house.y + 3; cy >= house.y - 4 && y === null; cy--) {
+        if (isSolid(x, cy - 1, z) && !isSolid(x, cy, z) && !isSolid(x, cy + 1, z) && !FLUIDS[getBlock(x, cy, z)]) y = cy - 0.5;
+      }
+      if (y === null) y = findGroundY(x, z);
+      if (collidesBox(x, y, z, MOB_DEFS.villager.radius, MOB_DEFS.villager.height)) return null;
+      const mob = createMob('villager', x, y, z);
+      mob.village = index;
+      mob.house = houseIndex;
+      mob.job = house.job;
+      mob.home = { x, z };
+      mob.robe.material.color.setHex(VILLAGER_JOBS[house.job].robe);
+      return mob;
+    }
+
+    function updateVillages(delta) {
+      if (currentDim !== OVERWORLD) return;
+      const px = camera.position.x;
+      const pz = camera.position.z;
+      // 赤い月の夜、村のそばにいた時間（守っている時間）
+      if (bloodMoon.active && !bloodMoon.failed) {
+        const here = villageIndexAt(px, pz, 14);
+        if (here >= 0) {
+          bloodMoon.defend = bloodMoon.defend || {};
+          const before = bloodMoon.defend[here] || 0;
+          bloodMoon.defend[here] = before + delta;
+          if (before === 0) showToast('🏘️ 村が赤い月にねらわれている！ 朝まで村人を守ろう');
+          if (before < VILLAGE_DEFEND_SECONDS && before + delta >= VILLAGE_DEFEND_SECONDS) {
+            showToast('🛡️ 村を守っている！ このまま朝まで生きのびれば、村人がお礼をくれる');
+          }
+        }
+      }
+      villagerTimer -= delta;
+      if (villagerTimer > 0) return;
+      villagerTimer = 1.5;
+      villages.forEach((v, i) => {
+        if (Math.hypot(px - v.x, pz - v.z) > VILLAGER_RANGE) return;
+        const here = mobs.filter(m => m.village === i);
+        const want = Math.min(villageState[i].pop, v.houses.length);
+        if (here.length >= want) return;
+        for (let h = 0; h < v.houses.length && mobs.filter(m => m.village === i).length < want; h++) {
+          if (here.some(m => m.house === h)) continue;
+          spawnVillager(i, h);
+        }
+      });
+    }
+
+    // 村人の動き: ふだんは家のまわりをうろうろ。夜は家の前でねむる。
+    // そばに来た人のほうを向く（右クリックで交換）。なぐられたり敵が近くに来たりすると逃げる
+    function updateVillager(mob, delta, { flatDist, toPlayer }) {
+      const p = mob.group.position;
+      mob.threatTimer = (mob.threatTimer || 0) - delta;
+      if (mob.threatTimer <= 0) {
+        mob.threatTimer = 0.5;
+        mob.threat = mobs.find(m => !m.def.passive && !m.def.boss && m.group.position.distanceTo(p) < 7) || null;
+      }
+      const threat = mob.threat && mobs.includes(mob.threat) ? mob.threat : null;
+      if (mob.fleeTimer > 0 || threat) {
+        mob.fleeTimer -= delta;
+        const away = threat
+          ? new THREE.Vector3(p.x - threat.group.position.x, 0, p.z - threat.group.position.z)
+          : new THREE.Vector3(-toPlayer.x, 0, -toPlayer.z);
+        if (away.lengthSq() > 1e-6) away.normalize();
+        mob.moveX = away.x * mob.speed * 1.8;
+        mob.moveZ = away.z * mob.speed * 1.8;
+        mob.group.rotation.y = Math.atan2(away.x, away.z);
+        walkAnimation(mob, 1.6);
+        return;
+      }
+      if (flatDist < 3.5) {
+        mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z); // 話を聞いてくれる
+        return;
+      }
+      if (daylight < 0.3) {
+        if (Math.random() < delta * 0.6) spawnParticles(new THREE.Vector3(p.x, p.y + mob.height + 0.2, p.z), 0xffffff, 1, 0.5); // すやすや
+        return;
+      }
+      wanderAround(mob, delta, 0.6);
+    }
+
+    // 赤い月の敵: プレイヤーより近くに村人がいれば、村人をおそう
+    function raidVillagers(mob, delta, playerFlatDist) {
+      mob.raidTimer = (mob.raidTimer || 0) - delta;
+      if (mob.raidTimer <= 0) {
+        mob.raidTimer = 0.6;
+        const p = mob.group.position;
+        let best = null;
+        let bestDist = Math.min(12, playerFlatDist - 1);
+        mobs.forEach(v => {
+          if (!v.def.villager) return;
+          const d = Math.hypot(v.group.position.x - p.x, v.group.position.z - p.z);
+          if (d < bestDist) {
+            best = v;
+            bestDist = d;
+          }
+        });
+        mob.raidTarget = best;
+      }
+      const v = mob.raidTarget;
+      if (!v || !mobs.includes(v)) return;
+      const dx = v.group.position.x - mob.group.position.x;
+      const dz = v.group.position.z - mob.group.position.z;
+      const d = Math.hypot(dx, dz);
+      const reach = mob.radius + v.radius + 0.7;
+      mob.group.rotation.y = Math.atan2(dx, dz);
+      if (d > reach) {
+        mob.moveX = (dx / d) * mob.speed;
+        mob.moveZ = (dz / d) * mob.speed;
+        walkAnimation(mob, mob.speed / 3);
+      } else {
+        mob.moveX = 0;
+        mob.moveZ = 0;
+        if (mob.attackCooldown <= 0) {
+          mob.attackCooldown = 1.3;
+          hurtVillager(v, Math.max(1, Math.round(mob.def.damage * mob.power)), mob);
+        }
+      }
+    }
+
+    function hurtVillager(v, damage, attacker) {
+      v.health -= damage;
+      v.hitFlashTimer = 0.2;
+      v.fleeTimer = 3;
+      setMobColor(v, HIT_RED);
+      const p = v.group.position;
+      spawnParticles(new THREE.Vector3(p.x, p.y + 1, p.z), 0xff2222, 8, 3);
+      if (attacker) {
+        const away = new THREE.Vector3(p.x - attacker.group.position.x, 0, p.z - attacker.group.position.z).normalize();
+        v.velocity.x += away.x * 5;
+        v.velocity.z += away.z * 5;
+      }
+      if (v.health > 0) return;
+      spawnParticles(new THREE.Vector3(p.x, p.y + 0.8, p.z), 0xffffff, 20, 5);
+      removeMob(v);
+      onVillagerLost(v);
+    }
+
+    // 村人がいなくなった（敵にやられた・プレイヤーがたおした）
+    function onVillagerLost(v) {
+      const state = villageState[v.village];
+      if (!state) return;
+      state.pop = Math.max(0, state.pop - 1);
+      if (bloodMoon.active) bloodMoon.lost = (bloodMoon.lost || 0) + 1;
+      showToast(`😢 村人（${VILLAGER_JOBS[v.job].name}）がいなくなってしまった…（村人 ${state.pop} 人）`);
+    }
+
+    // その村を見つけたことがあるか（異世界にいても、表の世界の記録を見る）
+    function villageFound(i) {
+      const d = currentDim === OVERWORLD ? { undergroundSites, sitesFound } : dimensions[OVERWORLD];
+      const idx = d ? d.undergroundSites.findIndex(site => site.village === i) : -1;
+      return idx >= 0 && !!d.sitesFound[idx];
+    }
+
+    // ふつうの朝: いなくなった村人が 1 人ずつもどってくる（新しい人が引っこしてくる）
+    function recoverVillages() {
+      villageState.forEach((state, i) => {
+        state.pop = Math.min(villages[i].houses.length, state.pop + 1);
+      });
+    }
+
+    // 鐘を鳴らす: 村のようすがわかる。赤い月の夜は、村人に逃げるように知らせる
+    function ringBell(x, z) {
+      const i = villageIndexAt(x, z, 4);
+      if (i < 0) return;
+      playSound('levelup');
+      const v = villages[i];
+      const here = mobs.filter(m => m.village === i);
+      if (bloodMoon.active) {
+        here.forEach(m => { m.fleeTimer = 8; });
+        showToast('🔔 カンカン！ 村人たちが逃げはじめた');
+        return;
+      }
+      const tonight = isBloodMoonDay() && timeOfDay < NIGHT_START;
+      const next = tonight ? '今夜！' : `${nextBloodMoonDay()} 日目`;
+      showToast(`🔔 村人 ${villageState[i].pop} / ${v.houses.length} 人。次の赤い月は ${next}（そばで守ると、お礼がもらえる）`);
     }
 
     /* --- Spawners (敵の湧くかご) --- */
@@ -5636,6 +6279,10 @@
       if (bloodMoon.active && !mob.def.passive) bloodMoon.kills++;
       noteMobSeen(mob.type);
       checkAchievements();
+      if (mob.def.villager) {
+        onVillagerLost(mob);
+        return;
+      }
 
       if (mob.def.boss) {
         if (mob.lair) onLairBossDefeated(mob);
@@ -6022,6 +6669,8 @@
           } else {
             wanderAround(mob, delta, 1);
           }
+        } else if (mob.def.ai === 'villager') {
+          updateVillager(mob, delta, { flatDist, toPlayer });
         } else if (mob.def.ai === 'slime') {
           // ぴょんぴょん跳ねて近づく
           if (mob.onGround) {
@@ -6142,6 +6791,8 @@
 
         if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
         else if (mob.def.ai === 'lairboss') updateLairBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
+        // 赤い月の夜は、近くの村人をおそう
+        if (bloodMoon.active && mob.bloodMoon && mob.def.ai === 'melee') raidVillagers(mob, delta, flatDist);
 
         moveMob(mob, delta);
       });
@@ -7133,10 +7784,15 @@
       const item = held ? ITEMS[held.id] : null;
       const t = targetBlock;
 
+      // 村人を右クリック: 交換の画面
+      const person = checkMobHit();
+      if (person && person.mob.def.villager && person.distance < REACH) return openTrade(person.mob);
+
       // 使えるブロック
       if (t) {
         const def = BLOCKS[t.id];
         const key = blockKey(t.x, t.y, t.z);
+        if (def.bell) return ringBell(t.x, t.z);
         if (t.id === CRAFTING_TABLE) return openInventoryScreen();
         if (def.enchanting) return openInventoryScreen({ type: 'enchant', key });
         if (def.storage) return openInventoryScreen({ type: 'chest', key });
@@ -7477,7 +8133,13 @@
       brewing_stand: { name: '醸造台', kind: 'block', block: BREWING_STAND, color: '#8a6ab0', emoji: '⚗️' },
       blaze_powder: { name: 'ブレイズパウダー', kind: 'material', color: '#ffc840', emoji: '✨' },
       glass_bottle: { name: 'ガラスのビン', kind: 'bottle', color: '#bcdcf0', emoji: '🫙' },
-      water_bottle: { name: '水のビン', kind: 'material', color: '#3c7ce8', emoji: '🫙', stack: 16 }
+      water_bottle: { name: '水のビン', kind: 'material', color: '#3c7ce8', emoji: '🫙', stack: 16 },
+      // 村と交易
+      emerald: { name: 'エメラルド', kind: 'material', color: '#2ad86a', emoji: '💚', particle: 0x2ad86a },
+      bookshelf: { name: '本棚', kind: 'block', block: BOOKSHELF, color: '#8a5a2a', emoji: '📚' },
+      // エンチャントの本: 村の司書から買う。作業台のマスに道具といっしょに並べると、本の力が道具につく。
+      // 力は item.ench に入る。道具と同じしくみで運べるように「残り 1 回」の道具あつかいにしている（hideUses で数は出さない）
+      enchanted_book: { name: 'エンチャントの本', kind: 'book', color: '#9a5ad0', emoji: '📕', stack: 1, durability: 1, hideUses: true }
     };
     // 色つきブロックと染料
     const COLOR_LIST = [
@@ -7571,7 +8233,7 @@
     let xpLevel = 0;
     let xpPoints = 0;
     const xpNeeded = level => 5 + level * 2; // 次のレベルまでに いる経験値
-    const ORE_XP = { [COAL_ORE]: 1, [IRON_ORE]: 2, [GOLD_ORE]: 3, [DIAMOND_ORE]: 7 };
+    const ORE_XP = { [COAL_ORE]: 1, [IRON_ORE]: 2, [GOLD_ORE]: 3, [DIAMOND_ORE]: 7, [EMERALD_ORE]: 6 };
     const xpFill = document.getElementById('xp-fill');
     const xpLevelText = document.getElementById('xp-level');
 
@@ -7893,11 +8555,27 @@
     function findRepair() {
       const items = activeCells().map(i => craftGrid[i]).filter(Boolean);
       if (items.length !== 2) return null;
+      const book = findBookApply(items);
+      if (book) return book;
       const [a, b] = items;
       if (a.id !== b.id || !maxUses(a.id)) return null;
       const total = maxUses(a.id);
       const uses = Math.min(total, usesLeft(a) + usesLeft(b) + Math.ceil(total * 0.05));
       return { repair: true, result: a.id, count: 1, uses, ench: mergeEnchants(a, b) };
+    }
+
+    // エンチャントの本＋道具: 本の力を道具につける（つけられない力だけの本なら何も起きない）。
+    // 同じ力がもうついていれば、高いほうのレベルになる。本どうしは上の「修理」と同じで、力を合わせた本になる
+    function findBookApply(items) {
+      const book = items.find(item => item.id === 'enchanted_book');
+      const tool = items.find(item => item !== book);
+      if (!book || !tool || tool.id === 'enchanted_book') return null;
+      const allowed = enchantsFor(tool.id);
+      const keys = Object.keys(book.ench || {}).filter(key => allowed.includes(key));
+      if (!keys.length) return null;
+      const ench = { ...(tool.ench || {}) };
+      keys.forEach(key => { ench[key] = Math.max(ench[key] || 0, book.ench[key]); });
+      return { repair: true, book: true, result: tool.id, count: 1, uses: usesLeft(tool), ench };
     }
 
     function setHint(text) {
@@ -7951,7 +8629,14 @@
       if (recipe.repair) {
         activeCells().forEach(i => { craftGrid[i] = null; }); // 2つとも使う
         giveTool(recipe.result, recipe.uses, recipe.ench);
-        showToast(`🔧 ${ITEMS[recipe.result].name}を直した！（残り ${recipe.uses}）`);
+        if (recipe.result === 'enchanted_book') {
+          showToast(`📕 本の力を合わせた！（✨${enchText({ ench: recipe.ench })}）`);
+        } else if (recipe.book) {
+          bumpStat('booksApplied');
+          showToast(`📕 ${ITEMS[recipe.result].name}に「${enchText({ ench: recipe.ench })}」の力がついた！`);
+        } else {
+          showToast(`🔧 ${ITEMS[recipe.result].name}を直した！（残り ${recipe.uses}）`);
+        }
         playSound('place');
         renderInventory();
         return true;
@@ -8144,7 +8829,7 @@
 
       // 道具は、残りの回数をバーで見せる（緑→黄→赤）
       const bar = el.querySelector('.slot-bar');
-      const total = def ? maxUses(item.id) : 0;
+      const total = def && !def.hideUses ? maxUses(item.id) : 0;
       if (bar) {
         bar.hidden = !total;
         if (total) {
@@ -8320,6 +9005,77 @@
       renderInventory();
     }
 
+    // 村人との交換。村人の職業で、ならぶ品物がかわる（司書は、家ごとにちがうエンチャントの本）
+    const tradeList = document.getElementById('trade-list');
+    const itemLabel = (id, count, ench) => `${ITEMS[id].emoji}${ITEMS[id].name}${ench ? `（✨${enchText({ ench })}）` : ''}${count > 1 ? '×' + count : ''}`;
+
+    function tradesOf(villager) {
+      const job = VILLAGER_JOBS[villager.job];
+      const house = villages[villager.village].houses[villager.house];
+      return [
+        ...job.trades,
+        ...house.offers.map(([ench, cost]) => ({ give: ['emerald', cost], get: ['enchanted_book', 1], ench }))
+      ];
+    }
+
+    function openTrade(villager) {
+      noteMobSeen('villager');
+      openInventoryScreen({ type: 'trade', villager });
+    }
+
+    function renderTradeList() {
+      const villager = openContainer.villager;
+      const job = VILLAGER_JOBS[villager.job];
+      document.getElementById('trade-info').innerHTML =
+        `${job.emoji} <b>${job.name}</b> の村人　💚 エメラルド: <b>${countItem('emerald')}</b> こ`;
+      tradeList.innerHTML = '';
+      tradesOf(villager).forEach(trade => {
+        const [giveId, giveCount] = trade.give;
+        const [getId, getCount] = trade.get;
+        const button = document.createElement('button');
+        button.className = 'trade-option';
+        const have = countItem(giveId);
+        button.textContent = `${itemLabel(giveId, giveCount)}　→　${itemLabel(getId, getCount, trade.ench)}　（持っている ${have}）`;
+        button.disabled = have < giveCount;
+        button.addEventListener('mousedown', (ev) => {
+          ev.stopPropagation();
+          doTrade(trade, ev.shiftKey ? 10 : 1);
+        });
+        tradeList.appendChild(button);
+      });
+    }
+
+    // times 回まで交換する（材料が足りなくなるか、持ち物がいっぱいになったら止める）
+    function doTrade(trade, times = 1) {
+      const [giveId, giveCount] = trade.give;
+      const [getId, getCount] = trade.get;
+      let done = 0;
+      for (; done < times; done++) {
+        if (countItem(giveId) < giveCount) break;
+        const tool = maxUses(getId) > 0; // 道具と本は 1 枠に 1 つ（力をつけたまま入れる）
+        const room = tool ? inventory.slice(0, usableSlots()).some(item => !item) : hasRoomFor(getId, getCount);
+        if (!room) {
+          if (!done) setHint('⚠️ 持ち物がいっぱいです');
+          break;
+        }
+        removeItems(giveId, giveCount);
+        if (tool) giveTool(getId, maxUses(getId), trade.ench ? { ...trade.ench } : undefined);
+        else addItem(getId, getCount);
+      }
+      if (done === 0) {
+        if (countItem(giveId) < giveCount) setHint(`💚 ${ITEMS[giveId].name}が足りません`);
+        refreshScreen();
+        return 0;
+      }
+      bumpStat('trades', done);
+      playSound('chest');
+      const v = openContainer && openContainer.villager;
+      if (v) spawnParticles(v.group.position.clone().add(new THREE.Vector3(0, 2, 0)), 0x2ad86a, 10, 2);
+      showToast(`🤝 交換した！ ${itemLabel(getId, getCount * done, trade.ench)}`);
+      renderInventory();
+      return done;
+    }
+
     document.getElementById('trash-slot').addEventListener('mousedown', () => {
       if (!cursor) return;
       cursor = null;
@@ -8396,7 +9152,8 @@
       currentRecipe = openContainer ? null : findRecipe();
       fillSlot(resultEl, currentRecipe ? { id: currentRecipe.result, count: currentRecipe.count } : null);
       craftHint.textContent = hintText ||
-        (currentRecipe && currentRecipe.repair ? `🔧 ${ITEMS[currentRecipe.result].name}を直せます（残り ${currentRecipe.uses}・右の枠をクリック）`
+        (currentRecipe && currentRecipe.book ? `📕 ${ITEMS[currentRecipe.result].name}に本の力をつけられます（✨${enchText({ ench: currentRecipe.ench })}・右の枠をクリック）`
+          : currentRecipe && currentRecipe.repair ? `🔧 ${ITEMS[currentRecipe.result].name}を直せます（残り ${currentRecipe.uses}・右の枠をクリック）`
           : currentRecipe ? `✨ ${ITEMS[currentRecipe.result].name}${currentRecipe.count > 1 ? ' ×' + currentRecipe.count : ''} ができます（右の枠をクリック／Shift＋クリックでまとめて作る）`
           : trimmedGrid() ? '🤔 この並べ方では何もできません' : '💡 材料をマスに並べるか、レシピ本をクリック（Shift＋クリックで作れるだけ並べる）');
 
@@ -8408,6 +9165,7 @@
         fillSlot(enchantSlotEl, enchantSlot[0]);
         renderEnchantList();
       }
+      if (openContainer && openContainer.type === 'trade') renderTradeList();
       if (openContainer && openContainer.type === 'brew') {
         const brewer = getBrewer(openContainer.key);
         brewSlotEls.forEach((el, i) => fillSlot(el, brewer.slots[i]));
@@ -8433,7 +9191,7 @@
       inventoryOpen = true;
       openContainer = container;
       craftSize = isNearCraftingTable() ? 3 : 2;
-      const titles = { chest: '📦 チェスト', furnace: '🏭 かまど', enchant: '✨ エンチャント台', brew: '⚗️ 醸造台' };
+      const titles = { chest: '📦 チェスト', furnace: '🏭 かまど', enchant: '✨ エンチャント台', brew: '⚗️ 醸造台', trade: '🤝 村人と交換' };
       document.getElementById('inv-title').textContent = !container ? '🎒 持ち物とクラフト' : titles[container.type];
       document.getElementById('craft-area').hidden = !!container;
       document.getElementById('recipe-area').hidden = !!container;
@@ -8443,13 +9201,15 @@
         chest: '📦 チェストの中身（クリックで出し入れ）',
         furnace: '🏭 焼くものと燃料（石炭・木炭・原木・木の板・棒・ブレイズロッド）を入れよう',
         enchant: '✨ 道具をのせて、つけたい力をえらぼう（経験値のレベルを使う。敵をたおしたり鉱石を掘るとたまる）',
-        brew: '⚗️ 水のビン（ガラスのビンで水をくむ）と材料と燃料を入れると、10秒でポーションができる。ポーション＋ダイヤで強くなる'
+        brew: '⚗️ 水のビン（ガラスのビンで水をくむ）と材料と燃料を入れると、10秒でポーションができる。ポーション＋ダイヤで強くなる',
+        trade: '🤝 クリックで 1 回、Shift＋クリックで 10 回まで交換。エメラルドは、いらない物を村人に売るとたまる'
       };
       document.getElementById('container-title').textContent = !container ? '' : hints[container.type];
       containerGrid.hidden = !container || container.type !== 'chest';
       furnaceUi.hidden = !container || container.type !== 'furnace';
       document.getElementById('enchant-ui').hidden = !container || container.type !== 'enchant';
       document.getElementById('brew-ui').hidden = !container || container.type !== 'brew';
+      document.getElementById('trade-ui').hidden = !container || container.type !== 'trade';
       inventoryScreen.hidden = false;
       instructions.style.display = 'none';
       if (controls.isLocked) controls.unlock();
@@ -8922,11 +9682,12 @@
         showToast('🛏️ 復活地点をここにした（夜に使うと朝まで眠れる）');
       } else if (bloodMoon.active) {
         showToast('🔴 赤い月の夜は眠れない！ 朝まで生きのびよう');
-      } else if (mobs.some(mob => !mob.def.boss && mob.group.position.distanceTo(camera.position) < 10)) {
+      } else if (mobs.some(mob => !mob.def.boss && !mob.def.passive && mob.group.position.distanceTo(camera.position) < 10)) {
         showToast('😨 近くに敵がいて眠れない！');
       } else {
         timeOfDay = 0.02;
         dayCount++; // 眠って朝になったぶんも 1 日進む
+        recoverVillages();
         bumpStat('nightsSlept');
         showToast('🛏️ おやすみ… おはよう！ 朝になった');
       }
@@ -9601,7 +10362,7 @@
           feetY >= b.y0 - 0.5 && feetY <= b.y1 + 0.5);
         if (!inside) return;
         sitesFound[i] = true;
-        bumpStat('ruinsFound');
+        bumpStat(site.kind === 'village' ? 'villagesFound' : 'ruinsFound');
         const kind = SITE_KINDS[site.kind];
         showToast(`${kind.emoji} ${kind.name}を見つけた！ マップに印がついた`);
         playSound('ore');
@@ -10096,6 +10857,7 @@
       if (timeOfDay < before) { // 夜明け: 日付が進む
         dayCount++;
         if (bloodMoon.active) endBloodMoon();
+        else recoverVillages();
       }
       daylight = daylightAt(timeOfDay);
       updateBloodMoon();
@@ -10282,6 +11044,12 @@
       { id: 'blood_moon', emoji: '🔴', name: '赤い月を生きのびた', desc: '赤い月の夜を朝まで生きのびる', check: () => (stats.bloodMoonsSurvived || 0) >= 1 },
       { id: 'blood_moon_20', emoji: '🩸', name: '赤い月の英雄', desc: '赤い月の夜に敵を 20 体たおして生きのびる', check: () => (stats.bloodMoonBestKills || 0) >= 20 },
       { id: 'blood_moon_5', emoji: '🌕', name: '月をこえて', desc: '赤い月を 5 回生きのびる', check: () => (stats.bloodMoonsSurvived || 0) >= 5 },
+      { id: 'village', emoji: '🏘️', name: 'こんにちは！', desc: '村を見つける', check: () => (stats.villagesFound || 0) >= 1 },
+      { id: 'emerald', emoji: '💚', name: 'みどりの宝石', desc: 'エメラルドを手に入れる', check: () => seenItems.has('emerald') },
+      { id: 'trade', emoji: '🤝', name: 'はじめての取り引き', desc: '村人と交換する', check: () => (stats.trades || 0) >= 1 },
+      { id: 'trade_50', emoji: '🛒', name: 'おとくいさま', desc: '村人と 50 回交換する', check: () => (stats.trades || 0) >= 50 },
+      { id: 'book', emoji: '📕', name: 'まほうの本', desc: 'エンチャントの本の力を道具につける', check: () => (stats.booksApplied || 0) >= 1 },
+      { id: 'village_hero', emoji: '🛡️', name: '村の英雄', desc: '赤い月の夜に村を守りぬく', check: () => (stats.villagesDefended || 0) >= 1 },
       { id: 'nether', emoji: '🌋', name: '異世界へようこそ', desc: '異世界ゲートをくぐる', check: () => stats.portalTrips >= 1 },
       { id: 'level_10', emoji: '⭐', name: 'レベル 10', desc: '経験値のレベルを 10 にする', check: () => stats.maxLevel >= 10 },
       { id: 'level_30', emoji: '🌠', name: 'レベル 30', desc: '経験値のレベルを 30 にする', check: () => stats.maxLevel >= 30 },
@@ -10383,7 +11151,8 @@
       ['🌙 地上の敵（夜に出る）', ['zombie', 'skeleton', 'creeper', 'spider', 'husk', 'stray', 'witch']],
       ['🕳️ 地下の敵', ['slime', 'bat', 'guardian']],
       ['🔥 異世界の敵', ['zombie_piglin', 'wither_skeleton', 'magma_cube', 'blaze', 'ghast']],
-      ['🐾 動物', ['pig', 'cow', 'chicken']]
+      ['🐾 動物', ['pig', 'cow', 'chicken']],
+      ['🏘️ 村の人', ['villager']]
     ];
     const MOB_INFO = {
       zombie: { emoji: '🧟', where: '夜の地上', tip: '両手をのばして追いかけてきてパンチする。朝になると燃える。腐った肉を落とす' },
@@ -10404,6 +11173,7 @@
       pig: { emoji: '🐷', where: '明るい草原', tip: '生肉を落とす（かまどで焼ける）。小麦を持つとついてくる' },
       cow: { emoji: '🐮', where: '明るい草原', tip: '生肉をたくさん落とす。小麦をあげた 2 匹から赤ちゃんが生まれる' },
       chicken: { emoji: '🐔', where: '明るい草原', tip: '羽根（矢の材料）を落とす' },
+      villager: { emoji: '🧑‍🌾', where: '草原の村', tip: '右クリックで交換できる。農家・司書・鍛冶屋・聖職者・矢師がいて、服の色でわかる。赤い月の夜は敵にねらわれるので守ってあげよう' },
       golem: { emoji: '🗿', tip: 'パンチ・岩投げ・地面たたきの衝撃波（ジャンプでよける）。背中の光るコアに後ろから当てると 3 倍。バケツの水で 5 秒しびれる' },
       magma_golem: { emoji: '🔥', tip: '投げる岩がもっと痛い。ゴーレムをたおすと目を覚ます。弱点は同じ（コアと水）' },
       shadow_golem: { emoji: '💀', tip: '仲間を呼ぶ。水は効かない。マグマゴーレムをたおすと目を覚ます' },
@@ -10569,7 +11339,7 @@
       ['🔩 材料', def => def.kind === 'material'],
       ['🍖 食べ物', def => def.kind === 'food'],
       ['⚔️ 武器と防具', def => def.kind === 'sword' || def.kind === 'armor'],
-      ['🧰 道具', def => ['pickaxe', 'hoe', 'bow', 'shield', 'bucket', 'bag', 'igniter', 'bottle', 'seeds'].includes(def.kind)],
+      ['🧰 道具', def => ['pickaxe', 'hoe', 'bow', 'shield', 'bucket', 'bag', 'igniter', 'bottle', 'seeds', 'book'].includes(def.kind)],
       ['🧪 ポーション', def => def.kind === 'potion']
     ];
     function renderItemsTab() {
@@ -10610,6 +11380,7 @@
         ['🛏️ 眠った夜', `${stats.nightsSlept} 回`],
         ['🐣 生まれた赤ちゃん', `${stats.babies} 匹`],
         ['🏛️ 見つけた地下の建物', `${stats.ruinsFound} か所`],
+        ['🤝 村人と交換した回数', `${stats.trades || 0} 回（村を守った夜 ${stats.villagesDefended || 0} 回）`],
         ['🎒 手に入れたアイテムの種類', `${seenItems.size} / ${Object.keys(ITEMS).length}`],
         ['🏆 実績', `${ACHIEVEMENTS.filter(a => hasAchievement(a.id)).length} / ${ACHIEVEMENTS.length}`]
       ];
@@ -10695,6 +11466,7 @@
         stats,               // 記録と実績（古いセーブには無い＝0 から数える）
         dayCount,            // 何日目か（赤い月の周期。古いセーブには無い＝1 日目から）
         bloodMoon,
+        villages: villageState.map(v => v.pop), // 村ごとに住んでいる人数（古いセーブには無い＝みんないる）
         nether: nether ? packDim(nether) : null, // まだ行っていなければ null
         savedAt: Date.now()
       };
@@ -10740,6 +11512,11 @@
       stats = { ...defaultStats(), ...(data.stats || {}) };
       dayCount = data.dayCount || 1;
       if (data.bloodMoon) bloodMoon = { active: false, failed: false, kills: 0, warned: false, ...data.bloodMoon };
+      if (Array.isArray(data.villages)) {
+        villageState.forEach((v, i) => {
+          if (typeof data.villages[i] === 'number') v.pop = THREE.MathUtils.clamp(data.villages[i], 0, villages[i].houses.length);
+        });
+      }
       stats.maxLevel = Math.max(stats.maxLevel || 0, xpLevel);
       decodeExplored(data.explored);
       dungeonsFound = flags(data.dungeonsFound, data.dungeonFound);
@@ -10930,7 +11707,21 @@
         closeCodex,
         renderCodex,
         mobPortrait,
-        get codexOpen() { return codexOpen; }
+        get codexOpen() { return codexOpen; },
+        villages,
+        get villageState() { return villageState; },
+        VILLAGER_JOBS,
+        spawnVillager,
+        updateVillages,
+        openTrade,
+        doTrade,
+        tradesOf,
+        ringBell,
+        hurtVillager,
+        findBookApply,
+        get openContainer() { return openContainer; },
+        EMERALD_ORE,
+        BELL
       };
     }
 
