@@ -1914,6 +1914,28 @@
       for (const x of [4, 7, 10]) ctx.fillRect(x, 12, 2, 3);
     });
 
+    // 天空のドラゴン（黒くて、むらさきの目）とエンダーマン
+    textures.skyDragonFace = createPixelTexture(ctx => {
+      speckle(ctx, '#141018', ['#221a2a', '#0a080e'], 70);
+      ctx.fillStyle = '#e080ff';
+      ctx.fillRect(2, 5, 4, 3);
+      ctx.fillRect(10, 5, 4, 3);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(3, 6, 2, 1);
+      ctx.fillRect(11, 6, 2, 1);
+      ctx.fillStyle = '#d8d0e0';
+      for (const x of [4, 7, 10]) ctx.fillRect(x, 12, 2, 3);
+    });
+    textures.endermanFace = createPixelTexture(ctx => {
+      speckle(ctx, '#121212', ['#1a1a1a', '#0a0a0a'], 30);
+      ctx.fillStyle = '#e080ff';
+      ctx.fillRect(2, 8, 5, 2);
+      ctx.fillRect(9, 8, 5, 2);
+      ctx.fillStyle = '#f8d0ff';
+      ctx.fillRect(4, 8, 1, 2);
+      ctx.fillRect(11, 8, 1, 2);
+    });
+
     // 異世界の敵の顔
     textures.piglinFace = createPixelTexture(ctx => {
       speckle(ctx, '#e0a0a0', ['#d08888', '#7aa05a', '#6a9050'], 40); // ところどころ くさって緑
@@ -2083,6 +2105,61 @@
       speckle(ctx, '#866043', ['#6f4f37', '#9a7050'], 50);
       ctx.fillStyle = '#a08050';
       ctx.fillRect(0, 0, 16, 2);
+    });
+    // 天空の島のブロック
+    textures.endStone = createPixelTexture(ctx => speckle(ctx, '#e0dca0', ['#d0cc8c', '#ece8b4', '#c8c080'], 70));
+    textures.skyBrick = createPixelTexture(ctx => {
+      speckle(ctx, '#a878b8', ['#9a6aaa', '#b688c6'], 40);
+      ctx.fillStyle = '#7a4a8a';
+      [0, 8].forEach(y => ctx.fillRect(0, y, 16, 1));
+      ctx.fillRect(0, 0, 1, 8);
+      ctx.fillRect(8, 0, 1, 8);
+      ctx.fillRect(4, 8, 1, 8);
+      ctx.fillRect(12, 8, 1, 8);
+    });
+    // 天空の祭壇のわく（上の面に、目をはめるくぼみ）
+    const frameTop = withEye => createPixelTexture(ctx => {
+      speckle(ctx, '#3a6a5a', ['#2a5a4a', '#4a7a6a'], 40);
+      ctx.fillStyle = '#e0dca0';
+      ctx.fillRect(0, 0, 16, 2);
+      ctx.fillRect(0, 14, 16, 2);
+      ctx.fillStyle = '#1a2a24';
+      ctx.fillRect(4, 4, 8, 8);
+      if (withEye) {
+        ctx.fillStyle = '#3ad8a0';
+        ctx.fillRect(4, 4, 8, 8);
+        ctx.fillStyle = '#1a4a3a';
+        ctx.fillRect(6, 6, 4, 4);
+        ctx.fillStyle = '#c0ffe8';
+        ctx.fillRect(5, 5, 2, 2);
+      }
+    });
+    textures.frameTop = frameTop(false);
+    textures.frameTopEye = frameTop(true);
+    textures.frameSide = createPixelTexture(ctx => {
+      speckle(ctx, '#e0dca0', ['#d0cc8c', '#ece8b4'], 40);
+      ctx.fillStyle = '#3a6a5a';
+      ctx.fillRect(0, 0, 16, 5);
+      ctx.fillStyle = '#2a5a4a';
+      for (let x = 1; x < 16; x += 4) ctx.fillRect(x, 6, 2, 2);
+    });
+    textures.skyPortal = createPixelTexture(ctx => {
+      speckle(ctx, '#05030c', ['#0a0820', '#120a30'], 80);
+      const stars = ['#ffffff', '#9ae8ff', '#d8a0ff', '#6affc8'];
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = stars[rand(0, stars.length - 1)];
+        ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+      }
+    });
+    textures.skyGateway = createPixelTexture(ctx => {
+      speckle(ctx, '#2a0a3a', ['#4a1a6a', '#1a0a2a', '#6a2a9a'], 90);
+      ctx.fillStyle = '#e8c8ff';
+      for (let i = 0; i < 6; i++) ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+    });
+    textures.dragonEgg = createPixelTexture(ctx => {
+      speckle(ctx, '#1a0a24', ['#2a1238', '#120818', '#3a1a4a'], 80);
+      ctx.fillStyle = '#9a4ad8';
+      for (let i = 0; i < 10; i++) ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
     });
     textures.bookshelf = createPixelTexture(ctx => {
       ctx.fillStyle = '#b8894f';
@@ -2323,7 +2400,8 @@
       'lava', 'obsidian', 'ancientBrick', 'ancientCracked', 'ancientGlyph', 'mossyStone', 'spawner',
       'netherrack', 'glowstone', 'soulSand', 'portal', 'healCrystal',
       'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide',
-      'brewTop', 'brewSide', 'emeraldOre', 'bellTop', 'bellSide', 'dirtPath', 'pathSide', 'bookshelf'
+      'brewTop', 'brewSide', 'emeraldOre', 'bellTop', 'bellSide', 'dirtPath', 'pathSide', 'bookshelf',
+      'endStone', 'skyBrick', 'frameTop', 'frameTopEye', 'frameSide', 'skyPortal', 'skyGateway', 'dragonEgg'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -2432,6 +2510,14 @@
       71: { name: '村の鐘', tiles: [tile('bellTop'), tile('bellTop'), tile('bellSide')], tier: 99, bell: true, light: true, blastProof: true, map: '#e8b830' },
       72: { name: '土の道', tiles: [tile('dirtPath'), tile('dirt'), tile('pathSide')], tier: 0, drop: 'dirt', map: '#a08050' },
       73: { name: '本棚', tiles: [tile('planks'), tile('planks'), tile('bookshelf')], tier: 0, drop: 'bookshelf', map: '#8a5a2a' },
+      // 天空の島（3 つ目の世界）。ゲートは、ふれるとすぐに飛ぶ（skyPortal）。門は島どうしをつなぐ（gateway）
+      74: { name: '天空のゲート', tiles: same('skyPortal'), tier: 99, seeThrough: true, solid: false, light: true, skyPortal: true, render: 'glass', map: '#1a1030' },
+      75: { name: '天空の門', tiles: same('skyGateway'), tier: 99, seeThrough: true, solid: false, light: true, gateway: true, render: 'glass', map: '#6a2a9a' },
+      76: { name: '天空のレンガ', tiles: same('skyBrick'), tier: 1, drop: 'sky_bricks', map: '#a878b8' },
+      77: { name: '天空の石', tiles: same('endStone'), tier: 1, drop: 'end_stone', map: '#e0dca0' },
+      78: { name: '天空の祭壇のわく', tiles: [tile('frameTop'), tile('endStone'), tile('frameSide')], tier: 99, skyFrame: true, blastProof: true, map: '#3a6a5a' },
+      79: { name: '目をはめた祭壇のわく', tiles: [tile('frameTopEye'), tile('endStone'), tile('frameSide')], tier: 99, skyFrame: true, blastProof: true, light: true, map: '#3ad8a0' },
+      80: { name: 'ドラゴンのたまご', tiles: same('dragonEgg'), tier: 0, drop: 'dragon_egg', blastProof: true, map: '#2a1238' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2480,6 +2566,13 @@
     const BELL = 71;
     const DIRT_PATH = 72;
     const BOOKSHELF = 73;
+    const SKY_PORTAL = 74;
+    const SKY_GATEWAY = 75;
+    const SKY_BRICKS = 76;
+    const END_STONE = 77;
+    const SKY_FRAME = 78;
+    const SKY_FRAME_EYE = 79;
+    const DRAGON_EGG = 80;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -2651,12 +2744,14 @@
     // ここで先に決めておくのは、ワールドを作るときに OVERWORLD を使うため
     const OVERWORLD = 0;
     const NETHER = 1;
+    const SKY = 2; // 天空の島（3 つ目の世界）
     let currentDim = OVERWORLD;
-    const dimensions = [null, null];
-    // セーブから読んだ異世界の中身。はじめて異世界へ行ったときに入れる
-    // （異世界の地形は、行くまで作らない。行かない人のぶんまで作ると重いので）
-    let pendingNetherSave = null;
+    const dimensions = [null, null, null];
+    // セーブから読んだ異世界・天空の島の中身。はじめてその世界へ行ったときに入れる
+    // （地形は、行くまで作らない。行かない人のぶんまで作ると重いので）
+    const pendingDimSaves = [null, null, null];
     const inNether = () => currentDim === NETHER;
+    const inSky = () => currentDim === SKY;
 
     function blockKey(x, y, z) {
       return `${x},${y},${z}`;
@@ -3422,6 +3517,7 @@
       generateUnderground(); // 前からあるワールドの地上がずれないように、建物の中ではあと
       generateVillages();    // 村とエメラルドは、さらにそのあと（地下の建物の場所もずれないように）
       placeEmeraldOre();
+      generateSkyAltar();    // 天空の祭壇は、いちばん最後
     }
 
     // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
@@ -3618,6 +3714,10 @@
                      ['iron', 0.5, 1, 4], ['magma_cream', 0.25, 1, 1]],
       village: [['bread', 0.8, 2, 5], ['emerald', 0.7, 1, 4], ['iron', 0.6, 2, 5], ['apple', 0.5, 1, 3], ['iron_pickaxe', 0.2, 1, 1],
                 ['iron_sword', 0.2, 1, 1], ['shield', 0.15, 1, 1], ['coal', 0.5, 2, 6]],
+      altar: [['diamond', 0.6, 1, 3], ['golden_apple', 0.5, 1, 2], ['ender_pearl', 0.5, 1, 3], ['star_shard', 0.4, 1, 2],
+              ['iron', 0.7, 2, 6], ['bread', 0.6, 2, 4], ['obsidian', 0.4, 2, 5]],
+      skyTower: [['diamond', 0.9, 3, 7], ['emerald', 0.8, 4, 10], ['golden_apple', 0.7, 1, 3], ['ender_pearl', 0.6, 2, 5],
+                 ['star_shard', 0.5, 1, 3], ['diamond_sword', 0.25, 1, 1], ['diamond_armor', 0.2, 1, 1], ['sky_bricks', 0.5, 6, 14]],
       spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
                 ['golden_apple', 0.1, 1, 1], ['bow', 0.15, 1, 1], ['iron_sword', 0.15, 1, 1]]
     };
@@ -3895,7 +3995,10 @@
       bastion: { name: '黒い砦', emoji: '🏴' },
       ruined_portal: { name: 'こわれたゲート', emoji: '🌀' },
       // 地上の村（見つけるしくみだけ、地下の建物といっしょ）
-      village: { name: '村', emoji: '🏘️' }
+      village: { name: '村', emoji: '🏘️' },
+      altar: { name: '天空の祭壇', emoji: '🧿' },
+      // 天空の島
+      sky_tower: { name: '天空の塔', emoji: '🗼' }
     };
     let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
     let spawners = [];         // { x, y, z, type, timer }
@@ -4138,7 +4241,13 @@
       nether_dragon: {
         key: 'nether_dragon', type: 'nether_dragon', emoji: '🐉',
         hint: '異世界の、黒曜石の広場',
-        loot: [['dragon_sword', 1], ['glowstone', 24], ['diamond', 16], ['golden_apple', 5]]
+        loot: [['dragon_sword', 1], ['dragon_scale', 8], ['glowstone', 24], ['diamond', 16], ['golden_apple', 5]]
+      },
+      // 最後のドラゴン。天空の祭壇のゲートから行く「天空の島」のまん中にいる
+      sky_dragon: {
+        key: 'sky_dragon', type: 'sky_dragon', emoji: '🐲',
+        hint: '天空の島のまん中（天空の祭壇のゲートから）',
+        loot: [['sky_sword', 1], ['diamond', 20], ['emerald', 24], ['golden_apple', 6]]
       }
     };
     const bossLairs = [];        // { key, dim, x, y, z, half, height, chest }
@@ -4154,6 +4263,7 @@
         potions: 0, enchants: 0, portalTrips: 0, nightsSlept: 0, babies: 0, ruinsFound: 0, maxLevel: 0, distance: 0,
         bloodMoonsSurvived: 0, bloodMoonBestKills: 0, // 赤い月
         trades: 0, villagesFound: 0, villagesDefended: 0, booksApplied: 0, // 村
+        skyTrips: 0, gameCleared: 0, // 天空の島
         bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
         achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
       };
@@ -4265,7 +4375,7 @@
 
     // プレイヤーが入っているダンジョンの部屋（どこにも入っていなければ null）
     function dungeonAt(px, feetY, pz) {
-      if (inNether()) return null; // ボスの部屋は表の世界だけ
+      if (currentDim !== OVERWORLD) return null; // ボスの部屋は表の世界だけ
       return DUNGEONS.find(d => Math.abs(px - d.x) <= d.half && Math.abs(pz - d.z) <= d.half &&
         feetY >= d.floorY - 1 && feetY <= d.floorY + d.height) || null;
     }
@@ -4314,7 +4424,8 @@
           { give: ['gold', 3], get: ['emerald', 1] },
           { give: ['emerald', 2], get: ['potion_healing', 1] },
           { give: ['emerald', 3], get: ['glowstone', 4] },
-          { give: ['emerald', 4], get: ['blaze_rod', 1] }
+          { give: ['emerald', 4], get: ['blaze_rod', 1] },
+          { give: ['emerald', 8], get: ['star_shard', 1] } // 天空の目の材料（ここでしか買えない）
         ]
       },
       fletcher: {
@@ -4568,6 +4679,73 @@
         const y = worldRandInt(deep ? -38 : Math.max(BEDROCK_Y + 2, top - 24), top);
         if (getBlock(x, y, z) === STONE) forceBlock(x, y, z, EMERALD_ORE);
       }
+    }
+
+    /* --- Sky Altar (天空の祭壇) --- */
+    // 地下にかくれている部屋。まん中に「天空の祭壇のわく」が 12 こ輪になっていて、
+    // 全部に天空の目をはめると、天空の島へのゲートが開く。場所は、表の世界で天空の目を投げると飛んでいく方向でわかる。
+    // ワールドに 1 つだけ。生成のいちばん最後（村とエメラルドのあと）に作るので、前からあるワールドにもそのまま出てくる
+    let skyAltar = null; // { x, y, z, frames: [{ x, y, z }] }  y はわくの高さ（ゲートもこの高さ）
+
+    function buildSkyAltar(site) {
+      const { x: cx, y: fy, z: cz } = site;
+      const h = 8;
+      const height = 7;
+      for (let dx = -h - 1; dx <= h + 1; dx++) {
+        for (let dz = -h - 1; dz <= h + 1; dz++) {
+          for (let dy = -1; dy <= height; dy++) {
+            const wall = Math.abs(dx) === h + 1 || Math.abs(dz) === h + 1 || dy === -1 || dy === height;
+            const r = worldRandom();
+            const stone = dy === -1 ? STONE_BRICKS : r < 0.25 ? MOSSY_STONE : r < 0.5 ? ANCIENT_BRICKS : STONE_BRICKS;
+            forceBlock(cx + dx, fy + dy, cz + dz, wall ? stone : 0);
+          }
+        }
+      }
+      // かべぎわの本棚と、四すみの柱
+      for (let i = -h + 2; i <= h - 2; i += 2) {
+        for (let dy = 0; dy <= 2; dy++) {
+          forceBlock(cx + i, fy + dy, cz - h, BOOKSHELF);
+          forceBlock(cx + i, fy + dy, cz + h, BOOKSHELF);
+        }
+      }
+      for (const [px, pz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) {
+        for (let dy = 0; dy < height; dy++) forceBlock(cx + px, fy + dy, cz + pz, STONE_BRICKS);
+        forceTorch(cx + px + Math.sign(px), fy + 2, cz + pz);
+      }
+      // 祭壇: 1 段高い台の上に、わくを輪にならべる（中の 3×3 がゲートになる）
+      for (let dx = -3; dx <= 3; dx++) {
+        for (let dz = -3; dz <= 3; dz++) forceBlock(cx + dx, fy, cz + dz, STONE_BRICKS);
+      }
+      const frames = [];
+      for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+          const ring = (Math.abs(i) === 2 || Math.abs(j) === 2) && !(Math.abs(i) === 2 && Math.abs(j) === 2);
+          if (!ring) continue;
+          frames.push({ x: cx + i, y: fy + 1, z: cz + j });
+          forceBlock(cx + i, fy + 1, cz + j, worldRandom() < 0.2 ? SKY_FRAME_EYE : SKY_FRAME); // はじめから目がはまっているものも少し
+        }
+      }
+      placeLootChest(cx - h + 1, fy, cz - 2, LOOT.altar);
+      placeLootChest(cx + h - 1, fy, cz + 2, LOOT.altar);
+      site.boxes.push({ x0: cx - h, x1: cx + h, y0: fy - 1, y1: fy + height, z0: cz - h, z1: cz + h });
+      skyAltar = { x: cx, y: fy + 1, z: cz, frames };
+    }
+
+    function generateSkyAltar() {
+      const minDist = HALF_SIZE * 0.45;
+      let spot = null;
+      for (let attempt = 0; attempt < scaled(400) && !spot; attempt++) {
+        const cx = worldRandInt(-HALF_SIZE + 14, HALF_SIZE - 14);
+        const cz = worldRandInt(-HALF_SIZE + 14, HALF_SIZE - 14);
+        const fy = worldRandInt(-26, -16);
+        if (Math.hypot(cx, cz) < minDist) continue;
+        if (villages.some(v => Math.hypot(cx - v.x, cz - v.z) < VILLAGE_RADIUS + 12)) continue;
+        if (undergroundSpotFree(cx, fy, cz, 10, fy + 8)) spot = { cx, cz, fy };
+      }
+      if (!spot) spot = { cx: Math.round(minDist), cz: 0, fy: -22 }; // どうしても無いときは、むりやり
+      const site = { kind: 'altar', x: spot.cx, y: spot.fy, z: spot.cz, half: 10, boxes: [] };
+      buildSkyAltar(site);
+      undergroundSites.push(site);
     }
 
     /* --- Build the World (ワールドを作る) --- */
@@ -4849,7 +5027,7 @@
       player.health = player.maxHealth;
       updateHealthUI();
       // 異世界で倒れたら、表の世界にもどって復活する
-      if (inNether()) switchDimension(OVERWORLD);
+      if (currentDim !== OVERWORLD) switchDimension(OVERWORLD);
       player.portalTimer = 0;
       player.justTeleported = false;
       // ベッドで復活地点を決めていて、ベッドが残っていればそこから
@@ -5195,13 +5373,39 @@
 
     // 異世界のドラゴン: 首・頭・つばさ・しっぽ。空を飛ぶ
     function buildNetherDragon() {
+      return buildDragonModel({ skin: 0x2a1416, belly: 0x5a2420, wing: 0x4a1a1c, leg: 0x231012, glow: 0xff7a1a, face: textures.dragonFace });
+    }
+
+    // 天空のドラゴン: 形は異世界のドラゴンと同じで、黒くて 1.5 倍大きい
+    function buildSkyDragon() {
+      const model = buildDragonModel({ skin: 0x141018, belly: 0x2a2038, wing: 0x3a1a5a, leg: 0x0a080e, glow: 0xd070ff, face: textures.skyDragonFace });
+      model.group.scale.setScalar(1.5);
+      return model;
+    }
+
+    // エンダーマン: 手足がとても長い、まっ黒な敵。なぐるまでは おそってこない。なぐられるとワープして逃げることがある
+    function buildEnderman() {
       const group = new THREE.Group();
-      const skinMat = new THREE.MeshLambertMaterial({ color: 0x2a1416 });
-      const bellyMat = new THREE.MeshLambertMaterial({ color: 0x5a2420 });
+      const mat = new THREE.MeshLambertMaterial({ color: 0x141414 });
+      const head = addBox(group, [0.5, 0.5, 0.5], faceMaterials({ color: 0x141414 }, textures.endermanFace), [0, 2.62, 0]);
+      addBox(group, [0.42, 0.75, 0.24], mat, [0, 1.98, 0]);
+      const armL = addBox(group, [0.12, 1.4, 0.12], mat, [-0.28, 1.6, 0]);
+      const armR = addBox(group, [0.12, 1.4, 0.12], mat, [0.28, 1.6, 0]);
+      armL.rotation.z = 0.08;
+      armR.rotation.z = -0.08;
+      const legL = addBox(group, [0.13, 1.6, 0.13], mat, [-0.1, 0.8, 0]);
+      const legR = addBox(group, [0.13, 1.6, 0.13], mat, [0.1, 0.8, 0]);
+      return { group, head, legs: [legL, legR] };
+    }
+
+    function buildDragonModel({ skin, belly, wing, leg, glow: glowColor, face }) {
+      const group = new THREE.Group();
+      const skinMat = new THREE.MeshLambertMaterial({ color: skin });
+      const bellyMat = new THREE.MeshLambertMaterial({ color: belly });
       addBox(group, [1.4, 1.1, 2.4], skinMat, [0, 1.2, 0]);
       addBox(group, [1.0, 0.3, 2.0], bellyMat, [0, 0.65, 0]);
       addBox(group, [0.7, 0.7, 1.2], skinMat, [0, 1.6, 1.5]); // 首
-      const head = addBox(group, [0.9, 0.8, 1.1], faceMaterials({ color: 0x2a1416 }, textures.dragonFace), [0, 1.85, 2.4]);
+      const head = addBox(group, [0.9, 0.8, 1.1], faceMaterials({ color: skin }, face), [0, 1.85, 2.4]);
       addBox(group, [0.16, 0.5, 0.16], skinMat, [-0.3, 2.3, 2.3]); // つの
       addBox(group, [0.16, 0.5, 0.16], skinMat, [0.3, 2.3, 2.3]);
       // しっぽ（だんだん細く）
@@ -5209,14 +5413,14 @@
         const t = 1 - i * 0.2;
         addBox(group, [0.55 * t, 0.5 * t, 0.8], skinMat, [0, 1.15, -1.4 - i * 0.75]);
       }
-      const wingMat = new THREE.MeshLambertMaterial({ color: 0x4a1a1c, side: THREE.DoubleSide });
+      const wingMat = new THREE.MeshLambertMaterial({ color: wing, side: THREE.DoubleSide });
       const wingL = addBox(group, [2.6, 0.08, 1.6], wingMat, [-1.9, 1.7, -0.2]);
       const wingR = addBox(group, [2.6, 0.08, 1.6], wingMat, [1.9, 1.7, -0.2]);
-      const legMat = new THREE.MeshLambertMaterial({ color: 0x231012 });
+      const legMat = new THREE.MeshLambertMaterial({ color: leg });
       const legL = addBox(group, [0.35, 0.8, 0.35], legMat, [-0.5, 0.4, -0.3]);
       const legR = addBox(group, [0.35, 0.8, 0.35], legMat, [0.5, 0.4, -0.3]);
       // のどの火（口から火をはくのが分かるように）
-      const glow = addBox(group, [0.45, 0.35, 0.35], new THREE.MeshBasicMaterial({ color: 0xff7a1a }), [0, 1.7, 2.9]);
+      const glow = addBox(group, [0.45, 0.35, 0.35], new THREE.MeshBasicMaterial({ color: glowColor }), [0, 1.7, 2.9]);
       glow.userData.noTint = true;
       return { group, head, legs: [legL, legR], wings: [wingL, wingR], glow };
     }
@@ -5325,7 +5529,11 @@
       // ダンジョンではなく、すみかに住んでいるボス（ai: 'lairboss'）
       spider_queen: { name: '大グモの女王', ai: 'lairboss', health: 380, speed: 3.6, radius: 1.0, height: 1.7, sight: 26, damage: 5, boss: true, noBurn: true, climbs: true, build: buildSpiderQueen },
       mummy: { name: 'ファラオのミイラ', ai: 'lairboss', health: 520, speed: 1.9, radius: 0.55, height: 2.9, sight: 24, damage: 9, boss: true, noBurn: true, build: buildMummy },
-      nether_dragon: { name: '異世界のドラゴン', ai: 'lairboss', health: 1500, speed: 5.0, radius: 1.3, height: 2.6, sight: 48, damage: 14, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildNetherDragon },
+      nether_dragon: { name: '異世界のドラゴン', ai: 'lairboss', dragon: true, health: 1500, speed: 5.0, radius: 1.3, height: 2.6, sight: 48, damage: 14, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildNetherDragon },
+      // 最後のドラゴン（天空の島）。動きは異世界のドラゴンと同じで、ずっと強い（bossPower で攻撃が強くなる）
+      sky_dragon: { name: '天空のドラゴン', ai: 'lairboss', dragon: true, bossPower: 1.3, health: 2600, speed: 5.6, radius: 1.9, height: 3.9, sight: 64, damage: 18, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildSkyDragon },
+      // 天空の島の敵。なぐるまでは おそってこない（neutral）。なぐられるとワープすることがある（teleports）
+      enderman: { name: 'エンダーマン', ai: 'melee', neutral: true, teleports: true, health: 40, speed: 3.0, radius: 0.3, height: 2.9, sight: 22, damage: 7, noBurn: true, drop: 'ender_pearl', build: buildEnderman },
       bat: { name: 'コウモリ', emoji: '🦇', ai: 'bat', passive: true, flying: true, noBurn: true, health: 6, speed: 3.4, radius: 0.22, height: 0.5, sight: 10, build: buildBat },
       golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem },
       magma_golem: { name: 'マグマゴーレム', ai: 'boss', health: 450, speed: 2.0, radius: 0.85, height: 3.5, sight: 34, damage: 11, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.magma) },
@@ -5460,7 +5668,7 @@
     function applyMobStrength(mob) {
       if (mob.def.passive) return; // 動物は深さで強くならない
       const p = mob.group.position;
-      const depth = inNether() ? 14 : Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
+      const depth = currentDim !== OVERWORLD ? 14 : Math.max(0, surfaceHeight(Math.round(p.x), Math.round(p.z)) - p.y);
       const t = Math.min(depth / 40, 1); // 0: 地上 〜 1: 最深部（異世界の敵はもともと強いので、少しだけ上げる）
       mob.health = Math.round(mob.health * (1 + t * 2)); // 体力は最大3倍
       mob.power = 1 + t;                                 // 攻撃力は最大2倍
@@ -5485,6 +5693,7 @@
     // 地形によって入れかわる敵（砂漠のゾンビはハスク、雪原のスケルトンはストレイ）
     const BIOME_VARIANTS = { desert: { zombie: 'husk' }, snow: { skeleton: 'stray' } };
     // 異世界には、異世界だけの敵が出る
+    const SKY_MOBS = [['enderman', 1]];
     const NETHER_MOBS = [['zombie_piglin', 30], ['magma_cube', 22], ['wither_skeleton', 18], ['blaze', 18], ['ghast', 12]];
 
     function pickWeighted(list) {
@@ -5498,7 +5707,7 @@
 
     // 暗いかどうか（夜、または地面から5m以上もぐった場所）
     function isDarkAt(x, y, z) {
-      if (inNether()) return true; // 異世界に太陽は無い
+      if (currentDim !== OVERWORLD) return true; // 異世界と天空の島に太陽は無い
       return daylight < 0.3 || y < surfaceHeight(Math.round(x), Math.round(z)) - 4;
     }
 
@@ -5538,6 +5747,7 @@
 
     function desiredMobCount() {
       if (inNether()) return 8;
+      if (inSky()) return 5;
       if (currentDepth >= 5) return Math.min(8, 3 + Math.floor(currentDepth / 8));
       if (bloodMoon.active) return Math.min(18, 8 + Math.floor(killCount / 4)); // 赤い月: 群れ
       if (daylight < 0.3) return Math.min(10, 4 + Math.floor(killCount / 4));
@@ -5637,7 +5847,7 @@
     })();
 
     function updateBloodMoon() {
-      if (inNether()) {
+      if (currentDim !== OVERWORLD) {
         bloodMoonSprite.visible = false;
         bloodOverlay.style.opacity = 0;
         return;
@@ -5690,7 +5900,7 @@
     // 地下: 足場があって上に2マス空いている暗い場所に出す。
     // 目の前に急にあらわれないように、少し離れていて、プレイヤーから見えない場所をえらぶ
     function spawnUndergroundMob() {
-      const list = inNether() ? NETHER_MOBS : UNDERGROUND_MOBS;
+      const list = inNether() ? NETHER_MOBS : inSky() ? SKY_MOBS : UNDERGROUND_MOBS;
       const px = camera.position.x;
       const pz = camera.position.z;
       const feetCell = Math.floor(camera.position.y - player.eye + 0.5);
@@ -5701,8 +5911,9 @@
         if (!isInsideWorld(x, z) || d < 14 || d > 30) continue;
         for (let y = feetCell + 8; y >= feetCell - 10; y--) {
           if (isSolid(x, y - 1, z) && !isSolid(x, y, z) && !isSolid(x, y + 1, z)) {
-            if (!inNether() && y >= surfaceHeight(x, z) - 4) break;
-            if (hasLineOfSight(new THREE.Vector3(x, y + 1, z), camera.position)) break; // 見えている所には出さない
+            if (currentDim === OVERWORLD && y >= surfaceHeight(x, z) - 4) break;
+            // 見えている所には出さない（天空の島は見通しがよすぎるので、そのまま出す。エンダーマンはおそってこないので）
+            if (!inSky() && hasLineOfSight(new THREE.Vector3(x, y + 1, z), camera.position)) break;
             const type = pickWeighted(list);
             const def = MOB_DEFS[type];
             // 飛ぶ敵は、床から少し浮いたところに出す（上に空きがあれば）
@@ -5728,7 +5939,7 @@
       batSpawnTimer -= delta;
       if (batSpawnTimer > 0) return;
       batSpawnTimer = 6 + Math.random() * 6;
-      if (currentDepth < 5 || inNether()) return; // 異世界には、異世界の敵だけ
+      if (currentDepth < 5 || currentDim !== OVERWORLD) return; // 異世界と天空の島には、その世界の敵だけ
       if (mobs.reduce((n, m) => n + (m.type === 'bat' ? 1 : 0), 0) >= BAT_LIMIT) return;
       const px = camera.position.x;
       const pz = camera.position.z;
@@ -6231,6 +6442,27 @@
       if (mob.def.boss) updateBossBar(mob);
 
       if (mob.health <= 0) killMob(mob);
+      else if (mob.def.teleports && Math.random() < 0.5) teleportMob(mob);
+    }
+
+    // エンダーマンのワープ: 近くの、立てる場所へ一瞬で移る
+    function teleportMob(mob) {
+      const p = mob.group.position;
+      for (let attempt = 0; attempt < 16; attempt++) {
+        const x = Math.round(p.x + rand(-9, 9));
+        const z = Math.round(p.z + rand(-9, 9));
+        if (Math.hypot(x - p.x, z - p.z) < 4 || !isInsideWorld(x, z)) continue;
+        for (let y = Math.round(p.y) + 5; y >= Math.round(p.y) - 6; y--) {
+          if (!isSolid(x, y - 1, z) || collidesBox(x, y - 0.5, z, mob.radius, mob.height)) continue;
+          spawnParticles(new THREE.Vector3(p.x, p.y + 1.4, p.z), 0x9a4aff, 18, 3);
+          p.set(x, y - 0.5, z);
+          mob.velocity.set(0, 0, 0);
+          spawnParticles(new THREE.Vector3(x, y + 1, z), 0x9a4aff, 18, 3);
+          playSound('ore');
+          return true;
+        }
+      }
+      return false;
     }
 
     // 火属性の剣やフレイムの矢で、敵が燃える（異世界の敵は火に強いので燃えない）
@@ -6565,7 +6797,7 @@
           return;
         }
         if (dist < 14) noteMobSeen(mob.type); // 近くまで来たら図鑑にのる
-        if (!mob.def.passive && !mob.def.boss) updateAwareness(mob, delta, dist);
+        if (!mob.def.passive && !mob.def.boss && !mob.def.neutral) updateAwareness(mob, delta, dist); // エンダーマンは、なぐられるまで気づかない
 
         if (updateMobFire(mob, delta)) return; // 燃えつきた
         if (mob.hitFlashTimer > 0) {
@@ -6870,7 +7102,7 @@
       const lair = lairAt(camera.position.x, camera.position.y - player.eye, camera.position.z);
       if (!lair || lairsDefeated[lair.key]) return;
       const conf = LAIRS[lair.key];
-      const spawnY = lair.key === 'nether_dragon' ? lair.y + 6 : lair.y;
+      const spawnY = MOB_DEFS[conf.type].dragon ? lair.y + 6 : lair.y;
       boss = createMob(conf.type, lair.x, spawnY, lair.z);
       boss.maxHealth = boss.health;
       boss.lair = lair;
@@ -6909,10 +7141,10 @@
       mob.specialTimer -= delta;
       mob.summonTimer -= delta;
 
-      const power = mob.enraged ? 1.35 : 1;
+      const power = (mob.enraged ? 1.35 : 1) * (mob.def.bossPower || 1);
       const melee = () => Math.max(1, Math.round(mob.def.damage * power));
 
-      if (mob.type === 'nether_dragon') {
+      if (mob.def.dragon) {
         updateDragon(mob, delta, { dist, flatDist, target, power, melee, playerCenter });
       } else if (mob.type === 'spider_queen') {
         // 女王: 速く追いかけ、ときどき大ジャンプ。糸をはいて足止めし、仲間のクモを呼ぶ
@@ -7077,10 +7309,10 @@
         }
       }
 
-      // 怒ったら、ブレイズを呼ぶ（1回だけ）
+      // 怒ったら、仲間を呼ぶ（1回だけ。異世界はブレイズ、天空の島はエンダーマン）
       if (mob.enraged && !mob.calledBlazes) {
         mob.calledBlazes = true;
-        summonLairMinions(mob, 'blaze', 2);
+        summonLairMinions(mob, mob.type === 'sky_dragon' ? 'enderman' : 'blaze', mob.type === 'sky_dragon' ? 3 : 2);
       }
     }
 
@@ -7376,7 +7608,16 @@
       playSound('explosion');
       playSound('chest');
       showToast(`🏆 ${mob.def.name}を倒した！（⏱️ ${formatDuration(fight)}）すみかの宝箱を開けよう`);
+      if (lair.key === 'sky_dragon') onSkyDragonDefeated();
       saveGame();
+    }
+
+    // 最後のドラゴンをたおした！ 帰りのゲートが開く
+    function onSkyDragonDefeated() {
+      openSkyExit();
+      bumpStat('gameCleared');
+      setTimeout(() => pushAchievementToast('🎉 ゲームクリア！ 最後のドラゴンをたおした！'), 1500);
+      setTimeout(() => showToast('🌀 まん中の柱のまわりに、表の世界への帰りのゲートが開いた。島のはしには、塔の島への門も'), 3500);
     }
 
     function onBossDefeated(mob) {
@@ -7411,6 +7652,15 @@
         showToast(`🔒 ${MOB_DEFS[conf.type].name}を倒さないと開かない`);
         return;
       }
+      // ドラゴンのうろこを足す前に宝箱を開けていた人には、うろこだけ残っている
+      if (lair.key === 'nether_dragon' && lairChestsLooted[lair.key] && !lairChestsLooted.dragon_scales) {
+        if (!addItem('dragon_scale', 8)) return showToast('⚠️ 持ち物をあけてから開けよう');
+        lairChestsLooted.dragon_scales = true;
+        playSound('chest');
+        showToast('🐉 宝箱のおくに、ドラゴンのうろこ×8 が残っていた！（天空の目の材料）');
+        saveGame();
+        return;
+      }
       if (lairChestsLooted[lair.key]) {
         showToast('📦 宝箱はからっぽ');
         return;
@@ -7422,6 +7672,7 @@
       }
       loot.forEach(([id, count]) => addItem(id, count));
       lairChestsLooted[lair.key] = true;
+      if (lair.key === 'nether_dragon') lairChestsLooted.dragon_scales = true;
       playSound('chest');
       showToast(`${conf.emoji} 宝箱から ${loot.map(([id]) => ITEMS[id].name).join('・')} を手に入れた！`);
       saveGame();
@@ -7809,6 +8060,14 @@
       }
       if (!item) return;
 
+      // 天空の目: 祭壇のわくにはめる。ほかの所では、投げると祭壇のほうへ飛んでいく
+      if (item.kind === 'eye') {
+        if (t && t.id === SKY_FRAME) return placeSkyEye(t.x, t.y, t.z);
+        if (t && t.id === SKY_FRAME_EYE) return showToast('🧿 ここにはもう目がはまっている');
+        return throwSkyEye();
+      }
+      if (item.kind === 'pearl') return throwPearl();
+
       // 小麦を持って動物を右クリックすると、えさをあげられる
       if (held.id === 'wheat') {
         const hit = checkMobHit();
@@ -8139,7 +8398,16 @@
       bookshelf: { name: '本棚', kind: 'block', block: BOOKSHELF, color: '#8a5a2a', emoji: '📚' },
       // エンチャントの本: 村の司書から買う。作業台のマスに道具といっしょに並べると、本の力が道具につく。
       // 力は item.ench に入る。道具と同じしくみで運べるように「残り 1 回」の道具あつかいにしている（hideUses で数は出さない）
-      enchanted_book: { name: 'エンチャントの本', kind: 'book', color: '#9a5ad0', emoji: '📕', stack: 1, durability: 1, hideUses: true }
+      enchanted_book: { name: 'エンチャントの本', kind: 'book', color: '#9a5ad0', emoji: '📕', stack: 1, durability: 1, hideUses: true },
+      // 天空の島へ行くための材料と、天空の島のもの
+      star_shard: { name: '星のかけら', kind: 'material', color: '#9ae8ff', emoji: '⭐' },
+      dragon_scale: { name: 'ドラゴンのうろこ', kind: 'material', color: '#5a2420', emoji: '🐉' },
+      sky_eye: { name: '天空の目', kind: 'eye', color: '#3ad8a0', emoji: '🧿', stack: 16 },
+      ender_pearl: { name: 'エンダーパール', kind: 'pearl', color: '#1a6a5a', emoji: '🟢', stack: 16 },
+      end_stone: { name: '天空の石', kind: 'block', block: END_STONE, color: '#e0dca0', emoji: '🟨' },
+      sky_bricks: { name: '天空のレンガ', kind: 'block', block: SKY_BRICKS, color: '#a878b8', emoji: '🟪' },
+      dragon_egg: { name: 'ドラゴンのたまご', kind: 'block', block: DRAGON_EGG, color: '#2a1238', emoji: '🥚' },
+      sky_sword: { name: '天空の剣', kind: 'sword', damage: 48, color: '#b07aff', emoji: '⚔️', stack: 1, durability: 2500 }
     };
     // 色つきブロックと染料
     const COLOR_LIST = [
@@ -8470,6 +8738,7 @@
       shaped('lamp', 1, ['.G.', 'GTG', '.G.'], { G: 'glass', T: 'torch' }),
       shaped('enchant_table', 1, ['.G.', 'DOD', 'OOO'], { G: 'gold', D: 'diamond', O: 'obsidian' }),
       shapeless('blaze_powder', 2, ['blaze_rod']),
+      shapeless('sky_eye', 2, ['blaze_powder', 'dragon_scale', 'star_shard']), // 天空の島へ行くための目
       shaped('brewing_stand', 1, ['.B.', 'SSS'], { B: 'blaze_rod', S: 'stone' }),
       shaped('glass_bottle', 3, ['G.G', '.G.'], { G: 'glass' }),
       shaped('stone_bricks', 4, ['SS', 'SS'], { S: 'stone' }),
@@ -9676,7 +9945,7 @@
     });
 
     function useBed(x, y, z) {
-      if (inNether()) return showToast('🛏️ 異世界では、ベッドは使えない');
+      if (currentDim !== OVERWORLD) return showToast('🛏️ この世界では、ベッドは使えない');
       spawnPoint = { x, y: y + 0.5, z };
       if (daylight >= 0.3) {
         showToast('🛏️ 復活地点をここにした（夜に使うと朝まで眠れる）');
@@ -9784,19 +10053,21 @@
       applyDimension(dimensions[index]);
       currentDim = index;
 
-      if (fresh && index === NETHER) {
-        generateNether();
-        if (pendingNetherSave) {
-          // 前に遊んだときの、異世界での変更を入れなおす
-          applyBlockChanges(pendingNetherSave.changes || {});
-          Object.entries(pendingNetherSave.storageChests || {}).forEach(([key, slots]) => {
+      if (fresh && index !== OVERWORLD) {
+        if (index === NETHER) generateNether();
+        else generateSky();
+        const pending = pendingDimSaves[index];
+        if (pending) {
+          // 前に遊んだときの、その世界での変更を入れなおす
+          applyBlockChanges(pending.changes || {});
+          Object.entries(pending.storageChests || {}).forEach(([key, slots]) => {
             storageChests.set(key, slots.map(item => (item && ITEMS[item.id] ? item : null)));
           });
-          Object.entries(pendingNetherSave.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
-          Object.entries(pendingNetherSave.fluidLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
-          decodeExplored(pendingNetherSave.explored, explored);
-          sitesFound = undergroundSites.map((_, i) => !!(pendingNetherSave.sitesFound || [])[i]);
-          pendingNetherSave = null;
+          Object.entries(pending.furnaces || {}).forEach(([key, furnace]) => furnaces.set(key, furnace));
+          Object.entries(pending.fluidLevels || {}).forEach(([key, level]) => fluidLevels.set(key, level));
+          decodeExplored(pending.explored, explored);
+          sitesFound = undergroundSites.map((_, i) => !!(pending.sitesFound || [])[i]);
+          pendingDimSaves[index] = null;
         }
       }
 
@@ -10136,6 +10407,338 @@
       lair.crystals = crystals;
     }
 
+    /* --- Sky Islands (天空の島) --- */
+    // 3 つ目の世界。まわりは何もない空（下に落ちたらおしまい）。まん中に大きな島があって、
+    // その上が最後のドラゴンの広場（黒曜石の柱と、てっぺんの回復の結晶）。遠くに小さな島がいくつか浮いていて、
+    // いちばん大きい島には天空の塔（宝箱）がある。ドラゴンをたおすと、まん中に帰りのゲートと、塔の島への門が開く。
+    // 地形は、はじめて来たときに作る（異世界と同じ）。乱数は worldRngState を借りて返す
+    const SKY_TOP = 6;          // まん中の島の地面の高さ
+    const SKY_ISLAND_R = 40;
+    const SKY_ARENA_R = 30;     // ドラゴンの広場（この中に入るとドラゴンが目を覚ます）
+    let skyIslands = [];        // 外の島 { x, y, z, r, tower }
+    let skyGateways = [];       // ドラゴンをたおすと開く門 { x, y, z, to: { x, y, z } }（y は足の高さのマス）
+    let skyExit = null;         // まん中の帰りのゲート（岩盤の柱のまわり）{ x, y, z }
+    let skyArrival = null;      // 来たときに立つ黒曜石の台 { x, y, z }（y は足の高さのマス）
+
+    // 浮き島 1 つ。上は平らで、下はとがっている。phase が null なら、まん丸で平ら
+    function skyIsland(cx, cz, r, topY, phase) {
+      const reach = Math.ceil(r * 1.2);
+      for (let dx = -reach; dx <= reach; dx++) {
+        for (let dz = -reach; dz <= reach; dz++) {
+          const dist = Math.hypot(dx, dz);
+          const rr = phase === null ? r : r * (0.85 + 0.15 * Math.sin(Math.atan2(dz, dx) * 3 + phase));
+          if (dist > rr) continue;
+          const top = phase === null ? topY : topY + Math.round(Math.sin((cx + dx) * 0.3 + phase) * Math.cos((cz + dz) * 0.27) * 0.8);
+          const depth = 2 + Math.round((1 - dist / rr) * r * 0.45);
+          for (let y = top - depth; y <= top; y++) {
+            if (inBounds(cx + dx, y, cz + dz)) world[cellIndex(cx + dx, y, cz + dz)] = END_STONE;
+          }
+        }
+      }
+    }
+
+    function generateSky() {
+      const savedRng = worldRngState;
+      worldRngState = (worldSeed * 40503 + 98765) | 0;
+      const lootFrom = structureLoot.length;
+      skyIsland(0, 0, SKY_ISLAND_R, SKY_TOP, null);
+
+      // 外の小さな島
+      skyIslands = [];
+      const count = Math.max(3, scaled(3));
+      const minR = Math.min(70, HALF_SIZE - 22);
+      const maxR = HALF_SIZE - 14;
+      for (let i = 0; i < count * 8 && skyIslands.length < count; i++) {
+        const angle = worldRandom() * Math.PI * 2;
+        const d = minR + worldRandom() * (maxR - minR);
+        const x = Math.round(Math.cos(angle) * d);
+        const z = Math.round(Math.sin(angle) * d);
+        const r = worldRandInt(6, 11);
+        if (Math.abs(x) > HALF_SIZE - r - 3 || Math.abs(z) > HALF_SIZE - r - 3) continue;
+        if (skyIslands.some(o => Math.hypot(o.x - x, o.z - z) < o.r + r + 10)) continue;
+        const y = worldRandInt(-4, 12);
+        skyIsland(x, z, r, y, worldRandom() * 6);
+        skyIslands.push({ x, y, z, r, tower: false });
+      }
+      const big = skyIslands.reduce((a, b) => (b.r > a.r ? b : a), skyIslands[0]);
+      skyIslands.forEach(o => {
+        if (o === big) buildSkyTower(o);
+        else if (worldRandom() < 0.5) placeLootChest(o.x, o.y + 1, o.z, LOOT.altar);
+      });
+      buildSkyArena(big);
+
+      // チェストの中身を入れる（天空の島の storageChests は今ここにある）
+      structureLoot.splice(lootFrom).forEach(({ key, items }) => {
+        const slots = new Array(CHEST_SIZE).fill(null);
+        items.forEach((item, i) => { if (i < CHEST_SIZE) slots[i] = item; });
+        storageChests.set(key, slots);
+      });
+      blockCount = 0;
+      worldRngState = savedRng;
+    }
+
+    // 天空の塔: 天空のレンガの高い塔。はしごで屋上へ上ると宝箱
+    function buildSkyTower(island) {
+      const { x: cx, y: fy, z: cz } = island;
+      const h = 2;
+      const height = 14;
+      for (let dx = -h; dx <= h; dx++) {
+        for (let dz = -h; dz <= h; dz++) {
+          forceBlock(cx + dx, fy, cz + dz, SKY_BRICKS);
+          forceBlock(cx + dx, fy + height, cz + dz, SKY_BRICKS);
+          const edge = Math.abs(dx) === h || Math.abs(dz) === h;
+          if (!edge) continue;
+          for (let dy = 1; dy < height; dy++) {
+            const window = dy % 4 === 2 && (dx === 0 || dz === 0);
+            forceBlock(cx + dx, fy + dy, cz + dz, window ? GLASS : SKY_BRICKS);
+          }
+          if ((dx + dz) % 2 === 0) forceBlock(cx + dx, fy + height + 1, cz + dz, SKY_BRICKS);
+        }
+      }
+      forceBlock(cx, fy + 1, cz + h, 0); // 入口
+      forceBlock(cx, fy + 2, cz + h, 0);
+      for (let dy = 1; dy <= height; dy++) forceBlock(cx + 1, fy + dy, cz + 1, LADDER);
+      placeLootChest(cx - 1, fy + height + 1, cz - 1, LOOT.skyTower);
+      forceTorch(cx, fy + 3, cz);
+      forceTorch(cx + 1, fy + height + 1, cz - 1);
+      island.tower = true;
+      undergroundSites.push({
+        kind: 'sky_tower', x: cx, y: fy, z: cz, half: island.r,
+        boxes: [{ x0: cx - island.r, x1: cx + island.r, y0: fy - 4, y1: fy + height + 2, z0: cz - island.r, z1: cz + island.r }]
+      });
+    }
+
+    // まん中の島: 最後のドラゴンの広場
+    function buildSkyArena(towerIsland) {
+      const top = SKY_TOP;
+      // 黒曜石の柱（高さがいろいろ）。てっぺんに回復の結晶
+      const crystals = [];
+      for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        const px = Math.round(Math.cos(angle) * 19);
+        const pz = Math.round(Math.sin(angle) * 19);
+        const ph = 8 + (i % 3) * 4;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            for (let dy = 1; dy <= ph; dy++) forceBlock(px + dx, top + dy, pz + dz, OBSIDIAN);
+          }
+        }
+        forceBlock(px, top + ph + 1, pz, DRAGON_CRYSTAL);
+        crystals.push({ x: px, y: top + ph + 1, z: pz });
+      }
+      // まん中の帰りのゲート（はじめは岩盤。ドラゴンをたおすと、柱のまわりがゲートになる）
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) forceBlock(dx, top, dz, BEDROCK);
+      }
+      for (let dy = 1; dy <= 4; dy++) forceBlock(0, top + dy, 0, BEDROCK);
+      forceTorch(0, top + 5, 0);
+      skyExit = { x: 0, y: top, z: 0 };
+      // 来たときに立つ黒曜石の台（広場の外の、島のはし）
+      skyArrival = { x: SKY_ISLAND_R - 4, y: top + 1, z: 0 };
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) forceBlock(skyArrival.x + dx, top, dz, OBSIDIAN);
+      }
+      // 塔の島への門（ドラゴンをたおすと開く）。行きは島のはし、帰りは塔の島のはし
+      skyGateways = [];
+      if (towerIsland) {
+        const angle = Math.atan2(towerIsland.z, towerIsland.x);
+        const gx = Math.round(Math.cos(angle) * (SKY_ISLAND_R - 3));
+        const gz = Math.round(Math.sin(angle) * (SKY_ISLAND_R - 3));
+        const tx = Math.round(towerIsland.x - Math.cos(angle) * (towerIsland.r - 3));
+        const tz = Math.round(towerIsland.z - Math.sin(angle) * (towerIsland.r - 3));
+        const ty = towerIsland.y + 1;
+        // 出たところで、すぐまた門に入らないように、1 マス内がわに着く
+        skyGateways.push({ x: gx, y: top + 1, z: gz, to: { x: Math.round(tx + Math.cos(angle) * 2), y: ty, z: Math.round(tz + Math.sin(angle) * 2) } });
+        skyGateways.push({ x: tx, y: ty, z: tz, to: { x: Math.round(gx - Math.cos(angle) * 2), y: top + 1, z: Math.round(gz - Math.sin(angle) * 2) } });
+      }
+      const lair = registerLair('sky_dragon', SKY, 0, top + 1, 0, SKY_ARENA_R, 30, { x: 0, y: top + 1, z: 4 });
+      lair.crystals = crystals;
+    }
+
+    // 最後のドラゴンをたおした: 帰りのゲート・塔の島への門・ドラゴンのたまごが出る
+    function openSkyExit() {
+      if (!skyExit) return;
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          if (dx || dz) replaceBlock(skyExit.x + dx, skyExit.y, skyExit.z + dz, SKY_PORTAL);
+        }
+      }
+      if (getBlock(0, SKY_TOP + 5, 0) !== DRAGON_EGG) {
+        removeTorchMesh(0, SKY_TOP + 5, 0);
+        replaceBlock(0, SKY_TOP + 5, 0, DRAGON_EGG);
+      }
+      skyGateways.forEach(g => {
+        replaceBlock(g.x, g.y, g.z, SKY_GATEWAY);
+        replaceBlock(g.x, g.y + 1, g.z, SKY_GATEWAY);
+      });
+    }
+
+    // 来たときの台を作りなおして、そこに立つ（こわしていても落ちないように）
+    function travelToSky() {
+      const fresh = switchDimension(SKY);
+      const a = skyArrival;
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dz = -2; dz <= 2; dz++) {
+          if (!isSolid(a.x + dx, a.y - 1, a.z + dz)) replaceBlock(a.x + dx, a.y - 1, a.z + dz, OBSIDIAN);
+          for (let dy = 0; dy <= 2; dy++) {
+            if (isSolid(a.x + dx, a.y + dy, a.z + dz)) replaceBlock(a.x + dx, a.y + dy, a.z + dz, 0);
+          }
+        }
+      }
+      arriveAt(a.x, a.y - 0.5, a.z);
+      camera.lookAt(0, SKY_TOP + 4, 0);
+      bumpStat('skyTrips');
+      showToast(fresh
+        ? '🌌 天空の島に来た！ まん中に最後のドラゴンがいる。島から落ちないように気をつけて'
+        : '🌌 天空の島にもどってきた');
+      playSound('roar');
+    }
+
+    // 天空の島から表の世界へ（ベッドの復活地点か、スタート地点にもどる）
+    function travelHomeFromSky() {
+      switchDimension(OVERWORLD);
+      if (spawnPoint && getBlock(spawnPoint.x, spawnPoint.y - 0.5, spawnPoint.z) === BED) arriveAt(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+      else {
+        placePlayerOnGround(0, 0);
+        arriveAt(camera.position.x, camera.position.y - player.eye, camera.position.z);
+      }
+      showToast('🌳 表の世界にもどってきた');
+      playSound('ore');
+    }
+
+    // 天空の門: 島から島へ、ひとっ飛び
+    function useGateway() {
+      const px = camera.position.x;
+      const pz = camera.position.z;
+      const g = skyGateways.reduce((a, b) => (Math.hypot(b.x - px, b.z - pz) < Math.hypot(a.x - px, a.z - pz) ? b : a), skyGateways[0]);
+      if (!g) return;
+      arriveAt(g.to.x, g.to.y - 0.5, g.to.z);
+      spawnParticles(camera.position.clone(), 0xb070ff, 30, 4);
+      playSound('ore');
+    }
+
+    // 別の場所に立たせる（feetY は足の高さ）
+    function arriveAt(x, feetY, z) {
+      camera.position.set(x, feetY + player.eye, z);
+      player.velocity.set(0, 0, 0);
+      player.fallFrom = feetY;
+      player.portalTimer = 0;
+      player.justTeleported = true; // ゲートから出るまで、もう一度飛ばない
+      exploreAround(Math.round(x), Math.round(z));
+    }
+
+    // 天空の祭壇のわくに、天空の目をはめる。12 こ全部はまるとゲートが開く
+    function placeSkyEye(x, y, z) {
+      if (getBlock(x, y, z) !== SKY_FRAME) return false;
+      replaceBlock(x, y, z, SKY_FRAME_EYE);
+      consumeHeldItem();
+      spawnParticles(new THREE.Vector3(x, y + 0.6, z), 0x3ad8a0, 14, 2);
+      playSound('ore');
+      if (!skyAltar) return true;
+      const left = skyAltar.frames.filter(f => getBlock(f.x, f.y, f.z) !== SKY_FRAME_EYE).length;
+      if (left > 0) {
+        showToast(`🧿 天空の目をはめた（あと ${left} こ）`);
+        return true;
+      }
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) replaceBlock(skyAltar.x + dx, skyAltar.y, skyAltar.z + dz, SKY_PORTAL);
+      }
+      playSound('roar');
+      spawnParticles(new THREE.Vector3(skyAltar.x, skyAltar.y + 1, skyAltar.z), 0x9ae8ff, 60, 6);
+      showToast('🌌 天空のゲートが開いた！ 飛びこむと天空の島へ行ける（最後のドラゴンが待っている）');
+      return true;
+    }
+
+    // 天空の目を投げる: 天空の祭壇のほうへ飛んでいく。近いと下へもぐる。たまにこわれる
+    const thrownEyes = [];
+    const eyeGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x3ad8a0 });
+    function throwSkyEye() {
+      if (currentDim !== OVERWORLD || !skyAltar) {
+        showToast('🧿 天空の目は、表の世界で投げると祭壇のほうへ飛んでいく');
+        return;
+      }
+      consumeHeldItem();
+      const mesh = new THREE.Mesh(eyeGeo, eyeMat);
+      mesh.position.copy(camera.position);
+      scene.add(mesh);
+      const dx = skyAltar.x - camera.position.x;
+      const dz = skyAltar.z - camera.position.z;
+      const dist = Math.hypot(dx, dz);
+      const near = dist < 12;
+      thrownEyes.push({ mesh, dir: near ? new THREE.Vector3(0, -1, 0) : new THREE.Vector3(dx / dist, 0.25, dz / dist), life: 2.4, near });
+      playSound('bow');
+      showToast(near ? '🧿 天空の目が、まっすぐ下へもぐっていった！ この下だ' : '🧿 天空の目が飛んでいく… その方向に祭壇がある');
+    }
+
+    function updateThrownEyes(delta) {
+      for (let i = thrownEyes.length - 1; i >= 0; i--) {
+        const e = thrownEyes[i];
+        e.life -= delta;
+        e.mesh.position.addScaledVector(e.dir, delta * (e.near ? 3 : 9));
+        e.mesh.rotation.y += delta * 6;
+        if (Math.random() < delta * 20) spawnParticles(e.mesh.position.clone(), 0x9ae8ff, 1, 0.5);
+        if (e.life > 0) continue;
+        scene.remove(e.mesh);
+        thrownEyes.splice(i, 1);
+        if (Math.random() < 0.2) {
+          spawnParticles(e.mesh.position.clone(), 0x3ad8a0, 16, 3);
+          showToast('💥 天空の目がこわれてしまった');
+        } else {
+          spawnDroppedItem('sky_eye', 1, e.mesh.position.clone(), new THREE.Vector3(0, -1, 0), 0.3);
+        }
+      }
+    }
+
+    // エンダーパール: 投げて、落ちたところへワープする（少し痛い）
+    const pearls = [];
+    const pearlMat = new THREE.MeshBasicMaterial({ color: 0x1a8a6a });
+    function throwPearl() {
+      consumeHeldItem();
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const mesh = new THREE.Mesh(eyeGeo, pearlMat);
+      mesh.position.copy(camera.position).addScaledVector(dir, 0.6);
+      scene.add(mesh);
+      pearls.push({ mesh, vel: dir.multiplyScalar(20), life: 5 });
+      playSound('bow');
+    }
+
+    function updatePearls(delta) {
+      for (let i = pearls.length - 1; i >= 0; i--) {
+        const p = pearls[i];
+        p.life -= delta;
+        p.vel.y -= ARROW_GRAVITY * delta;
+        const pos = p.mesh.position;
+        const steps = Math.max(1, Math.ceil((p.vel.length() * delta) / 0.3));
+        let landed = false;
+        for (let s = 0; s < steps && !landed; s++) {
+          const before = pos.clone();
+          pos.addScaledVector(p.vel, delta / steps);
+          if (isSolid(pos.x, pos.y, pos.z)) {
+            pos.copy(before);
+            landed = true;
+          }
+        }
+        if (!landed && p.life > 0 && pos.y > BEDROCK_Y - 5) continue;
+        scene.remove(p.mesh);
+        pearls.splice(i, 1);
+        if (!landed) continue; // 空のかなたへ消えた
+        // 立てる高さをさがして、そこへ
+        const x = Math.round(pos.x);
+        const z = Math.round(pos.z);
+        let feet = Math.round(pos.y);
+        while (feet < MAX_Y && (isSolid(x, feet, z) || isSolid(x, feet + 1, z))) feet++;
+        spawnParticles(camera.position.clone(), 0x9a4aff, 20, 3);
+        camera.position.set(x, feet - 0.5 + player.eye, z);
+        player.velocity.set(0, 0, 0);
+        player.fallFrom = feet - 0.5;
+        spawnParticles(camera.position.clone(), 0x9a4aff, 20, 3);
+        playSound('ore');
+        damagePlayer(2);
+      }
+    }
+
     /* --- Portal (異世界のゲート) --- */
     // 黒曜石で「わく」を作って、火打ち石で中に火をつけると開く。
     // 中の広さは 横2〜4・たて3〜5 マス。たてに立てる（ドアのように）。
@@ -10307,8 +10910,20 @@
     // 体がゲートに重なっているあいだ、少しずつたまる
     function updatePortal(delta) {
       const feetY = camera.position.y - player.eye;
-      const inside = [0.1, 0.9, 1.6].some(dy =>
-        getBlock(Math.round(camera.position.x), Math.round(feetY + dy), Math.round(camera.position.z)) === PORTAL);
+      const touching = [0.1, 0.9, 1.6].map(dy =>
+        getBlock(Math.round(camera.position.x), Math.round(feetY + dy), Math.round(camera.position.z)));
+      const inside = touching.includes(PORTAL);
+      // 天空のゲート（祭壇・帰り道）と天空の門は、ふれるとすぐに飛ぶ
+      if (touching.includes(SKY_PORTAL) || touching.includes(SKY_GATEWAY)) {
+        if (player.justTeleported) return;
+        if (touching.includes(SKY_GATEWAY)) return useGateway();
+        player.portalTimer += delta;
+        if (player.portalTimer >= 0.3) {
+          if (inSky()) travelHomeFromSky();
+          else travelToSky();
+        }
+        return;
+      }
       if (!inside) {
         player.portalTimer = 0;
         player.justTeleported = false;
@@ -10350,7 +10965,7 @@
       const feetY = camera.position.y - player.eye;
       const here = dungeonAt(px, feetY, pz);
       DUNGEONS.forEach((d, i) => {
-        if (inNether() || dungeonsFound[i] || !d.entrance) return; // ボスの部屋は表の世界だけ
+        if (currentDim !== OVERWORLD || dungeonsFound[i] || !d.entrance) return; // ボスの部屋は表の世界だけ
         if (Math.hypot(px - d.entrance.x, pz - d.entrance.z) < 10 || here === d) {
           dungeonsFound[i] = true;
           showToast(`${BOSS_TIERS[i].emoji} ダンジョンの入口を見つけた！ マップに印がついた`);
@@ -10502,9 +11117,10 @@
         if (mx >= 0 && my >= 0 && mx < size && my < size) minimapCtx.fillRect(mx - 1.5, my - 1.5, 3, 3);
       });
       const [hx, hy] = toMini(0, 0);
-      drawEmoji(minimapCtx, '🏠', edge(hx), edge(hy), 13);
+      const home = currentDim === OVERWORLD; // スタート地点とダンジョンは表の世界だけ
+      if (home) drawEmoji(minimapCtx, '🏠', edge(hx), edge(hy), 13);
       DUNGEONS.forEach((d, i) => {
-        if (!dungeonsFound[i]) return;
+        if (!home || !dungeonsFound[i]) return;
         const [dx, dy] = toMini(d.x, d.z);
         drawEmoji(minimapCtx, dungeonIcon(i), edge(dx), edge(dy), 14);
       });
@@ -10523,9 +11139,10 @@
       worldMapCtx.drawImage(mapCanvas, 0, 0, size, size);
       const toMap = (wx, wz) => [(wx + HALF_SIZE + 0.5) * scale, (wz + HALF_SIZE + 0.5) * scale];
       const [hx, hy] = toMap(0, 0);
-      drawEmoji(worldMapCtx, '🏠', hx, hy, 24);
+      const home = currentDim === OVERWORLD;
+      if (home) drawEmoji(worldMapCtx, '🏠', hx, hy, 24);
       DUNGEONS.forEach((d, i) => {
-        if (!dungeonsFound[i]) return;
+        if (!home || !dungeonsFound[i]) return;
         const [dx, dy] = toMap(d.x, d.z);
         drawEmoji(worldMapCtx, dungeonIcon(i), dx, dy, 28);
         const [ex, ey] = toMap(d.entrance.x, d.entrance.z);
@@ -10806,7 +11423,7 @@
 
       // 奈落落下時
       if (camera.position.y < BEDROCK_Y - 15) {
-        damagePlayer(20);
+        damagePlayer(inSky() ? 999 : 20); // 天空の島から落ちたら、助からない
       }
     }
 
@@ -10825,6 +11442,7 @@
     const NIGHT_SKY = new THREE.Color(0x0a0f2a);
     const CAVE_DARK = new THREE.Color(0x07070c);
     const NETHER_SKY = new THREE.Color(0x2a0d0d); // 異世界の赤黒いもや
+    const SKY_WORLD_COLOR = new THREE.Color(0x1a1030); // 天空の島の、むらさきの夜空
     const UNDERWATER_COLOR = new THREE.Color(0x14548c);
     const FOG_NEAR = 30;
     const FOG_FAR = 75;
@@ -10863,6 +11481,24 @@
       updateBloodMoon();
 
       const feetY = camera.position.y - player.eye;
+      // 天空の島: いつも うす暗いむらさきの空。昼夜は関係ない（敵は「地下」と同じ出かたをさせるので、深さは 10 にしておく）
+      if (inSky()) {
+        currentDepth = 10;
+        ambientLight.color.setHex(0xe8d8ff);
+        sunLight.color.setHex(0xd8c8ff);
+        ambientLight.intensity = 0.5;
+        sunLight.intensity = 0.35;
+        torchLight.intensity = 1.2;
+        scene.background.copy(SKY_WORLD_COLOR);
+        scene.fog.color.copy(SKY_WORLD_COLOR);
+        scene.fog.near = FOG_NEAR;
+        scene.fog.far = FOG_FAR * 1.2;
+        depthDisplay.textContent = `天空の島（高さ ${Math.round(feetY)}）`;
+        biomeDisplay.textContent = '🌌 天空の島';
+        timeDisplay.textContent = '✨ ここは時間が止まっている';
+        if (effectLevel('night') > 0) ambientLight.intensity = 0.8;
+        return;
+      }
       // 異世界には地表が無いので、天井からの深さであつかう
       const surfaceY = inNether() ? NETHER_TOP : surfaceHeight(Math.round(camera.position.x), Math.round(camera.position.z));
       const depth = Math.max(0, Math.floor(surfaceY + 0.5 - feetY));
@@ -10978,6 +11614,8 @@
         updateTnt(delta);
         updatePortal(delta);
         updatePlayerArrows(delta);
+        updateThrownEyes(delta);
+        updatePearls(delta);
         updateStats(delta);
 
         torchLightTimer -= delta;
@@ -11039,7 +11677,7 @@
       { id: 'boss_queen', emoji: '🕷️', name: '女王をたおした', desc: '大グモの女王をたおす', check: () => !!lairsDefeated.spider_queen },
       { id: 'boss_mummy', emoji: '🏺', name: 'ファラオをたおした', desc: 'ファラオのミイラをたおす', check: () => !!lairsDefeated.mummy },
       { id: 'boss_dragon', emoji: '🐉', name: 'ドラゴンスレイヤー', desc: '異世界のドラゴンをたおす', check: () => !!lairsDefeated.nether_dragon },
-      { id: 'boss_all', emoji: '👑', name: 'ボスマスター', desc: '6 体のボスをぜんぶたおす', check: () => bossesDefeated.every(Boolean) && Object.keys(LAIRS).every(key => lairsDefeated[key]) },
+      { id: 'boss_all', emoji: '👑', name: 'ボスマスター', desc: 'ボスをぜんぶたおす', check: () => bossesDefeated.every(Boolean) && Object.keys(LAIRS).every(key => lairsDefeated[key]) },
       { id: 'speed_golem', emoji: '⏱️', name: 'スピードファイター', desc: 'ゴーレムを 2 分以内にたおす', check: () => !!bossRecord('golem') && bossRecord('golem').fight <= 120 },
       { id: 'blood_moon', emoji: '🔴', name: '赤い月を生きのびた', desc: '赤い月の夜を朝まで生きのびる', check: () => (stats.bloodMoonsSurvived || 0) >= 1 },
       { id: 'blood_moon_20', emoji: '🩸', name: '赤い月の英雄', desc: '赤い月の夜に敵を 20 体たおして生きのびる', check: () => (stats.bloodMoonBestKills || 0) >= 20 },
@@ -11050,6 +11688,10 @@
       { id: 'trade_50', emoji: '🛒', name: 'おとくいさま', desc: '村人と 50 回交換する', check: () => (stats.trades || 0) >= 50 },
       { id: 'book', emoji: '📕', name: 'まほうの本', desc: 'エンチャントの本の力を道具につける', check: () => (stats.booksApplied || 0) >= 1 },
       { id: 'village_hero', emoji: '🛡️', name: '村の英雄', desc: '赤い月の夜に村を守りぬく', check: () => (stats.villagesDefended || 0) >= 1 },
+      { id: 'sky_eye', emoji: '🧿', name: '天空の目', desc: '天空の目を作る', check: () => seenItems.has('sky_eye') },
+      { id: 'sky', emoji: '🌌', name: '天空の島へ', desc: '天空のゲートをくぐる', check: () => (stats.skyTrips || 0) >= 1 },
+      { id: 'boss_sky', emoji: '🐲', name: 'ゲームクリア！', desc: '最後のドラゴン（天空のドラゴン）をたおす', check: () => !!lairsDefeated.sky_dragon },
+      { id: 'dragon_egg', emoji: '🥚', name: 'ドラゴンのたまご', desc: 'ドラゴンのたまごを手に入れる', check: () => seenItems.has('dragon_egg') },
       { id: 'nether', emoji: '🌋', name: '異世界へようこそ', desc: '異世界ゲートをくぐる', check: () => stats.portalTrips >= 1 },
       { id: 'level_10', emoji: '⭐', name: 'レベル 10', desc: '経験値のレベルを 10 にする', check: () => stats.maxLevel >= 10 },
       { id: 'level_30', emoji: '🌠', name: 'レベル 30', desc: '経験値のレベルを 30 にする', check: () => stats.maxLevel >= 30 },
@@ -11152,7 +11794,8 @@
       ['🕳️ 地下の敵', ['slime', 'bat', 'guardian']],
       ['🔥 異世界の敵', ['zombie_piglin', 'wither_skeleton', 'magma_cube', 'blaze', 'ghast']],
       ['🐾 動物', ['pig', 'cow', 'chicken']],
-      ['🏘️ 村の人', ['villager']]
+      ['🏘️ 村の人', ['villager']],
+      ['🌌 天空の島の敵', ['enderman']]
     ];
     const MOB_INFO = {
       zombie: { emoji: '🧟', where: '夜の地上', tip: '両手をのばして追いかけてきてパンチする。朝になると燃える。腐った肉を落とす' },
@@ -11173,6 +11816,8 @@
       pig: { emoji: '🐷', where: '明るい草原', tip: '生肉を落とす（かまどで焼ける）。小麦を持つとついてくる' },
       cow: { emoji: '🐮', where: '明るい草原', tip: '生肉をたくさん落とす。小麦をあげた 2 匹から赤ちゃんが生まれる' },
       chicken: { emoji: '🐔', where: '明るい草原', tip: '羽根（矢の材料）を落とす' },
+      enderman: { emoji: '🕴️', where: '天空の島', tip: 'とても背が高い。なぐるまでは おそってこないが、なぐると強い。ワープして逃げることがある。エンダーパール（投げるとワープできる）を落とす' },
+      sky_dragon: { emoji: '🐲', tip: '最後のドラゴン。異世界のドラゴンと同じく「空から火の玉 → 地上であばれる」。柱 10 本の回復の結晶を先にこわそう。怒るとエンダーマンを呼ぶ。たおすと天空の剣と、帰りのゲート' },
       villager: { emoji: '🧑‍🌾', where: '草原の村', tip: '右クリックで交換できる。農家・司書・鍛冶屋・聖職者・矢師がいて、服の色でわかる。赤い月の夜は敵にねらわれるので守ってあげよう' },
       golem: { emoji: '🗿', tip: 'パンチ・岩投げ・地面たたきの衝撃波（ジャンプでよける）。背中の光るコアに後ろから当てると 3 倍。バケツの水で 5 秒しびれる' },
       magma_golem: { emoji: '🔥', tip: '投げる岩がもっと痛い。ゴーレムをたおすと目を覚ます。弱点は同じ（コアと水）' },
@@ -11339,7 +11984,7 @@
       ['🔩 材料', def => def.kind === 'material'],
       ['🍖 食べ物', def => def.kind === 'food'],
       ['⚔️ 武器と防具', def => def.kind === 'sword' || def.kind === 'armor'],
-      ['🧰 道具', def => ['pickaxe', 'hoe', 'bow', 'shield', 'bucket', 'bag', 'igniter', 'bottle', 'seeds', 'book'].includes(def.kind)],
+      ['🧰 道具', def => ['pickaxe', 'hoe', 'bow', 'shield', 'bucket', 'bag', 'igniter', 'bottle', 'seeds', 'book', 'eye', 'pearl'].includes(def.kind)],
       ['🧪 ポーション', def => def.kind === 'potion']
     ];
     function renderItemsTab() {
@@ -11375,6 +12020,7 @@
         ['📅 何日目', `${dayCount} 日目（次の赤い月は ${isBloodMoonDay() && !bloodMoon.active && timeOfDay < NIGHT_START ? '今夜' : nextBloodMoonDay() + ' 日目'}）`],
         ['🔴 赤い月を生きのびた回数', `${stats.bloodMoonsSurvived || 0} 回（1 夜でたおした最高 ${stats.bloodMoonBestKills || 0} 体）`],
         ['🌋 異世界に行った回数', `${stats.portalTrips} 回`],
+        ['🌌 天空の島に行った回数', `${stats.skyTrips || 0} 回`],
         ['🧪 ポーションを飲んだ回数', `${stats.potions} 回`],
         ['✨ エンチャントした回数', `${stats.enchants} 回`],
         ['🛏️ 眠った夜', `${stats.nightsSlept} 回`],
@@ -11425,6 +12071,7 @@
       dimensions[currentDim] = captureDimension(); // 今いる世界の中身をしまってから書く
       const over = dimensions[OVERWORLD];
       const nether = dimensions[NETHER];
+      const sky = dimensions[SKY];
       const packDim = d => ({
         changes: Object.fromEntries(d.blockChanges),
         storageChests: Object.fromEntries(d.storageChests),
@@ -11467,7 +12114,8 @@
         dayCount,            // 何日目か（赤い月の周期。古いセーブには無い＝1 日目から）
         bloodMoon,
         villages: villageState.map(v => v.pop), // 村ごとに住んでいる人数（古いセーブには無い＝みんないる）
-        nether: nether ? packDim(nether) : null, // まだ行っていなければ null
+        nether: nether ? packDim(nether) : pendingDimSaves[NETHER], // まだ行っていなければ null（読んだけれどまだ行っていなければ、そのまま書きもどす）
+        sky: sky ? packDim(sky) : pendingDimSaves[SKY],          // 天空の島（同じ）
         savedAt: Date.now()
       };
       try {
@@ -11524,8 +12172,9 @@
       renderInventory();
       buildMapImage();
       // 異世界の中身は、行ったときに入れる。前に異世界にいたなら、そのまま異世界から再開する
-      pendingNetherSave = data.nether || null;
-      if (data.dimension === NETHER) switchDimension(NETHER);
+      pendingDimSaves[NETHER] = data.nether || null;
+      pendingDimSaves[SKY] = data.sky || null;
+      if (data.dimension === NETHER || data.dimension === SKY) switchDimension(data.dimension);
       saveStatus.textContent = `💾 セーブデータから再開します（${new Date(data.savedAt).toLocaleString('ja-JP')}）`;
     }
 
@@ -11721,7 +12370,29 @@
         findBookApply,
         get openContainer() { return openContainer; },
         EMERALD_ORE,
-        BELL
+        BELL,
+        SKY,
+        get skyAltar() { return skyAltar; },
+        get skyArrival() { return skyArrival; },
+        get skyExit() { return skyExit; },
+        get skyIslands() { return skyIslands; },
+        get skyGateways() { return skyGateways; },
+        travelToSky,
+        travelHomeFromSky,
+        placeSkyEye,
+        throwSkyEye,
+        thrownEyes,
+        throwPearl,
+        pearls,
+        openSkyExit,
+        teleportMob,
+        updatePortal,
+        SKY_FRAME,
+        SKY_FRAME_EYE,
+        SKY_PORTAL,
+        SKY_GATEWAY,
+        DRAGON_EGG,
+        END_STONE
       };
     }
 
