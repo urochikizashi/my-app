@@ -7361,6 +7361,15 @@
       }
     });
 
+    // ほかの画面に切りかえたり一時停止したりすると、キーを離した合図(keyup)が届かないことがある。
+    // そのままだと「押しっぱなし」と思いこんで勝手に歩きつづけるので、そのときは全部離したことにする
+    function releaseAllKeys() {
+      for (const k in keys) keys[k] = false;
+    }
+    window.addEventListener('blur', releaseAllKeys);
+    document.addEventListener('visibilitychange', releaseAllKeys);
+    controls.addEventListener('unlock', releaseAllKeys);
+
     // ホイールでスロット選択
     window.addEventListener('wheel', (e) => {
       if (!controls.isLocked) return;
