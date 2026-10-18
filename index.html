@@ -4279,10 +4279,11 @@
       stats.seenMobs[type] = true;
       checkAchievements();
     }
-    function recordBossDefeat(mob) {
+    // key: 記録の名前（ふつうはボスの種類。覚醒したボスは awakened_ をつけて別に記録する）
+    function recordBossDefeat(mob, key = mob.type) {
       const fight = Math.round(mob.fightSeconds || 0);
-      const rec = stats.bossRecords[mob.type];
-      if (!rec) stats.bossRecords[mob.type] = { fight, at: Math.round(stats.playSeconds), times: 1, last: fight };
+      const rec = stats.bossRecords[key];
+      if (!rec) stats.bossRecords[key] = { fight, at: Math.round(stats.playSeconds), times: 1, last: fight };
       else {
         rec.times++;
         rec.last = fight;
@@ -7034,6 +7035,75 @@
       mobCountDisplay.textContent = `Enemies: ${countMobs(false)}`;
     }
 
+    /* --- Rematch (覚醒したボスとの再戦) --- */
+    // 最後のドラゴン（天空のドラゴン）をたおすと、前にたおしたボス 6 体が「覚醒」してよみがえる。
+    // いつもの部屋・すみかに入ると、強くなったボス（体力 2.5 倍・攻撃 1.6 倍・少し速い・金色）が目を覚ます。
+    // たおすと、そこでしか手に入らない伝説の武器と「伝説の本」（ふつうはつけられない力や、最大をこえるレベル）。
+    // どれをたおしたかは rematch.defeated（ボスの種類ごと。セーブする）
+    const AWAKEN_HEALTH = 2.5;
+    const AWAKEN_POWER = 1.6;
+    // items: [アイテム, 数, 力]  book: 伝説の本の力
+    const REMATCH_REWARDS = {
+      golem: { items: [['titan_hammer', 1], ['diamond', 10], ['golden_apple', 3]], book: { life_steal: 2 } },
+      magma_golem: { items: [['inferno_blade', 1, { fire_aspect: 3 }], ['diamond', 12], ['golden_apple', 3]], book: { thunder: 2 } },
+      shadow_golem: { items: [['void_armor', 1], ['diamond', 14], ['golden_apple', 4]], book: { swiftness: 2 } },
+      spider_queen: { items: [['queen_bow', 1, { power: 7 }], ['diamond', 10], ['ender_pearl', 8]], book: { multishot: 1 } },
+      mummy: { items: [['pharaoh_crown', 1], ['diamond', 12], ['emerald', 20]], book: { protection: 6 } },
+      nether_dragon: { items: [['dragon_blade', 1], ['diamond', 20], ['golden_apple', 6]], book: { sharpness: 7 } }
+    };
+    let rematch = { defeated: {} };
+    const rematchOpen = () => !!lairsDefeated.sky_dragon;
+    const awakenWaiting = type => rematchOpen() && !rematch.defeated[type];
+
+    // 目を覚ましたボスを、覚醒した姿にする
+    function awakenBoss(mob) {
+      mob.awakened = true;
+      mob.health = Math.round(mob.health * AWAKEN_HEALTH);
+      mob.maxHealth = mob.health;
+      mob.speed *= 1.2;
+      mob.awakenPower = AWAKEN_POWER;
+      mob.tint = new THREE.Color(1.3, 1.1, 0.55); // 金色に光る
+      setMobColor(mob, mob.tint);
+      mob.group.scale.multiplyScalar(1.12);
+      // 異世界のドラゴンは、こわした回復の結晶も元にもどる
+      if (mob.lair && mob.lair.crystals) {
+        mob.lair.crystals.forEach(c => { if (getBlock(c.x, c.y, c.z) !== DRAGON_CRYSTAL) replaceBlock(c.x, c.y, c.z, DRAGON_CRYSTAL); });
+      }
+    }
+
+    // 力つきの道具や本を、持ち物に入れる（いっぱいなら足もとに落とす）
+    function giveSpecial(id, ench) {
+      if (giveTool(id, maxUses(id), ench ? { ...ench } : undefined)) return;
+      spawnDroppedItem(id, 1, camera.position.clone().add(new THREE.Vector3(0, -1, 0)), null, 0.6, maxUses(id), ench ? { ...ench } : undefined);
+    }
+
+    function onAwakenedBossDefeated(mob) {
+      boss = null;
+      bossBar.hidden = true;
+      mobs.filter(m => m.minionOf === mob).forEach(m => killMob(m));
+      rematch.defeated[mob.type] = true;
+      const fight = recordBossDefeat(mob, `awakened_${mob.type}`);
+      const center = mob.group.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+      spawnParticles(center, 0xffd700, 80, 12);
+      spawnParticles(center, 0xffffff, 50, 9);
+      playSound('explosion');
+      playSound('levelup');
+      const reward = REMATCH_REWARDS[mob.type];
+      reward.items.forEach(([id, count, ench]) => {
+        if (maxUses(id)) giveSpecial(id, ench);
+        else giveOrDrop(id, count);
+      });
+      giveSpecial('enchanted_book', reward.book);
+      addXp(200);
+      const legend = ITEMS[reward.items[0][0]];
+      showToast(`🏆 覚醒した${mob.def.name}をたおした！（⏱️ ${formatDuration(fight)}）伝説の ${legend.emoji}${legend.name} と 📕「${enchText({ ench: reward.book })}」の本を手に入れた！`);
+      if (Object.keys(REMATCH_REWARDS).every(type => rematch.defeated[type])) {
+        setTimeout(() => pushAchievementToast('👑 覚醒したボスを、ぜんぶたおした！ 真のボスマスター！'), 2500);
+      }
+      checkAchievements();
+      saveGame();
+    }
+
     /* --- Bosses (ダンジョンのボス。倒すごとに次が目を覚ます) --- */
     let bossesDefeated = BOSS_TIERS.map(() => false);
     let chestsLooted = BOSS_TIERS.map(() => false);
@@ -7059,7 +7129,7 @@
       const emoji = mob.lair ? LAIRS[mob.lair.key].emoji : bossTierOf(mob).emoji;
       const state = mob.wetTimer > 0 ? ' 💧よわっている' : mob.enraged ? '（怒り）' : '';
       const crystals = mob.lair && mob.lair.crystals ? `　💎 回復の結晶 ×${aliveCrystals(mob.lair).length}` : '';
-      return `${emoji} ${mob.def.name}${state}${crystals}`;
+      return `${emoji} ${mob.awakened ? '⚡覚醒した' : ''}${mob.def.name}${state}${crystals}`;
     }
 
     function updateBossBar(mob) {
@@ -7072,9 +7142,12 @@
     function updateBossTrigger() {
       if (boss) return;
       const dungeon = dungeonAt(camera.position.x, camera.position.y - player.eye, camera.position.z);
-      if (!dungeon || bossesDefeated[dungeon.tier]) return;
+      if (!dungeon) return;
+      // たおしたボスは、最後のドラゴンをたおしたあと「覚醒」してよみがえる
+      const awaken = bossesDefeated[dungeon.tier] && awakenWaiting(BOSS_TIERS[dungeon.tier].type);
+      if (bossesDefeated[dungeon.tier] && !awaken) return;
       // 前のボスを倒すまで、次のボスは眠ったまま
-      if (dungeon.tier > 0 && !bossesDefeated[dungeon.tier - 1]) {
+      if (!awaken && dungeon.tier > 0 && !bossesDefeated[dungeon.tier - 1]) {
         if (performance.now() - (dungeon.lockNotice || 0) > 8000) {
           dungeon.lockNotice = performance.now();
           showToast(`🔒 ${MOB_DEFS[BOSS_TIERS[dungeon.tier - 1].type].name}を倒すまで、このボスは眠っている`);
@@ -7092,7 +7165,8 @@
       boss.fightSeconds = 0; // たおすまでの時間の記録
       noteMobSeen(boss.type);
       playSound('roar');
-      showToast(`${tier.emoji} ${boss.def.name}が目を覚ました！`);
+      if (awaken) awakenBoss(boss);
+      showToast(awaken ? `⚡ 覚醒した${boss.def.name}が目を覚ました！ 前よりずっと強い！` : `${tier.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
     }
 
@@ -7100,8 +7174,10 @@
     function updateLairTrigger() {
       if (boss) return;
       const lair = lairAt(camera.position.x, camera.position.y - player.eye, camera.position.z);
-      if (!lair || lairsDefeated[lair.key]) return;
+      if (!lair) return;
       const conf = LAIRS[lair.key];
+      const awaken = lairsDefeated[lair.key] && lair.key !== 'sky_dragon' && awakenWaiting(conf.type);
+      if (lairsDefeated[lair.key] && !awaken) return;
       const spawnY = MOB_DEFS[conf.type].dragon ? lair.y + 6 : lair.y;
       boss = createMob(conf.type, lair.x, spawnY, lair.z);
       boss.maxHealth = boss.health;
@@ -7118,7 +7194,8 @@
       boss.fightSeconds = 0; // たおすまでの時間の記録
       noteMobSeen(boss.type);
       playSound('roar');
-      showToast(`${conf.emoji} ${boss.def.name}が目を覚ました！`);
+      if (awaken) awakenBoss(boss);
+      showToast(awaken ? `⚡ 覚醒した${boss.def.name}が目を覚ました！ 前よりずっと強い！` : `${conf.emoji} ${boss.def.name}が目を覚ました！`);
       updateBossBar(boss);
     }
 
@@ -7141,7 +7218,7 @@
       mob.specialTimer -= delta;
       mob.summonTimer -= delta;
 
-      const power = (mob.enraged ? 1.35 : 1) * (mob.def.bossPower || 1);
+      const power = (mob.enraged ? 1.35 : 1) * (mob.def.bossPower || 1) * (mob.awakenPower || 1);
       const melee = () => Math.max(1, Math.round(mob.def.damage * power));
 
       if (mob.def.dragon) {
@@ -7434,23 +7511,29 @@
       bossName.textContent = bossLabel(mob);
       const slow = wet ? 0.45 : 1;
 
+      // 覚醒したボスは、攻撃が強く・技の間かくが短く・かならず仲間を呼ぶ
+      const pw = mob.awakenPower || 1;
+      const quick = mob.awakened ? 0.75 : 1;
+
       // 体力が半分を切ると怒って速くなる
       if (!mob.enraged && mob.health < mob.maxHealth / 2) {
         mob.enraged = true;
-        mob.speed = tier.enragedSpeed;
+        mob.speed = tier.enragedSpeed * (mob.awakened ? 1.2 : 1);
         mob.tint = new THREE.Color(...tier.tint);
+        if (mob.awakened) mob.tint.multiply(new THREE.Color(1.15, 1.05, 0.6));
         setMobColor(mob, mob.tint);
         playSound('roar');
         showToast(`${tier.emoji} ${mob.def.name}が怒った！`);
         updateBossBar(mob);
       }
 
-      // 仲間を呼ぶボス（やみのゴーレム）
-      if (tier.summons) {
+      // 仲間を呼ぶボス（やみのゴーレムと、覚醒したゴーレム）
+      const summonTier = tier.summons ? tier : mob.awakened ? { ...tier, summons: ['zombie', 'skeleton', 'spider'], summonSeconds: 16, maxMinions: 3 } : null;
+      if (summonTier) {
         mob.summonTimer -= delta;
         if (mob.summonTimer <= 0) {
-          mob.summonTimer = tier.summonSeconds * (mob.enraged ? 0.7 : 1);
-          summonMinions(mob, tier);
+          mob.summonTimer = summonTier.summonSeconds * (mob.enraged ? 0.7 : 1);
+          summonMinions(mob, summonTier);
         }
       }
 
@@ -7461,13 +7544,13 @@
         mob.arms.forEach(arm => { arm.rotation.x = -2.4 * lift; });
         if (mob.windup <= 0) {
           mob.arms.forEach(arm => { arm.rotation.x = 0; });
-          startShockwave(mob);
+          startShockwave(mob, Math.round(tier.waveDamage * pw));
         }
         return; // 予備動作中は動かない
       }
       mob.poundTimer -= delta;
       if (mob.poundTimer <= 0 && dist < 12 && !wet) {
-        mob.poundTimer = tier.pound[mob.enraged ? 1 : 0];
+        mob.poundTimer = tier.pound[mob.enraged ? 1 : 0] * quick;
         mob.windup = 0.8;
         return;
       }
@@ -7480,15 +7563,15 @@
       }
       if (dist < 3.2 && mob.attackCooldown <= 0) {
         mob.attackCooldown = wet ? 3.2 : 1.8;
-        damagePlayer(mob.def.damage, toPlayer.clone());
+        damagePlayer(Math.round(mob.def.damage * pw), toPlayer.clone());
         player.velocity.x += toPlayer.x * 8;
         player.velocity.z += toPlayer.z * 8;
         playSound('slam');
       }
       mob.throwTimer -= delta;
       if (flatDist > 7 && mob.throwTimer <= 0 && !wet) { // ぬれているあいだは岩を投げられない
-        mob.throwTimer = tier.throw[mob.enraged ? 1 : 0];
-        throwRock(mob, playerCenter, tier);
+        mob.throwTimer = tier.throw[mob.enraged ? 1 : 0] * quick;
+        throwRock(mob, playerCenter, { ...tier, rockDamage: Math.round(tier.rockDamage * pw) });
       }
     }
 
@@ -7596,6 +7679,7 @@
     }
 
     function onLairBossDefeated(mob) {
+      if (mob.awakened) return onAwakenedBossDefeated(mob);
       const lair = mob.lair;
       boss = null;
       lairsDefeated[lair.key] = true;
@@ -7618,9 +7702,11 @@
       bumpStat('gameCleared');
       setTimeout(() => pushAchievementToast('🎉 ゲームクリア！ 最後のドラゴンをたおした！'), 1500);
       setTimeout(() => showToast('🌀 まん中の柱のまわりに、表の世界への帰りのゲートが開いた。島のはしには、塔の島への門も'), 3500);
+      setTimeout(() => showToast('⚡ 遠くで、前にたおしたボスたちが「覚醒」してよみがえった…！ 部屋やすみかに行ってみよう'), 9000);
     }
 
     function onBossDefeated(mob) {
+      if (mob.awakened) return onAwakenedBossDefeated(mob);
       const index = bossTierIndex(mob);
       boss = null;
       bossesDefeated[index] = true;
@@ -8179,9 +8265,22 @@
         if (tryReflectFireball()) return;
         const hit = checkMobHit();
         if (hit) {
-          const fireAspect = enchLevel(inventory[selectedSlot], 'fire_aspect');
+          const held = inventory[selectedSlot];
+          const fireAspect = enchLevel(held, 'fire_aspect');
           if (fireAspect) setMobOnFire(hit.mob, fireAspect * 3); // 火属性
-          hitMob(hit.mob, heldAttackDamage(), hit.point);
+          let damage = heldAttackDamage();
+          // 雷撃: ときどき雷が落ちて、ダメージがふえる
+          const thunder = enchLevel(held, 'thunder');
+          if (thunder && Math.random() < thunder * 0.2) {
+            damage += 10 * thunder;
+            const p = hit.mob.group.position;
+            for (let i = 0; i < 6; i++) spawnParticles(new THREE.Vector3(p.x, p.y + i * 1.2, p.z), 0xe8f0ff, 6, 2);
+            playSound('explosion');
+          }
+          // 吸血: なぐるたびに体力が少し回復する
+          const lifeSteal = enchLevel(held, 'life_steal');
+          if (lifeSteal && !hit.mob.def.passive) healPlayer(lifeSteal);
+          hitMob(hit.mob, damage, hit.point);
           const weapon = heldItemDef();
           if (weapon && weapon.kind === 'sword') wearItem(selectedSlot);
           return;
@@ -8407,7 +8506,14 @@
       end_stone: { name: '天空の石', kind: 'block', block: END_STONE, color: '#e0dca0', emoji: '🟨' },
       sky_bricks: { name: '天空のレンガ', kind: 'block', block: SKY_BRICKS, color: '#a878b8', emoji: '🟪' },
       dragon_egg: { name: 'ドラゴンのたまご', kind: 'block', block: DRAGON_EGG, color: '#2a1238', emoji: '🥚' },
-      sky_sword: { name: '天空の剣', kind: 'sword', damage: 48, color: '#b07aff', emoji: '⚔️', stack: 1, durability: 2500 }
+      sky_sword: { name: '天空の剣', kind: 'sword', damage: 48, color: '#b07aff', emoji: '⚔️', stack: 1, durability: 2500 },
+      // 覚醒したボスだけが落とす、伝説の武器と防具
+      titan_hammer: { name: '大地のハンマー', kind: 'sword', damage: 52, color: '#c8a070', emoji: '🔨', stack: 1, durability: 2400, legend: true },
+      inferno_blade: { name: '灼熱の剣', kind: 'sword', damage: 56, color: '#ff5a1a', emoji: '🗡️', stack: 1, durability: 2400, legend: true },
+      void_armor: { name: '虚無のよろい', kind: 'armor', protection: 0.8, color: '#3a1a6a', emoji: '🦺', stack: 1, durability: 1600, legend: true },
+      queen_bow: { name: '女王の弓', kind: 'bow', color: '#c8ff6a', emoji: '🏹', stack: 1, durability: 1500, legend: true },
+      pharaoh_crown: { name: 'ファラオの王冠', kind: 'armor', protection: 0.78, color: '#ffd23a', emoji: '👑', stack: 1, durability: 1600, legend: true },
+      dragon_blade: { name: '竜王の剣', kind: 'sword', damage: 64, color: '#ff3a8a', emoji: '⚔️', stack: 1, durability: 3000, legend: true }
     };
     // 色つきブロックと染料
     const COLOR_LIST = [
@@ -8482,7 +8588,12 @@
       power: { name: '射撃ダメージ増加', max: 5, kinds: ['bow'], desc: '矢のダメージ +3' },
       flame: { name: 'フレイム', max: 1, kinds: ['bow'], desc: '矢で敵を燃やす' },
       infinity: { name: '無限', max: 1, kinds: ['bow'], desc: '矢がへらない' },
-      unbreaking: { name: '耐久力', max: 3, kinds: ['sword', 'pickaxe', 'armor', 'bow', 'shield', 'hoe', 'igniter'], desc: 'こわれにくい' }
+      unbreaking: { name: '耐久力', max: 3, kinds: ['sword', 'pickaxe', 'armor', 'bow', 'shield', 'hoe', 'igniter'], desc: 'こわれにくい' },
+      // ここから下は、覚醒したボスの「伝説の本」でしか手に入らない力（エンチャント台ではつけられない）
+      life_steal: { name: '吸血', max: 3, kinds: ['sword'], desc: 'なぐるたびに体力が回復する', special: true },
+      thunder: { name: '雷撃', max: 2, kinds: ['sword'], desc: 'ときどき雷が落ちて大ダメージ', special: true },
+      swiftness: { name: '俊足', max: 2, kinds: ['armor'], desc: '走るのが速くなる', special: true },
+      multishot: { name: '拡散', max: 1, kinds: ['bow'], desc: '矢を 3 本いっしょに撃つ', special: true }
     };
     const enchLevel = (item, key) => (item && item.ench && item.ench[key]) || 0;
     const enchantsFor = id => (ITEMS[id] ? Object.keys(ENCHANTS).filter(key => ENCHANTS[key].kinds.includes(ITEMS[id].kind)) : []);
@@ -9238,7 +9349,7 @@
         (item ? `${ITEMS[item.id].name}${enchText(item) ? `（✨${enchText(item)}）` : ''}` : '← 剣・ツルハシ・よろい・弓などを のせよう');
       enchantList.innerHTML = '';
       if (!item) return;
-      enchantsFor(item.id).forEach(key => {
+      enchantsFor(item.id).filter(key => !ENCHANTS[key].special).forEach(key => {
         const e = ENCHANTS[key];
         const now = enchLevel(item, key);
         const button = document.createElement('button');
@@ -9884,12 +9995,17 @@
       bowCooldown = 0.6;
       const dir = new THREE.Vector3();
       camera.getWorldDirection(dir);
-      const mesh = new THREE.Mesh(arrowGeo, arrowMat);
-      mesh.position.copy(camera.position).addScaledVector(dir, 0.5);
-      const vel = dir.multiplyScalar(26);
-      mesh.lookAt(mesh.position.clone().add(vel));
-      scene.add(mesh);
-      playerArrows.push({ mesh, vel, life: 3, damage: 8 + enchLevel(bow, 'power') * 3, flame: enchLevel(bow, 'flame') > 0 });
+      // 拡散: 左右にも 1 本ずつ、いっしょに飛ぶ
+      const spreads = enchLevel(bow, 'multishot') ? [0, -0.12, 0.12] : [0];
+      spreads.forEach(angle => {
+        const d = dir.clone().applyAxisAngle(camera.up, angle);
+        const mesh = new THREE.Mesh(arrowGeo, arrowMat);
+        mesh.position.copy(camera.position).addScaledVector(d, 0.5);
+        const vel = d.multiplyScalar(26);
+        mesh.lookAt(mesh.position.clone().add(vel));
+        scene.add(mesh);
+        playerArrows.push({ mesh, vel, life: 3, damage: 8 + enchLevel(bow, 'power') * 3, flame: enchLevel(bow, 'flame') > 0 });
+      });
       playSound('bow');
       wearItem(selectedSlot);
     }
@@ -11088,7 +11204,8 @@
     }
 
     function dungeonIcon(index) {
-      return bossesDefeated[index] ? '🏆' : BOSS_TIERS[index].emoji;
+      if (!bossesDefeated[index]) return BOSS_TIERS[index].emoji;
+      return awakenWaiting(BOSS_TIERS[index].type) ? '⚡' : '🏆'; // ⚡ は覚醒したボスが待っている
     }
 
     // 地下の建物の印。かごを壊したところは ✅
@@ -11307,7 +11424,7 @@
         }
       }
       updateEffectDisplay();
-      let speedFactor = 1 + effectLevel('speed') * 0.25; // 速さのポーション
+      let speedFactor = 1 + effectLevel('speed') * 0.25 + armorEnch('swiftness') * 0.12; // 速さのポーション・俊足のよろい
       if (inWater) speedFactor *= 0.5;
       if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
 
@@ -11692,6 +11809,9 @@
       { id: 'sky', emoji: '🌌', name: '天空の島へ', desc: '天空のゲートをくぐる', check: () => (stats.skyTrips || 0) >= 1 },
       { id: 'boss_sky', emoji: '🐲', name: 'ゲームクリア！', desc: '最後のドラゴン（天空のドラゴン）をたおす', check: () => !!lairsDefeated.sky_dragon },
       { id: 'dragon_egg', emoji: '🥚', name: 'ドラゴンのたまご', desc: 'ドラゴンのたまごを手に入れる', check: () => seenItems.has('dragon_egg') },
+      { id: 'rematch', emoji: '⚡', name: '覚醒をこえて', desc: '覚醒したボスを 1 体たおす', check: () => Object.keys(rematch.defeated).length >= 1 },
+      { id: 'legend', emoji: '🗡️', name: '伝説の武器', desc: '覚醒したボスから伝説の武器か防具を手に入れる', check: () => Object.keys(ITEMS).some(id => ITEMS[id].legend && seenItems.has(id)) },
+      { id: 'rematch_all', emoji: '🌟', name: '真のボスマスター', desc: '覚醒したボスを 6 体ぜんぶたおす', check: () => Object.keys(REMATCH_REWARDS).every(type => rematch.defeated[type]) },
       { id: 'nether', emoji: '🌋', name: '異世界へようこそ', desc: '異世界ゲートをくぐる', check: () => stats.portalTrips >= 1 },
       { id: 'level_10', emoji: '⭐', name: 'レベル 10', desc: '経験値のレベルを 10 にする', check: () => stats.maxLevel >= 10 },
       { id: 'level_30', emoji: '🌠', name: 'レベル 30', desc: '経験値のレベルを 30 にする', check: () => stats.maxLevel >= 30 },
@@ -11831,7 +11951,11 @@
     function codexBosses() {
       return [
         ...BOSS_TIERS.map((tier, i) => ({ type: tier.type, emoji: tier.emoji, where: `地下 ${-tier.floorY} m のダンジョン`, defeated: bossesDefeated[i] })),
-        ...Object.values(LAIRS).map(l => ({ type: l.type, emoji: l.emoji, where: l.hint, defeated: !!lairsDefeated[l.key] }))
+        ...Object.values(LAIRS).map(l => ({ type: l.type, emoji: l.emoji, where: l.hint, defeated: !!lairsDefeated[l.key] })),
+        // 覚醒したボス（最後のドラゴンをたおすと出てくる）
+        ...(rematchOpen() ? Object.keys(REMATCH_REWARDS).map(type => ({
+          type, emoji: '⚡', where: 'もとの部屋・すみか（最後のドラゴンのあと）', defeated: !!rematch.defeated[type], awakened: true
+        })) : [])
       ];
     }
 
@@ -11962,8 +12086,15 @@
       const cards = bosses.map(b => {
         const def = MOB_DEFS[b.type];
         const info = MOB_INFO[b.type] || {};
-        const rec = bossRecord(b.type);
+        const rec = bossRecord(b.awakened ? `awakened_${b.type}` : b.type);
         const seen = !!stats.seenMobs[b.type] || b.defeated;
+        const reward = b.awakened && REMATCH_REWARDS[b.type];
+        const name = `${b.awakened ? '⚡覚醒した' : ''}${def.name}`;
+        const health = b.awakened ? Math.round(def.health * AWAKEN_HEALTH) : def.health;
+        const damage = b.awakened ? Math.round(def.damage * AWAKEN_POWER) : def.damage;
+        const tip = reward
+          ? `前よりずっと強い。たおすと伝説の ${ITEMS[reward.items[0][0]].emoji}${ITEMS[reward.items[0][0]].name} と、📕「${enchText({ ench: reward.book })}」の本`
+          : info.tip || '';
         let record = '';
         if (rec) {
           record = `<br>⏱️ たおすまで: <b>${formatDuration(rec.fight)}</b>（はじめてたおしたのは、遊びはじめて ${formatDuration(rec.at)}）`;
@@ -11972,7 +12103,7 @@
           record = '<br>⏱️ たおすまで: 記録なし（記録の仕組みができる前にたおした）';
         }
         const body = seen
-          ? `<b>${b.emoji} ${def.name}</b>${b.defeated ? ' 🏆' : ''}<br>❤️ ${def.health}　⚔️ ${def.damage}<br>${info.tip || ''}${record}<br><span class="codex-sub">📍 ${b.where}</span>`
+          ? `<b>${b.emoji} ${name}</b>${b.defeated ? ' 🏆' : ''}<br>❤️ ${health}　⚔️ ${damage}<br>${tip}${record}<br><span class="codex-sub">📍 ${b.where}</span>`
           : `<b>？？？</b><br>まだ会っていない<br><span class="codex-sub">📍 ${b.where}</span>`;
         return `<div class="codex-card${b.defeated ? ' done' : ''}${seen ? '' : ' unseen locked'}"><div class="codex-icon">${mobIconHtml(b.type, seen)}</div><div>${body}</div></div>`;
       });
@@ -12030,8 +12161,9 @@
         ['🎒 手に入れたアイテムの種類', `${seenItems.size} / ${Object.keys(ITEMS).length}`],
         ['🏆 実績', `${ACHIEVEMENTS.filter(a => hasAchievement(a.id)).length} / ${ACHIEVEMENTS.length}`]
       ];
-      const bossRows = codexBosses().filter(b => bossRecord(b.type)).map(b =>
-        `<tr><td>${b.emoji} ${MOB_DEFS[b.type].name}</td><td>⏱️ ${formatDuration(bossRecord(b.type).fight)}（遊びはじめて ${formatDuration(bossRecord(b.type).at)} のとき）</td></tr>`);
+      const recKey = b => (b.awakened ? `awakened_${b.type}` : b.type);
+      const bossRows = codexBosses().filter(b => bossRecord(recKey(b))).map(b =>
+        `<tr><td>${b.emoji} ${b.awakened ? '覚醒した' : ''}${MOB_DEFS[b.type].name}</td><td>⏱️ ${formatDuration(bossRecord(recKey(b)).fight)}（遊びはじめて ${formatDuration(bossRecord(recKey(b)).at)} のとき）</td></tr>`);
       const killRows = Object.entries(stats.kills).filter(([type]) => MOB_DEFS[type]).sort((a, b) => b[1] - a[1]).slice(0, 8)
         .map(([type, n]) => `<tr><td>${mobEmoji(type)} ${MOB_DEFS[type].name}</td><td>${n} 体</td></tr>`);
       return `<table class="codex-table">${rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
@@ -12114,6 +12246,7 @@
         dayCount,            // 何日目か（赤い月の周期。古いセーブには無い＝1 日目から）
         bloodMoon,
         villages: villageState.map(v => v.pop), // 村ごとに住んでいる人数（古いセーブには無い＝みんないる）
+        rematch,             // 覚醒したボスをたおした記録（古いセーブには無い＝まだ）
         nether: nether ? packDim(nether) : pendingDimSaves[NETHER], // まだ行っていなければ null（読んだけれどまだ行っていなければ、そのまま書きもどす）
         sky: sky ? packDim(sky) : pendingDimSaves[SKY],          // 天空の島（同じ）
         savedAt: Date.now()
@@ -12160,6 +12293,7 @@
       stats = { ...defaultStats(), ...(data.stats || {}) };
       dayCount = data.dayCount || 1;
       if (data.bloodMoon) bloodMoon = { active: false, failed: false, kills: 0, warned: false, ...data.bloodMoon };
+      if (data.rematch && data.rematch.defeated) rematch = { defeated: { ...data.rematch.defeated } };
       if (Array.isArray(data.villages)) {
         villageState.forEach((v, i) => {
           if (typeof data.villages[i] === 'number') v.pop = THREE.MathUtils.clamp(data.villages[i], 0, villages[i].houses.length);
@@ -12392,7 +12526,15 @@
         SKY_PORTAL,
         SKY_GATEWAY,
         DRAGON_EGG,
-        END_STONE
+        END_STONE,
+        get rematch() { return rematch; },
+        rematchOpen,
+        awakenBoss,
+        REMATCH_REWARDS,
+        ENCHANTS,
+        shootPlayerArrow,
+        playerArrows,
+        renderCodexBosses: () => renderBossesTab()
       };
     }
 
