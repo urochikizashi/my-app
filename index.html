@@ -2426,6 +2426,31 @@
     textures.coralPink = coralTexture('#e05a9a', '#f88ac0', '#b03a78');
     textures.coralOrange = coralTexture('#e8862a', '#ffb05a', '#b8601a');
     textures.coralPurple = coralTexture('#8a4ad8', '#b07af0', '#6a2ab0');
+    // 大洞窟のブロック
+    textures.dripstone = createPixelTexture(ctx => {
+      speckle(ctx, '#9a8c7c', ['#8a7c6c', '#aa9c8c', '#b8ac9c'], 70);
+      // しずくが流れたあとの、細い線
+      ctx.fillStyle = '#c8bcaa';
+      [[3, 2, 5], [8, 6, 6], [12, 1, 4], [5, 10, 4]].forEach(([x, y, h]) => ctx.fillRect(x, y, 1, h));
+      ctx.fillStyle = '#6e6252';
+      for (let i = 0; i < 12; i++) ctx.fillRect(rand(0, 15), rand(0, 15), 1, 1);
+    });
+    function amethystTexture(base, light, dark, crystals) {
+      return createPixelTexture(ctx => {
+        speckle(ctx, base, [light, dark], 60);
+        ctx.fillStyle = light;
+        for (let i = 0; i < crystals; i++) {
+          const x = rand(1, 13);
+          const y = rand(1, 12);
+          ctx.fillRect(x, y, 2, 3);
+          ctx.fillRect(x + 1, y - 1, 1, 1);
+        }
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 4; i++) ctx.fillRect(rand(1, 14), rand(1, 14), 1, 1);
+      });
+    }
+    textures.amethyst = amethystTexture('#8a4ad8', '#c89aff', '#5a2aa0', 7);
+    textures.amethystBlock = amethystTexture('#a86ae8', '#d8b0ff', '#7a4ac0', 3);
     // 海底神殿のブロック
     textures.prismarine = createPixelTexture(ctx => speckle(ctx, '#5aa898', ['#4a9888', '#6ab8a8', '#3a8a7a', '#7ac8b0'], 90));
     textures.prismarineBricks = createPixelTexture(ctx => {
@@ -2475,7 +2500,8 @@
       'brewTop', 'brewSide', 'emeraldOre', 'bellTop', 'bellSide', 'dirtPath', 'pathSide', 'bookshelf',
       'endStone', 'skyBrick', 'frameTop', 'frameTopEye', 'frameSide', 'skyPortal', 'skyGateway', 'dragonEgg',
       'gravel', 'seagrass', 'kelp', 'coralPink', 'coralOrange', 'coralPurple',
-      'prismarine', 'prismarineBricks', 'darkPrismarine', 'seaLantern'
+      'prismarine', 'prismarineBricks', 'darkPrismarine', 'seaLantern',
+      'dripstone', 'amethyst', 'amethystBlock'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -2604,6 +2630,10 @@
       88: { name: 'プリズマリンレンガ', tiles: same('prismarineBricks'), tier: 1, drop: 'prismarine_bricks', map: '#62b0a0' },
       89: { name: 'ダークプリズマリン', tiles: same('darkPrismarine'), tier: 1, drop: 'dark_prismarine', map: '#2a5a4a' },
       90: { name: 'シーランタン', tiles: same('seaLantern'), tier: 0, drop: 'sea_lantern', light: true, map: '#d8f4ee' },
+      // 大洞窟
+      91: { name: '鍾乳石', tiles: same('dripstone'), tier: 1, drop: 'dripstone', map: '#9a8c7c' },
+      92: { name: '紫水晶', tiles: same('amethyst'), tier: 2, drop: 'amethyst_shard', light: true, map: '#a86ae8' },
+      93: { name: '紫水晶のブロック', tiles: same('amethystBlock'), tier: 1, drop: 'amethyst_block', light: true, map: '#c89aff' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2667,6 +2697,9 @@
     const PRISMARINE_BRICKS = 88;
     const DARK_PRISMARINE = 89;
     const SEA_LANTERN = 90;
+    const DRIPSTONE = 91;
+    const AMETHYST = 92;
+    const AMETHYST_BLOCK = 93;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -3676,6 +3709,7 @@
       // そのあとで、外の陸地と海を足す（乱数は別の順番を使うので、まん中には影響しない）
       HALF_SIZE = ARRAY_HALF;
       generateOuterLands();
+      generateCaverns(); // 大洞窟と渓谷は、さらにそのあと（別の乱数）
     }
 
     // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
@@ -4169,7 +4203,9 @@
       sky_tower: { name: '天空の塔', emoji: '🗼' },
       // 外の海
       shipwreck: { name: '沈没船', emoji: '⚓' },
-      monument: { name: '海底神殿', emoji: '🔱' }
+      monument: { name: '海底神殿', emoji: '🔱' },
+      // 地下の大洞窟
+      cavern: { name: '大洞窟', emoji: '🕳️' }
     };
     let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
     let spawners = [];         // { x, y, z, type, timer }
@@ -4435,6 +4471,7 @@
         bloodMoonsSurvived: 0, bloodMoonBestKills: 0, // 赤い月
         trades: 0, villagesFound: 0, villagesDefended: 0, booksApplied: 0, // 村
         oceanVisited: 0, shipwrecksFound: 0, monumentsFound: 0, // 外の海
+        cavernsFound: 0, // 大洞窟
         skyTrips: 0, gameCleared: 0, // 天空の島
         bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
         achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
@@ -5247,6 +5284,224 @@
       };
       undergroundSites.push(site);
       outerSites.push(site);
+    }
+
+    /* --- Great Caverns & Ravines (広くて深い大洞窟と渓谷) --- */
+    // 地下深くの大きな空洞（天井から鍾乳石、壁に光る紫水晶、底に地底湖か溶岩の池）と、
+    // 地表から深くまで切れこんだ渓谷。生成のいちばん最後に、別の乱数で作る（前からのワールドの、ほかの物の場所がずれないように）。
+    // ダンジョン・すみか・地下の建物・地上の建物・村からは、はなす。
+    // 前からのセーブで、プレイヤーが掘ったり建てたりした場所のそばにも作らない（家の下に穴があかないように）
+    const caverns = []; // テスト用
+    const ravines = [];
+    let caveGuard = null; // { boxes, touched3d, touched2d }
+
+    function buildCaveGuard() {
+      const boxes = [];
+      DUNGEONS.forEach(d => {
+        boxes.push({ x0: d.x - d.half - 3, x1: d.x + d.half + 3, y0: d.floorY - 3, y1: d.floorY + d.height + 3, z0: d.z - d.half - 3, z1: d.z + d.half + 3 });
+        if (d.entrance) boxes.push({ x0: Math.min(d.x, d.entrance.x) - 2, x1: Math.max(d.x, d.entrance.x) + 2, y0: d.floorY - 3, y1: d.entrance.y + 6, z0: d.z - 4, z1: d.z + 4 });
+      });
+      undergroundSites.forEach(site => site.boxes.forEach(b => boxes.push({ x0: b.x0 - 3, x1: b.x1 + 3, y0: b.y0 - 3, y1: b.y1 + 3, z0: b.z0 - 3, z1: b.z1 + 3 })));
+      bossLairs.forEach(l => {
+        if (l.dim === OVERWORLD) boxes.push({ x0: l.x - l.half - 3, x1: l.x + l.half + 3, y0: l.y - 4, y1: l.y + l.height + 3, z0: l.z - l.half - 3, z1: l.z + l.half + 3 });
+      });
+      structuresPlaced.forEach(st => boxes.push({ x0: st.x - 9, x1: st.x + 9, y0: st.y - 14, y1: st.y + 14, z0: st.z - 9, z1: st.z + 9 }));
+      // プレイヤーがさわった場所（8 マスごとのます目）
+      const touched3d = new Set();
+      const touched2d = new Set();
+      Object.keys((savedGame && savedGame.changes) || {}).forEach(key => {
+        const [x, y, z] = key.split(',').map(Number);
+        touched3d.add(`${x >> 3},${y >> 3},${z >> 3}`);
+        touched2d.add(`${x >> 3},${z >> 3}`);
+      });
+      if (savedGame && savedGame.spawnPoint) touched2d.add(`${Math.round(savedGame.spawnPoint.x) >> 3},${Math.round(savedGame.spawnPoint.z) >> 3}`);
+      return { boxes, touched3d, touched2d };
+    }
+
+    const inGuardBox = (x, y, z) => caveGuard.boxes.some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 && z >= b.z0 && z <= b.z1);
+    // まわり 1 ます（8 マス）にプレイヤーのさわった所があるか
+    function nearPlayerWork(x, y, z, columnOnly) {
+      const bx = x >> 3, by = y >> 3, bz = z >> 3;
+      for (let i = -1; i <= 1; i++) {
+        for (let k = -1; k <= 1; k++) {
+          if (columnOnly) {
+            if (caveGuard.touched2d.has(`${bx + i},${bz + k}`)) return true;
+          } else {
+            for (let j = -1; j <= 1; j++) if (caveGuard.touched3d.has(`${bx + i},${by + j},${bz + k}`)) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function generateCaverns() {
+      const savedRng = worldRngState;
+      worldRngState = (worldSeed * 2246822519 + 777) | 0;
+      caveGuard = buildCaveGuard();
+      // つなぐトンネルは、守る場所と水と、プレイヤーのさわった所をけずらない
+      carveRule = (x, y, z) => !touchesWater(x, y, z) && !inGuardBox(x, y, z) && !nearPlayerWork(x, y, z, false);
+
+      const inCore = Math.max(3, Math.round(2 * WORLD_AREA) + 1); // まん中に（321×321 なら 9）
+      const inOuter = 5;                                        // 外の陸地の下に
+      let placedCore = 0;
+      let placedOuter = 0;
+      for (let attempt = 0; attempt < 1500 && (placedCore < inCore || placedOuter < inOuter); attempt++) {
+        const outer = placedCore >= inCore;
+        const lim = (outer ? ARRAY_HALF : CORE_HALF) - 24;
+        const cx = worldRandInt(-lim, lim);
+        const cz = worldRandInt(-lim, lim);
+        if (outer && outerDistance(cx, cz) < 24) continue;
+        const rx = worldRandInt(12, 19);
+        const ry = worldRandInt(6, 9);
+        const cy = worldRandInt(-29, -18);
+        const bottom = cy - ry;
+        const top = cy + ry + 3;
+        if (bottom < BEDROCK_Y + 3 || Math.hypot(cx, cz) < rx + 16) continue;
+        if (caverns.some(c => Math.hypot(cx - c.x, cz - c.z) < c.rx + rx + 24)) continue;
+        // 地表から十分に深く、守る場所とプレイヤーのさわった所にかからない所
+        let ok = true;
+        for (let x = cx - rx - 2; x <= cx + rx + 2 && ok; x += 3) {
+          for (let z = cz - rx - 2; z <= cz + rx + 2 && ok; z += 3) {
+            if (surfaceHeight(x, z) - 6 < top) ok = false;
+            for (let y = bottom - 1; y <= top && ok; y += 3) ok = !inGuardBox(x, y, z);
+          }
+        }
+        for (let x = cx - rx; x <= cx + rx && ok; x += 8) {
+          for (let z = cz - rx; z <= cz + rx && ok; z += 8) {
+            for (let y = bottom; y <= top && ok; y += 8) ok = !nearPlayerWork(x, y, z, false);
+          }
+        }
+        if (!ok) continue;
+        carveCavern(cx, cy, cz, rx, ry);
+        if (outer) placedOuter++;
+        else placedCore++;
+      }
+
+      const ravines = Math.max(2, Math.round(2 * WORLD_SCALE)) + 3;
+      for (let i = 0, attempt = 0; i < ravines && attempt < 400; attempt++) {
+        const lim = ARRAY_HALF - 20;
+        const x = worldRandInt(-lim, lim);
+        const z = worldRandInt(-lim, lim);
+        if (Math.hypot(x, z) < 30 || oceanFactor(x, z) > 0 || surfaceHeight(x, z) <= WATER_LEVEL + 1) continue;
+        if (carveRavine(x, z)) i++;
+      }
+      carveRule = null;
+      caveGuard = null;
+      worldRngState = savedRng;
+    }
+
+    // 大洞窟。だ円の形を少しでこぼこさせて、床は平らぎみにする
+    function carveCavern(cx, cy, cz, rx, ry) {
+      const floorY = cy - Math.floor(ry * 0.55);
+      const deep = cy < -26; // 深いところは溶岩の池、浅いところは地底湖
+      for (let x = cx - rx - 2; x <= cx + rx + 2; x++) {
+        for (let z = cz - rx - 2; z <= cz + rx + 2; z++) {
+          for (let y = floorY; y <= cy + ry + 2; y++) {
+            const n = 0.18 * Math.sin(x * 0.31 + cz) * Math.cos(z * 0.27 + cx) + 0.12 * Math.sin(y * 0.5 + x * 0.2 + z * 0.13);
+            const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rx) ** 2;
+            if (d > 1 + n) continue;
+            const id = getBlock(x, y, z);
+            if (id === 0 || id === BEDROCK || BLOCKS[id].water || touchesWater(x, y, z)) continue;
+            clearBlockData(x, y, z);
+          }
+        }
+      }
+      // 底の池
+      const px = cx + worldRandInt(-3, 3);
+      const pz = cz + worldRandInt(-3, 3);
+      const pr = rx * (0.3 + worldRandom() * 0.2);
+      for (let x = Math.floor(px - pr); x <= Math.ceil(px + pr); x++) {
+        for (let z = Math.floor(pz - pr); z <= Math.ceil(pz + pr); z++) {
+          if (Math.hypot(x - px, z - pz) > pr || getBlock(x, floorY, z) !== 0) continue;
+          if (!isSolid(x, floorY - 2, z)) continue;
+          forceBlock(x, floorY - 1, z, deep ? LAVA : WATER);
+          forceBlock(x, floorY, z, deep ? 0 : WATER);
+        }
+      }
+      // 池のふちが空いていたら、こぼれないように石でふさぐ
+      for (let x = Math.floor(px - pr) - 1; x <= Math.ceil(px + pr) + 1; x++) {
+        for (let z = Math.floor(pz - pr) - 1; z <= Math.ceil(pz + pr) + 1; z++) {
+          for (const y of [floorY - 1, floorY]) {
+            const id = getBlock(x, y, z);
+            if (FLUIDS[id] || id !== 0) continue;
+            const nextToPool = SIDES.some(([dx, dz]) => FLUIDS[getBlock(x + dx, y, z + dz)]) || FLUIDS[getBlock(x, y + 1, z)];
+            if (nextToPool && y === floorY - 1) forceBlock(x, y, z, STONE);
+          }
+        }
+      }
+      // 鍾乳石・石筍・紫水晶・鉱石
+      for (let x = cx - rx - 2; x <= cx + rx + 2; x++) {
+        for (let z = cz - rx - 2; z <= cz + rx + 2; z++) {
+          for (let y = floorY - 1; y <= cy + ry + 3; y++) {
+            const id = getBlock(x, y, z);
+            if (id !== STONE && id !== DIRT) continue;
+            const below = getBlock(x, y - 1, z);
+            const above = getBlock(x, y + 1, z);
+            const r = worldRandom();
+            if (below === 0 && r < 0.05) {
+              const len = worldRandInt(1, 4); // 天井から下がる鍾乳石
+              for (let k = 1; k <= len && getBlock(x, y - k, z) === 0 && getBlock(x, y - k - 1, z) === 0; k++) forceBlock(x, y - k, z, DRIPSTONE);
+            } else if (above === 0 && y >= floorY - 1 && r < 0.03 && !FLUIDS[getBlock(x, y + 1, z)]) {
+              const len = worldRandInt(1, 3); // 床から生える石筍
+              for (let k = 1; k <= len && getBlock(x, y + k, z) === 0 && getBlock(x, y + k + 1, z) === 0; k++) forceBlock(x, y + k, z, DRIPSTONE);
+            } else if ((below === 0 || above === 0 || SIDES.some(([dx, dz]) => getBlock(x + dx, y, z + dz) === 0)) && r > 0.975) {
+              // 空洞に面したかべ: 紫水晶か、めずらしい鉱石
+              const q = worldRandom();
+              forceBlock(x, y, z, q < 0.55 ? AMETHYST : q < 0.75 ? IRON_ORE : q < 0.9 ? GOLD_ORE : DIAMOND_ORE);
+            }
+          }
+        }
+      }
+      // まわりの洞窟とつなぐトンネル
+      for (let i = 0; i < 3; i++) {
+        const a = worldRandom() * Math.PI * 2;
+        carveWorm(cx + Math.cos(a) * rx * 0.8, floorY + 2, cz + Math.sin(a) * rx * 0.8, worldRandInt(30, 60), false);
+      }
+      const site = {
+        kind: 'cavern', x: cx, y: floorY, z: cz, half: rx,
+        boxes: [{ x0: cx - Math.round(rx * 0.7), x1: cx + Math.round(rx * 0.7), y0: floorY - 1, y1: cy + ry, z0: cz - Math.round(rx * 0.7), z1: cz + Math.round(rx * 0.7) }]
+      };
+      undergroundSites.push(site);
+      caverns.push({ x: cx, y: cy, z: cz, rx, ry });
+    }
+
+    // 渓谷: 地表から深くまで、細長く切れこんだ谷。かべには鉱石が見えている
+    function carveRavine(sx, sz) {
+      const length = worldRandInt(40, 70);
+      const angle = worldRandom() * Math.PI * 2;
+      const bottom = worldRandInt(-30, -20);
+      const cells = [];
+      for (let step = 0; step < length; step++) {
+        const bend = Math.sin(step * 0.08) * 0.5;
+        const x = Math.round(sx + Math.cos(angle + bend) * step);
+        const z = Math.round(sz + Math.sin(angle + bend) * step);
+        const width = 1 + Math.round(2 * Math.sin((step / length) * Math.PI)); // まん中が広い
+        cells.push({ x, z, width, step });
+      }
+      // 守る場所・水・プレイヤーのさわった所にかかるなら、その渓谷は作らない
+      for (const { x, z, width } of cells) {
+        if (!isInsideWorld(x, z) || Math.abs(x) > ARRAY_HALF - 6 || Math.abs(z) > ARRAY_HALF - 6) return false;
+        const top = surfaceHeight(x, z);
+        if (top <= WATER_LEVEL + 1 || oceanFactor(x, z) > 0) return false;
+        if (nearPlayerWork(x, 0, z, true)) return false;
+        for (let y = bottom; y <= top + 8; y += 4) if (inGuardBox(x, y, z)) return false;
+      }
+      ravines.push({ x: sx, z: sz, angle, length, bottom });
+      for (const { x, z, width, step } of cells) {
+        const ends = Math.min(step, length - 1 - step); // 両はしは浅い
+        const floor = Math.min(bottom + Math.max(0, 12 - ends * 2), surfaceHeight(x, z) - 3);
+        for (let w = -width; w <= width; w++) {
+          const cx = Math.round(x - Math.sin(angle) * w);
+          const cz = Math.round(z + Math.cos(angle) * w);
+          const top = Math.max(surfaceHeight(cx, cz), WATER_LEVEL) + 8;
+          for (let y = floor + Math.abs(w); y <= top; y++) {
+            const id = getBlock(cx, y, cz);
+            if (id === 0 || id === BEDROCK || BLOCKS[id].water || touchesWater(cx, y, cz)) continue;
+            clearBlockData(cx, y, cz);
+          }
+        }
+      }
+      return true;
     }
 
     /* --- Build the World (ワールドを作る) --- */
@@ -9250,6 +9505,10 @@
       prismarine_bricks: { name: 'プリズマリンレンガ', kind: 'block', block: PRISMARINE_BRICKS, color: '#62b0a0', emoji: '🟦' },
       dark_prismarine: { name: 'ダークプリズマリン', kind: 'block', block: DARK_PRISMARINE, color: '#2a5a4a', emoji: '🟩' },
       sea_lantern: { name: 'シーランタン', kind: 'block', block: SEA_LANTERN, color: '#d8f4ee', emoji: '💠' },
+      // 大洞窟のもの
+      dripstone: { name: '鍾乳石', kind: 'block', block: DRIPSTONE, color: '#9a8c7c', emoji: '🪨' },
+      amethyst_shard: { name: '紫水晶のかけら', kind: 'material', color: '#a86ae8', emoji: '🔮' },
+      amethyst_block: { name: '紫水晶のブロック', kind: 'block', block: AMETHYST_BLOCK, color: '#c89aff', emoji: '🟪' },
       // 海底神殿の宝。三叉の槍は水の中だと 1.5 倍の力（aquatic）。海のハートは食べると 10 分「海の加護」
       trident: { name: '三叉の槍', kind: 'sword', damage: 14, aquatic: true, color: '#3ac8b8', emoji: '🔱', stack: 1, durability: 600 },
       heart_of_sea: { name: '海のハート', kind: 'food', effect: 'sea', seconds: 600, color: '#2a6ae8', emoji: '💙' },
@@ -9626,6 +9885,7 @@
       shapeless('black_dye', 2, ['coal']),
       shapeless('black_dye', 2, ['ink_sac']),
       shaped('prismarine', 1, ['SS', 'SS'], { S: 'prismarine_shard' }),
+      shaped('amethyst_block', 1, ['AA', 'AA'], { A: 'amethyst_shard' }),
       shaped('prismarine_bricks', 4, ['PP', 'PP'], { P: 'prismarine' }),
       shaped('dark_prismarine', 1, ['SSS', 'SIS', 'SSS'], { S: 'prismarine_shard', I: 'ink_sac' }),
       shaped('sea_lantern', 1, ['.S.', 'SLS', '.S.'], { S: 'prismarine_shard', L: 'lamp' }),
@@ -11862,7 +12122,7 @@
           feetY >= b.y0 - 0.5 && feetY <= b.y1 + 0.5);
         if (!inside) return;
         sitesFound[i] = true;
-        bumpStat({ village: 'villagesFound', shipwreck: 'shipwrecksFound', monument: 'monumentsFound' }[site.kind] || 'ruinsFound');
+        bumpStat({ village: 'villagesFound', shipwreck: 'shipwrecksFound', monument: 'monumentsFound', cavern: 'cavernsFound' }[site.kind] || 'ruinsFound');
         const kind = SITE_KINDS[site.kind];
         showToast(`${kind.emoji} ${kind.name}を見つけた！ マップに印がついた`);
         playSound('ore');
@@ -12595,6 +12855,9 @@
       { id: 'village_hero', emoji: '🛡️', name: '村の英雄', desc: '赤い月の夜に村を守りぬく', check: () => (stats.villagesDefended || 0) >= 1 },
       { id: 'ocean', emoji: '🌊', name: '大海原へ', desc: '外の海に出る', check: () => !!stats.oceanVisited },
       { id: 'shipwreck', emoji: '⚓', name: '海のトレジャーハンター', desc: '沈没船を見つける', check: () => (stats.shipwrecksFound || 0) >= 1 },
+      { id: 'cavern', emoji: '🕳️', name: '地底の大空間', desc: '大洞窟を見つける', check: () => (stats.cavernsFound || 0) >= 1 },
+      { id: 'cavern_5', emoji: '🔦', name: '大洞窟の探検家', desc: '大洞窟を 5 つ見つける', check: () => (stats.cavernsFound || 0) >= 5 },
+      { id: 'amethyst', emoji: '🔮', name: '紫水晶', desc: '紫水晶のかけらを手に入れる', check: () => seenItems.has('amethyst_shard') },
       { id: 'monument', emoji: '🔱', name: '海の底の神殿', desc: '海底神殿を見つける', check: () => (stats.monumentsFound || 0) >= 1 },
       { id: 'trident', emoji: '🔱', name: '海の王の槍', desc: '三叉の槍を手に入れる', check: () => seenItems.has('trident') },
       { id: 'fish', emoji: '🐟', name: 'おさかな天国', desc: '魚をつかまえる', check: () => seenItems.has('raw_fish') },
@@ -13264,6 +13527,8 @@
         get dimensions() { return dimensions; },
         spawnGuardians: updateGuardianSpawning,
         spawnSeaLife: updateSeaLifeSpawning,
+        caverns,
+        ravines,
         isWaterAt,
         spawnSurfaceMob,
         spawnUndergroundMob,
