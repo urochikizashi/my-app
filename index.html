@@ -4454,6 +4454,13 @@
         hint: '異世界の、黒曜石の広場',
         loot: [['dragon_sword', 1], ['dragon_scale', 8], ['glowstone', 24], ['diamond', 16], ['golden_apple', 5]]
       },
+      // 最初の海底神殿の地下の、いちばん奥の大広間。specials は力つきの道具・本
+      elder_guardian: {
+        key: 'elder_guardian', type: 'elder_guardian', emoji: '👁️',
+        hint: '海底神殿の地下（迷路の奥の大広間）',
+        loot: [['heart_of_sea', 2], ['prismarine_shard', 24], ['diamond', 10], ['golden_apple', 3]],
+        specials: [['sea_king_trident', { loyalty: 3, impaling: 3 }], ['enchanted_book', { channeling: 1 }], ['enchanted_book', { riptide: 3 }]]
+      },
       // 最後のドラゴン。天空の祭壇のゲートから行く「天空の島」のまん中にいる
       sky_dragon: {
         key: 'sky_dragon', type: 'sky_dragon', emoji: '🐲',
@@ -5231,12 +5238,175 @@
       }
       placeLootChest(cx - h + 2, fy + 1, cz - h + 2, LOOT.monument);
       placeLootChest(cx + h - 2, fy + 1, cz + h - 2, LOOT.monument);
+      // 中の迷路と地下は worldRandom を使わない（前からのワールドの、ほかの物の場所がずれないように）
+      const chamberFloor = buildMonumentInside(cx, fy, cz);
       const site = {
         kind: 'monument', x: cx, y: fy + 1, z: cz, half: h, outer: true,
-        boxes: [{ x0: cx - h, x1: cx + h, y0: fy, y1: fy + 13, z0: cz - h, z1: cz + h }]
+        boxes: [{ x0: cx - h, x1: cx + h, y0: fy, y1: fy + 13, z0: cz - h, z1: cz + h },
+          { x0: cx - h - 1, x1: cx + h + 1, y0: chamberFloor - 1, y1: fy - 1, z0: cz - h - 1, z1: cz + h + 1 }]
       };
       undergroundSites.push(site);
       outerSites.push(site);
+    }
+
+    // 神殿の場所から決まる乱数（worldRandom とは別。同じワールドなら毎回同じ形になる）
+    function siteRandom(x, z) {
+      let a = (Math.imul(x, 73856093) ^ Math.imul(z, 19349663) ^ worldSeed) >>> 0;
+      return () => {
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    // 中身を決めたチェスト（worldRandom を使わない）
+    function placeFixedChest(x, y, z, items) {
+      forceBlock(x, y, z, STORAGE_CHEST);
+      structureLoot.push({ key: blockKey(x, y, z), items });
+    }
+
+    // 海底神殿の中: 1 階は「内がわの壁」と「すみの小部屋」でぐるっと回る通路に。
+    // 床の下に迷路の地下 1 階、そのさらに下に大広間（最初の神殿だけ、長老の番人のすみか）。大広間の床の高さを返す
+    const ELDER_HALF = 9;
+    function buildMonumentInside(cx, fy, cz) {
+      const h = MONUMENT_HALF;
+      const rnd = siteRandom(cx, cz);
+      const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+      // --- 1 階: 内がわの壁（入口と同じ所に穴をあけない。ぐるっと回らないと まん中に入れない）
+      for (let i = -6; i <= 6; i++) {
+        for (let y = fy + 1; y <= fy + 5; y++) {
+          for (const [x, z] of [[cx + i, cz - 6], [cx + i, cz + 6], [cx - 6, cz + i], [cx + 6, cz + i]]) {
+            if (getBlock(x, y, z) !== DARK_PRISMARINE && getBlock(x, y, z) !== SEA_LANTERN) forceBlock(x, y, z, PRISMARINE_BRICKS);
+          }
+        }
+      }
+      for (const [x, z] of [[3, -6], [4, -6], [-3, 6], [-4, 6], [-6, -3], [-6, -4], [6, 3], [6, 4]]) {
+        for (let y = fy + 1; y <= fy + 3; y++) forceWet(cx + x, y, cz + z);
+      }
+      // すみの小部屋 4 つ（入口は 1 つずつ）。2 つには前からの宝箱、のこり 2 つにも小さな宝箱
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        for (let i = 7; i <= h - 1; i++) {
+          for (let y = fy + 1; y <= fy + 5; y++) {
+            forceBlock(cx + sx * 7, y, cz + sz * i, PRISMARINE_BRICKS);
+            forceBlock(cx + sx * i, y, cz + sz * 7, PRISMARINE_BRICKS);
+          }
+        }
+        const doorAlongX = sx === sz;
+        for (let y = fy + 1; y <= fy + 2; y++) {
+          if (doorAlongX) forceWet(cx + sx * 9, y, cz + sz * 7);
+          else forceWet(cx + sx * 7, y, cz + sz * 9);
+        }
+        forceBlock(cx + sx * 8, fy + 4, cz + sz * 8, SEA_LANTERN);
+        if (sx !== sz) {
+          placeFixedChest(cx + sx * 9, fy + 1, cz + sz * 9, [
+            { id: 'prismarine_shard', count: ri(4, 10) }, { id: 'raw_fish', count: ri(2, 5) }, { id: 'gold', count: ri(1, 4) }
+          ]);
+        }
+      }
+
+      // --- 地下 1 階: 迷路（3 マスの通路 5×5 部屋。かべは 1 マス）
+      const mazeTop = fy - 4;    // 天井
+      const mazeFloor = fy - 9;  // 床（大広間の天井をかねる）
+      for (let dx = -h - 1; dx <= h + 1; dx++) {
+        for (let dz = -h - 1; dz <= h + 1; dz++) {
+          for (let y = mazeFloor; y <= mazeTop; y++) forceBlock(cx + dx, y, cz + dz, Math.max(Math.abs(dx), Math.abs(dz)) > h ? PRISMARINE : PRISMARINE_BRICKS);
+        }
+      }
+      const N = 5;
+      const cellX = i => cx - 8 + i * 4;
+      const cellZ = j => cz - 8 + j * 4;
+      const openCell = (x, z) => {
+        for (let ddx = -1; ddx <= 1; ddx++) for (let ddz = -1; ddz <= 1; ddz++) for (let y = mazeFloor + 1; y <= mazeTop - 1; y++) forceWet(x + ddx, y, z + ddz);
+      };
+      const links = new Set();
+      const linkKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+      const stack = [N * 2 + 1]; // 入口は (1, 2)
+      const visited = new Set(stack);
+      while (stack.length) {
+        const c = stack[stack.length - 1];
+        const i = c % N;
+        const j = Math.floor(c / N);
+        const next = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => [i + a, j + b])
+          .filter(([a, b]) => a >= 0 && b >= 0 && a < N && b < N && !visited.has(b * N + a));
+        if (!next.length) { stack.pop(); continue; }
+        const [a, b] = next[Math.floor(rnd() * next.length)];
+        links.add(linkKey(c, b * N + a));
+        visited.add(b * N + a);
+        stack.push(b * N + a);
+      }
+      // 行き止まりだらけにならないように、近道を 3 つ
+      for (let k = 0; k < 3; k++) {
+        const c = ri(0, N * N - 1);
+        const i = c % N;
+        if (i < N - 1) links.add(linkKey(c, c + 1));
+      }
+      for (let c = 0; c < N * N; c++) {
+        const i = c % N;
+        const j = Math.floor(c / N);
+        openCell(cellX(i), cellZ(j));
+        forceBlock(cellX(i), mazeTop, cellZ(j), SEA_LANTERN);
+      }
+      links.forEach(key => {
+        const [a, b] = key.split('-').map(Number);
+        const x = (cellX(a % N) + cellX(b % N)) / 2;
+        const z = (cellZ(Math.floor(a / N)) + cellZ(Math.floor(b / N))) / 2;
+        openCell(x, z);
+      });
+      // 入口: 1 階のまん中の部屋から、たて穴で下りる
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) for (let y = mazeTop; y <= fy; y++) forceWet(cellX(1) + dx, y, cellZ(2) + dz);
+      }
+      // 出口（入口からいちばん遠い部屋）: 床に穴があいていて、下の大広間に出る
+      const dist = new Map([[N * 2 + 1, 0]]);
+      const queue = [N * 2 + 1];
+      while (queue.length) {
+        const c = queue.shift();
+        [c + 1, c - 1, c + N, c - N].forEach(n => {
+          if (n < 0 || n >= N * N || dist.has(n) || !links.has(linkKey(c, n))) return;
+          if (Math.abs((n % N) - (c % N)) > 1) return;
+          dist.set(n, dist.get(c) + 1);
+          queue.push(n);
+        });
+      }
+      const exit = [...dist.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const ex = cellX(exit % N);
+      const ez = cellZ(Math.floor(exit / N));
+
+      // --- 地下 2 階: 大広間（柱 4 本はビームをよけるかべ）
+      const floorY = Math.max(fy - 16, BEDROCK_Y + 2);
+      const r = ELDER_HALF;
+      for (let dx = -r - 1; dx <= r + 1; dx++) {
+        for (let dz = -r - 1; dz <= r + 1; dz++) {
+          const wall = Math.max(Math.abs(dx), Math.abs(dz)) > r;
+          for (let y = floorY; y < mazeFloor; y++) {
+            if (y === floorY || wall) forceBlock(cx + dx, y, cz + dz, DARK_PRISMARINE);
+            else forceWet(cx + dx, y, cz + dz);
+          }
+        }
+      }
+      for (const [px, pz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) {
+        for (let y = floorY + 1; y < mazeFloor; y++) {
+          for (const [ox, oz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) forceBlock(cx + px + ox - (px > 0 ? 1 : 0), y, cz + pz + oz - (pz > 0 ? 1 : 0), y === floorY + 3 ? SEA_LANTERN : PRISMARINE_BRICKS);
+        }
+      }
+      for (let i = -r + 2; i <= r - 2; i += 4) {
+        for (const [x, z] of [[cx + i, cz - r - 1], [cx + i, cz + r + 1], [cx - r - 1, cz + i], [cx + r + 1, cz + i]]) forceBlock(x, floorY + 2, z, SEA_LANTERN);
+      }
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) forceWet(ex + dx, mazeFloor, ez + dz);
+      }
+      // ボスの宝箱は、下りてきた穴の反対がわ
+      const chestX = cx - Math.sign(ex - cx || 1) * (r - 1);
+      const chestZ = cz - Math.sign(ez - cz || 1) * (r - 1);
+      if (!bossLairs.some(l => l.key === 'elder_guardian')) {
+        registerLair('elder_guardian', OVERWORLD, cx, floorY + 1, cz, r, mazeFloor - floorY - 1, { x: chestX, y: floorY + 1, z: chestZ });
+      } else {
+        // 2 つ目からの神殿は、ボスのいない宝物庫
+        placeFixedChest(chestX, floorY + 1, chestZ, [
+          { id: 'gold', count: ri(6, 12) }, { id: 'diamond', count: ri(1, 3) }, { id: 'prismarine_shard', count: ri(8, 16) }, { id: 'heart_of_sea', count: 1 }
+        ]);
+      }
+      return floorY;
     }
 
     // 水の中のセルを空ける（水面より下は水、上は空気）
@@ -5777,7 +5947,7 @@
       const e = player.effects[name];
       return e && e.time > 0 ? e.level : 0;
     };
-    const EFFECT_LABELS = { strength: '💪 力', speed: '💨 速さ', jump: '🦘 跳躍', night: '👁️ 暗視', water: '🫧 水中呼吸' };
+    const EFFECT_LABELS = { strength: '💪 力', speed: '💨 速さ', jump: '🦘 跳躍', night: '👁️ 暗視', water: '🫧 水中呼吸', fatigue: '🐌 採掘低下' };
 
     // ポーションを飲む
     function drinkPotion(p) {
@@ -6221,6 +6391,34 @@
       return { group, head, legs: [], tail, spikes };
     }
 
+    // 長老の番人: 海の番人をうんと大きく、白っぽくしたもの。大きな目と、のびるトゲ
+    function buildElderGuardian() {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xc8c0a8 });
+      const stripeMat = new THREE.MeshLambertMaterial({ color: 0x8a9a88 });
+      const finMat = new THREE.MeshLambertMaterial({ color: 0xb87a5a });
+      const head = addBox(group, [2.0, 1.8, 2.0], bodyMat, [0, 1.0, 0]);
+      addBox(group, [2.04, 0.25, 2.04], stripeMat, [0, 1.35, 0]);
+      addBox(group, [2.04, 0.25, 2.04], stripeMat, [0, 0.55, 0]);
+      const eye = addBox(group, [0.7, 0.7, 0.1], new THREE.MeshBasicMaterial({ color: 0xffe9a0 }), [0, 1.05, 1.02]);
+      eye.userData.noTint = true;
+      addBox(group, [0.28, 0.28, 0.06], new THREE.MeshBasicMaterial({ color: 0x5a1a1a }), [0, 1.05, 1.08]).userData.noTint = true;
+      const spikes = [];
+      [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, -1], [0.7, 0.7, 0], [-0.7, 0.7, 0], [0.7, -0.7, 0], [-0.7, -0.7, 0],
+        [0.7, 0, 0.7], [-0.7, 0, 0.7], [0.7, 0, -0.7], [-0.7, 0, -0.7]].forEach(([x, y, z]) => {
+        const spike = addBox(group, [0.22, 0.22, 0.22], finMat, [x * 1.0, 1.0 + y * 0.9, z * 1.0]);
+        spike.userData.dir = [x, y, z];
+        spikes.push(spike);
+      });
+      const tail = new THREE.Group();
+      tail.position.set(0, 1.0, -1.0);
+      addBox(tail, [0.6, 0.6, 0.8], bodyMat, [0, 0, -0.4]);
+      addBox(tail, [0.4, 0.4, 0.6], stripeMat, [0, 0, -1.0]);
+      addBox(tail, [0.12, 0.8, 0.6], finMat, [0, 0, -1.5]);
+      group.add(tail);
+      return { group, head, legs: [], tail, spikes };
+    }
+
     // --- 3体の新しいボス ---
     // 大グモの女王: クモをうんと大きくして、光る卵ののうをしょっている
     function buildSpiderQueen() {
@@ -6422,6 +6620,7 @@
       guardian: { name: '遺跡の番人', ai: 'melee', ignoresTorch: true, health: 34, speed: 1.7, radius: 0.4, height: 2.3, sight: 16, damage: 5, noBurn: true, drop: 'gold', dropCount: [1, 3], build: buildGuardian },
       // ダンジョンではなく、すみかに住んでいるボス（ai: 'lairboss'）
       spider_queen: { name: '大グモの女王', ai: 'lairboss', health: 380, speed: 3.6, radius: 1.0, height: 1.7, sight: 26, damage: 5, boss: true, noBurn: true, climbs: true, build: buildSpiderQueen },
+      elder_guardian: { name: '長老の番人', ai: 'lairboss', swims: true, health: 900, speed: 2.6, radius: 1.1, height: 2.0, sight: 30, damage: 10, boss: true, noBurn: true, ignoresTorch: true, build: buildElderGuardian },
       mummy: { name: 'ファラオのミイラ', ai: 'lairboss', health: 520, speed: 1.9, radius: 0.55, height: 2.9, sight: 24, damage: 9, boss: true, noBurn: true, build: buildMummy },
       nether_dragon: { name: '異世界のドラゴン', ai: 'lairboss', dragon: true, health: 1500, speed: 5.0, radius: 1.3, height: 2.6, sight: 48, damage: 14, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildNetherDragon },
       // 最後のドラゴン（天空の島）。動きは異世界のドラゴンと同じで、ずっと強い（bossPower で攻撃が強くなる）
@@ -7384,6 +7583,11 @@
         showToast('💥 弱点に命中！ ダメージ3倍');
       }
       if (mob.wetTimer > 0) damage = Math.round(damage * 1.5); // ぬれている敵は弱っている
+      // 長老の番人のトゲ: 出ているときに近くからなぐると、こちらも痛い
+      if (mob.spikesOut > 0 && mob.group.position.distanceTo(camera.position) < mob.radius + 4.5) {
+        damagePlayer(3, new THREE.Vector3(camera.position.x - mob.group.position.x, 0, camera.position.z - mob.group.position.z).normalize());
+        spawnParticles(point, 0xe88a4a, 8, 3);
+      }
       if (mob.def.passive) mob.fleeTimer = 6; // 動物はおどろいて逃げる
       else alertMob(mob);                    // なぐられたら気づく
       mob.health -= damage;
@@ -8104,7 +8308,8 @@
       shadow_golem: { items: [['void_armor', 1], ['diamond', 14], ['golden_apple', 4]], book: { swiftness: 2 } },
       spider_queen: { items: [['queen_bow', 1, { power: 7 }], ['diamond', 10], ['ender_pearl', 8]], book: { multishot: 1 } },
       mummy: { items: [['pharaoh_crown', 1], ['diamond', 12], ['emerald', 20]], book: { protection: 6 } },
-      nether_dragon: { items: [['dragon_blade', 1], ['diamond', 20], ['golden_apple', 6]], book: { sharpness: 7 } }
+      nether_dragon: { items: [['dragon_blade', 1], ['diamond', 20], ['golden_apple', 6]], book: { sharpness: 7 } },
+      elder_guardian: { items: [['abyss_trident', 1, { loyalty: 3, channeling: 1, impaling: 5 }], ['diamond', 14], ['heart_of_sea', 3]], book: { impaling: 7 } }
     };
     let rematch = { defeated: {} };
     const rematchOpen = () => !!lairsDefeated.sky_dragon;
@@ -8325,6 +8530,8 @@
           mob.summonTimer = 16;
           summonLairMinions(mob, 'spider', 3);
         }
+      } else if (mob.type === 'elder_guardian') {
+        updateElderGuardian(mob, delta, { dist, flatDist, toPlayer, target, outside, power, melee, playerCenter });
       } else {
         // ミイラ: おそいが強い。当たると毒。砂の衝撃波と、ハスクを呼ぶ
         const reach = mob.radius + 1.6;
@@ -8371,6 +8578,155 @@
             [-1, 1].forEach(s => spawnTornado(p.x + target.z * 3 * s, p.y, p.z - target.x * 3 * s, Math.round(5 * power)));
             playSound('roar');
           }
+        }
+      }
+    }
+
+    // --- 長老の番人 ---
+    // 水の中を、プレイヤーから少しはなれてぐるぐる回る。目からためビーム（線が黄色くなったら向きが決まるので、横に動けばよけられる）。
+    // 近くにいると「採掘低下」ののろい。海の番人を呼ぶ。
+    // 第 2 形態: トゲを出す（出ているあいだに近くでなぐると痛い）。最終形態: ビーム 3 本と、うず潮で引きこむ
+    const ELDER_BEAM_TIME = 1.8;
+    function updateElderGuardian(mob, delta, { dist, flatDist, toPlayer, target, outside, power, melee, playerCenter }) {
+      const p = mob.group.position;
+      const now = performance.now();
+      if (mob.tail) mob.tail.rotation.y = Math.sin(now * 0.004) * 0.5;
+      mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z); // いつもこちらをにらむ
+      // 泳ぎ: 6〜10 マスの所を回る
+      if (outside) {
+        mob.moveX = target.x * mob.speed;
+        mob.moveZ = target.z * mob.speed;
+      } else {
+        const keep = flatDist > 10 ? 1 : flatDist < 6 ? -0.8 : 0;
+        const side = mob.form >= 2 ? 0.8 : 0.5;
+        mob.moveX = (toPlayer.x * keep - toPlayer.z * side) * mob.speed;
+        mob.moveZ = (toPlayer.z * keep + toPlayer.x * side) * mob.speed;
+      }
+      mob.moveY = THREE.MathUtils.clamp(playerCenter.y + 0.3 - (p.y + mob.height / 2), -1, 1) * mob.speed;
+
+      // かみつき
+      if (dist < mob.radius + 2 && mob.attackTimer <= 0) {
+        mob.attackTimer = 1.5;
+        damagePlayer(melee(), toPlayer.clone());
+      }
+
+      // ビーム（ためているあいだは線が見える。75% で向きが決まる）
+      const eye = new THREE.Vector3(p.x, p.y + 1.05 * mob.group.scale.y, p.z);
+      if (!mob.elderBeams) {
+        mob.elderBeams = [0, 1, 2].map(() => {
+          const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+            new THREE.LineBasicMaterial({ color: 0xb06aff }));
+          line.userData.noTint = true;
+          line.visible = false;
+          mob.group.add(line);
+          return line;
+        });
+        mob.beamCharge = 0;
+        mob.beamCooldown = 2;
+      }
+      mob.beamCooldown -= delta;
+      const count = mob.form === 3 ? 3 : 1;
+      if (mob.beamCooldown <= 0 && !outside) {
+        const chargeTime = mob.form >= 2 ? ELDER_BEAM_TIME * 0.8 : ELDER_BEAM_TIME;
+        mob.beamCharge += delta / chargeTime;
+        if (mob.beamCharge < 0.75 || !mob.beamAim) {
+          // 向きを合わせている（3 本のときは、左右にずらす）
+          const sideways = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x);
+          mob.beamAim = [0, -2.5, 2.5].slice(0, count).map(off => playerCenter.clone().addScaledVector(sideways, off));
+        }
+        mob.elderBeams.forEach((line, i) => {
+          line.visible = i < count;
+          if (!line.visible) return;
+          const to = eye.clone().add(mob.beamAim[i].clone().sub(eye).setLength(30));
+          line.geometry.setFromPoints([mob.group.worldToLocal(eye.clone()), mob.group.worldToLocal(to)]);
+          line.material.color.setHex(mob.beamCharge >= 0.75 ? 0xffe060 : 0xb06aff);
+        });
+        if (mob.beamCharge >= 1) {
+          // 撃つ: それぞれの線のそばにいて、目から見えていたら当たる
+          let hit = false;
+          mob.beamAim.forEach(aim => {
+            const dir = aim.clone().sub(eye).normalize();
+            const along = playerCenter.clone().sub(eye).dot(dir);
+            if (along <= 0) return;
+            const closest = eye.clone().addScaledVector(dir, along);
+            if (closest.distanceTo(playerCenter) < 1.1 && hasLineOfSight(eye, playerCenter)) hit = true;
+            spawnParticles(eye.clone().addScaledVector(dir, Math.min(along, 14)), 0xb06aff, 6, 2);
+          });
+          if (hit) {
+            damagePlayer(Math.round(9 * power), toPlayer.clone());
+            spawnParticles(playerCenter.clone(), 0xb06aff, 14, 3);
+          }
+          playSound('guardian');
+          mob.beamCharge = 0;
+          mob.beamAim = null;
+          mob.beamCooldown = mob.form >= 2 ? 1.6 : 2.4;
+          mob.elderBeams.forEach(line => { line.visible = false; });
+        }
+      }
+
+      // 採掘低下ののろい（近くにいるあいだ、ときどき）
+      mob.curseTimer = (mob.curseTimer ?? 3) - delta;
+      if (mob.curseTimer <= 0 && dist < 24) {
+        mob.curseTimer = 25;
+        const had = effectLevel('fatigue') > 0;
+        player.effects.fatigue = { time: 40, level: 1 };
+        updateEffectDisplay();
+        spawnParticles(camera.position.clone().add(new THREE.Vector3(0, -0.3, 0)), 0x5af0ff, 20, 2);
+        if (!had) showToast('👁️ 長老の番人ののろい！ しばらく、掘るのがとてもおそくなる');
+      }
+
+      // 海の番人を呼ぶ
+      if (mob.summonTimer <= 0 && !outside) {
+        mob.summonTimer = mob.enraged ? 14 : 20;
+        summonLairMinions(mob, 'sea_guardian', mob.form === 3 ? 3 : 2);
+      }
+
+      // 第 2 形態から: トゲを出す（2.5 秒）。出ているあいだ、近くにいると痛い
+      if (mob.form >= 2) {
+        mob.spikeTimer = (mob.spikeTimer ?? 2) - delta;
+        if (mob.spikesOut > 0) {
+          mob.spikesOut -= delta;
+          mob.spikeTick = (mob.spikeTick || 0) - delta;
+          if (mob.spikeTick <= 0 && dist < mob.radius + 1.8) {
+            mob.spikeTick = 0.7;
+            damagePlayer(Math.round(4 * power), toPlayer.clone());
+          }
+        } else if (mob.spikeTimer <= 0) {
+          mob.spikeTimer = mob.form === 3 ? 6 : 8;
+          mob.spikesOut = 2.5;
+          playSound('slam');
+          spawnParticles(new THREE.Vector3(p.x, p.y + 1, p.z), 0xe88a4a, 20, 5);
+        }
+      }
+      const out = mob.spikesOut > 0 ? 1.45 : 1.0;
+      mob.spikes.forEach(spike => {
+        const [x, y, z] = spike.userData.dir;
+        spike.position.set(x * out, 1.0 + y * (out - 0.1), z * out);
+        spike.scale.setScalar(mob.spikesOut > 0 ? 1.6 : 1);
+      });
+
+      // 最終形態: うず潮（3 秒、まわりのものを引きよせる。まん中はとても痛い）
+      if (mob.form === 3 && !outside) {
+        mob.whirlTimer = (mob.whirlTimer ?? 4) - delta;
+        if (mob.whirling > 0) {
+          mob.whirling -= delta;
+          const pull = new THREE.Vector3(p.x - camera.position.x, 0, p.z - camera.position.z);
+          const d = pull.length();
+          if (d > 0.5 && d < 16) {
+            pull.normalize();
+            const side = new THREE.Vector3(-pull.z, 0, pull.x);
+            player.velocity.addScaledVector(pull, 26 * delta).addScaledVector(side, 14 * delta);
+          }
+          for (let i = 0; i < 3; i++) {
+            const a = now * 0.008 + i * 2.1;
+            const rr = 2 + ((now * 0.004 + i) % 6);
+            spawnParticles(new THREE.Vector3(p.x + Math.cos(a) * rr, p.y + 0.5 + Math.random() * 2, p.z + Math.sin(a) * rr), 0x9ae8ff, 1, 0.5);
+          }
+        } else if (mob.whirlTimer <= 0) {
+          mob.whirlTimer = 11;
+          mob.whirling = 3;
+          playSound('roar');
+          showToast('🌀 うず潮だ！ 引きこまれないように、はなれる方へ泳ごう');
         }
       }
     }
@@ -8627,6 +8983,7 @@
       magma_golem: { color: 0xff5a1a, names: ['', '怒りのマグマゴーレム', '噴火する火山の巨人'], says: ['', '突進してくる！ 横によけよう', '火の雨がふる！ 赤い印からはなれよう'] },
       shadow_golem: { color: 0x9a5aff, names: ['', '怒りのやみのゴーレム', '影をあやつる魔人'], says: ['', '突進してくる！ 横によけよう', '背中に瞬間移動してくる！ 黒い雨にも気をつけて'] },
       spider_queen: { color: 0xff3a6a, names: ['', '怒りの女王', '毒の女帝'], says: ['', '糸を 5 方向にはいてくる！', '天井まで跳んで落ちてくる！ 着地の衝撃波はジャンプでよけよう'] },
+      elder_guardian: { color: 0x5af0ff, names: ['', '怒りの長老', '深海の主'], says: ['', 'トゲを出してくる！ トゲが出ているあいだは近づかず、槍を投げよう', 'うず潮で引きこんでくる！ 3 本のビームは、線が黄色くなったら横に動いてよけよう'] },
       mummy: { color: 0xffd700, names: ['', '怒りのファラオ', '黄金の太陽王'], says: ['', '包帯で引きよせてくる！', '砂の竜巻がおいかけてくる！'] },
       nether_dragon: { color: 0x5ab0ff, names: ['', '怒りのドラゴン', '青い炎の竜王'], says: ['', '空から急降下してくる！', '流星がふってくる！ 赤い印からはなれよう'] },
       sky_dragon: { color: 0xd06aff, names: ['', '怒りの天空竜', '星をくらう竜神'], says: ['', '空から急降下してくる！', '流星がふってくる！ 赤い印からはなれよう'] }
@@ -9179,15 +9536,17 @@
         return;
       }
       const loot = conf.loot;
-      if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.slice(0, usableSlots()).filter(item => !item).length < loot.length) {
+      const specials = conf.specials || [];
+      if (!loot.every(([id, count]) => hasRoomFor(id, count)) || inventory.slice(0, usableSlots()).filter(item => !item).length < loot.length + specials.length) {
         showToast('⚠️ 持ち物をあけてから開けよう');
         return;
       }
       loot.forEach(([id, count]) => addItem(id, count));
+      specials.forEach(([id, ench]) => giveSpecial(id, ench));
       lairChestsLooted[lair.key] = true;
       if (lair.key === 'nether_dragon') lairChestsLooted.dragon_scales = true;
       playSound('chest');
-      showToast(`${conf.emoji} 宝箱から ${loot.map(([id]) => ITEMS[id].name).join('・')} を手に入れた！`);
+      showToast(`${conf.emoji} 宝箱から ${[...loot, ...specials].map(([id, ench]) => ITEMS[id].name + (id === 'enchanted_book' ? `「${enchText({ ench })}」` : '')).join('・')} を手に入れた！`);
       saveGame();
     }
 
@@ -9321,7 +9680,8 @@
       const base = HARDNESS[def.tier] !== undefined ? HARDNESS[def.tier] : 0.5;
       const efficiency = tier ? enchLevel(inventory[selectedSlot], 'efficiency') : 0; // 効率強化
       // ツルハシが要るブロックはツルハシで大きく速く、土や木は少しだけ速くなる
-      return base / (1 + tier * (def.tier >= 1 ? 0.9 : 0.25)) / (1 + efficiency * 0.5);
+      const fatigue = effectLevel('fatigue') ? 4 : 1; // 長老の番人ののろい: 掘るのが 4 倍おそい
+      return fatigue * base / (1 + tier * (def.tier >= 1 ? 0.9 : 0.25)) / (1 + efficiency * 0.5);
     }
 
     function stopMining() {
@@ -9573,7 +9933,7 @@
       }
       if (!item) return;
       if (tridentAway(held)) return showToast('🔱 槍は飛んでいる（もどってくるか、拾いに行こう）');
-      if (held.id === 'trident') return useTrident(held);
+      if (item.trident) return useTrident(held);
 
       // 天空の目: 祭壇のわくにはめる。ほかの所では、投げると祭壇のほうへ飛んでいく
       if (item.kind === 'eye') {
@@ -9952,7 +10312,9 @@
       amethyst_shard: { name: '紫水晶のかけら', kind: 'material', color: '#a86ae8', emoji: '🔮' },
       amethyst_block: { name: '紫水晶のブロック', kind: 'block', block: AMETHYST_BLOCK, color: '#c89aff', emoji: '🟪' },
       // 海底神殿の宝。三叉の槍は水の中だと 1.5 倍の力（aquatic）。海のハートは食べると 10 分「海の加護」
-      trident: { name: '三叉の槍', kind: 'sword', damage: 14, aquatic: true, color: '#3ac8b8', emoji: '🔱', stack: 1, durability: 600 },
+      trident: { name: '三叉の槍', kind: 'sword', damage: 14, aquatic: true, trident: true, color: '#3ac8b8', emoji: '🔱', stack: 1, durability: 600 },
+      // 長老の番人の宝（忠誠Ⅲ・水生特効Ⅲつき）と、覚醒した長老の番人の伝説の槍
+      sea_king_trident: { name: '海王の三叉槍', kind: 'sword', damage: 20, aquatic: true, trident: true, color: '#2ae8d0', emoji: '🔱', stack: 1, durability: 1500 },
       heart_of_sea: { name: '海のハート', kind: 'food', effect: 'sea', seconds: 600, color: '#2a6ae8', emoji: '💙' },
       bookshelf: { name: '本棚', kind: 'block', block: BOOKSHELF, color: '#8a5a2a', emoji: '📚' },
       // エンチャントの本: 村の司書から買う。作業台のマスに道具といっしょに並べると、本の力が道具につく。
@@ -9971,6 +10333,7 @@
       titan_hammer: { name: '大地のハンマー', kind: 'sword', damage: 52, color: '#c8a070', emoji: '🔨', stack: 1, durability: 2400, legend: true },
       inferno_blade: { name: '灼熱の剣', kind: 'sword', damage: 56, color: '#ff5a1a', emoji: '🗡️', stack: 1, durability: 2400, legend: true },
       void_armor: { name: '虚無のよろい', kind: 'armor', protection: 0.8, color: '#3a1a6a', emoji: '🦺', stack: 1, durability: 1600, legend: true },
+      abyss_trident: { name: '深淵の三叉槍', kind: 'sword', damage: 30, aquatic: true, trident: true, color: '#1a4aa8', emoji: '🔱', stack: 1, durability: 3000, legend: true },
       queen_bow: { name: '女王の弓', kind: 'bow', color: '#c8ff6a', emoji: '🏹', stack: 1, durability: 1500, legend: true },
       pharaoh_crown: { name: 'ファラオの王冠', kind: 'armor', protection: 0.78, color: '#ffd23a', emoji: '👑', stack: 1, durability: 1600, legend: true },
       dragon_blade: { name: '竜王の剣', kind: 'sword', damage: 64, color: '#ff3a8a', emoji: '⚔️', stack: 1, durability: 3000, legend: true }
@@ -10054,15 +10417,15 @@
       thunder: { name: '雷撃', max: 2, kinds: ['sword'], desc: 'ときどき雷が落ちて大ダメージ', special: true },
       swiftness: { name: '俊足', max: 2, kinds: ['armor'], desc: '走るのが速くなる', special: true },
       multishot: { name: '拡散', max: 1, kinds: ['bow'], desc: '矢を 3 本いっしょに撃つ', special: true },
-      // ここから下は、三叉の槍だけにつけられる力（items で道具をしぼる）
-      loyalty: { name: '忠誠', max: 3, kinds: ['sword'], items: ['trident'], desc: '投げた槍が手もとに もどってくる' },
-      riptide: { name: '激流', max: 3, kinds: ['sword'], items: ['trident'], desc: '水の中で右クリックすると、槍といっしょに突進する' },
-      channeling: { name: '召雷', max: 1, kinds: ['sword'], items: ['trident'], desc: '投げた槍が当たった所に雷が落ちる' },
-      impaling: { name: '水生特効', max: 5, kinds: ['sword'], items: ['trident'], desc: '水の中の敵と海の生き物に +2.5' }
+      // ここから下は、三叉の槍だけにつけられる力（trident: true）
+      loyalty: { name: '忠誠', max: 3, kinds: ['sword'], trident: true, desc: '投げた槍が手もとに もどってくる' },
+      riptide: { name: '激流', max: 3, kinds: ['sword'], trident: true, desc: '水の中で右クリックすると、槍といっしょに突進する' },
+      channeling: { name: '召雷', max: 1, kinds: ['sword'], trident: true, desc: '投げた槍が当たった所に雷が落ちる' },
+      impaling: { name: '水生特効', max: 5, kinds: ['sword'], trident: true, desc: '水の中の敵と海の生き物に +2.5' }
     };
     const enchLevel = (item, key) => (item && item.ench && item.ench[key]) || 0;
     const enchantsFor = id => (ITEMS[id] ? Object.keys(ENCHANTS).filter(key => ENCHANTS[key].kinds.includes(ITEMS[id].kind) &&
-      (!ENCHANTS[key].items || ENCHANTS[key].items.includes(id))) : []);
+      (!ENCHANTS[key].trident || ITEMS[id].trident)) : []);
     const enchantCost = nextLevel => nextLevel + 1; // レベル1にするには 2、レベル5にするには 6 レベル使う
     const enchText = item => Object.entries((item && item.ench) || {}).map(([key, lv]) => `${ENCHANTS[key].name}${lv}`).join('・');
 
@@ -11539,7 +11902,7 @@
     const mobInWater = mob => !!mob.def.swims || !!mob.swimming ||
       !!(BLOCKS[getBlock(Math.round(mob.group.position.x), Math.round(mob.group.position.y + 0.3), Math.round(mob.group.position.z))] || {}).water;
     function impalingBonus(item, mob) {
-      const lv = item && item.id === 'trident' ? enchLevel(item, 'impaling') : 0;
+      const lv = item && ITEMS[item.id].trident ? enchLevel(item, 'impaling') : 0;
       return lv && mobInWater(mob) ? Math.round(lv * 2.5) : 0;
     }
 
@@ -11568,7 +11931,7 @@
       if (riptide && player.inWater) {
         // 激流: 見ている方へ、いきおいよく突進する。とちゅうの敵にぶつかるとダメージ
         tridentCooldown = 0.9;
-        const power = 20 + riptide * 7;
+        const power = 26 + riptide * 10;
         player.velocity.x += dir.x * power;
         player.velocity.z += dir.z * power;
         player.velocity.y = dir.y * (8 + riptide * 3) + 2;
@@ -13160,7 +13523,7 @@
       updateEffectDisplay();
       let speedFactor = 1 + effectLevel('speed') * 0.25 + armorEnch('swiftness') * 0.12; // 速さのポーション・俊足のよろい
       // 三叉の槍の特性: 手に持っていると、水の中でも速く泳げる
-      const holdingTrident = heldItemDef() === ITEMS.trident;
+      const holdingTrident = !!(heldItemDef() || {}).trident;
       if (inWater) speedFactor *= holdingTrident ? 0.95 : 0.5;
       player.inWater = inWater;
       if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
@@ -13561,6 +13924,8 @@
       { id: 'trident', emoji: '🔱', name: '海の王の槍', desc: '三叉の槍を手に入れる', check: () => seenItems.has('trident') },
       { id: 'trident_throw', emoji: '🎯', name: '海の王の一投', desc: '投げた三叉の槍で敵をたおす', check: () => (stats.tridentKills || 0) >= 1 },
       { id: 'riptide', emoji: '🌀', name: '激流に乗って', desc: '激流の三叉の槍で突進する', check: () => (stats.riptides || 0) >= 1 },
+      { id: 'boss_elder', emoji: '👁️', name: '深海の王者', desc: '海底神殿の長老の番人をたおす', check: () => !!lairsDefeated.elder_guardian },
+      { id: 'monument_maze', emoji: '🌀', name: '海の迷宮', desc: '海底神殿の地下の大広間にたどりつく', check: () => !!stats.seenMobs.elder_guardian },
       { id: 'fish', emoji: '🐟', name: 'おさかな天国', desc: '魚をつかまえる', check: () => seenItems.has('raw_fish') },
       { id: 'coral', emoji: '🪸', name: 'さんご礁', desc: 'さんごを手に入れる', check: () => CORALS.some(id => seenItems.has(BLOCKS[id].drop)) },
       { id: 'sky_eye', emoji: '🧿', name: '天空の目', desc: '天空の目を作る', check: () => seenItems.has('sky_eye') },
@@ -13569,7 +13934,7 @@
       { id: 'dragon_egg', emoji: '🥚', name: 'ドラゴンのたまご', desc: 'ドラゴンのたまごを手に入れる', check: () => seenItems.has('dragon_egg') },
       { id: 'rematch', emoji: '⚡', name: '覚醒をこえて', desc: '覚醒したボスを 1 体たおす', check: () => Object.keys(rematch.defeated).length >= 1 },
       { id: 'legend', emoji: '🗡️', name: '伝説の武器', desc: '覚醒したボスから伝説の武器か防具を手に入れる', check: () => Object.keys(ITEMS).some(id => ITEMS[id].legend && seenItems.has(id)) },
-      { id: 'rematch_all', emoji: '🌟', name: '真のボスマスター', desc: '覚醒したボスを 6 体ぜんぶたおす', check: () => Object.keys(REMATCH_REWARDS).every(type => rematch.defeated[type]) },
+      { id: 'rematch_all', emoji: '🌟', name: '真のボスマスター', desc: '覚醒したボスを 7 体ぜんぶたおす', check: () => Object.keys(REMATCH_REWARDS).every(type => rematch.defeated[type]) },
       { id: 'nether', emoji: '🌋', name: '異世界へようこそ', desc: '異世界ゲートをくぐる', check: () => stats.portalTrips >= 1 },
       { id: 'level_10', emoji: '⭐', name: 'レベル 10', desc: '経験値のレベルを 10 にする', check: () => stats.maxLevel >= 10 },
       { id: 'level_30', emoji: '🌠', name: 'レベル 30', desc: '経験値のレベルを 30 にする', check: () => stats.maxLevel >= 30 },
@@ -13707,6 +14072,7 @@
       shadow_golem: { emoji: '💀', tip: '仲間を呼ぶ。水は効かない。マグマゴーレムをたおすと目を覚ます' },
       spider_queen: { emoji: '🕷️', tip: '速くて壁を登り、糸で足止めしてクモを呼ぶ。たおすと女王のキバ' },
       mummy: { emoji: '🏺', tip: '毒をかけ、ハスクを呼ぶ。たおすとファラオの黄金のマスク' },
+      elder_guardian: { emoji: '👁️', tip: '目からビーム（柱のかげにかくれよう）。近くにいると掘るのがおそくなる。海の番人を呼ぶ。三叉の槍の水生特効がよく効く。たおすと海王の三叉槍' },
       nether_dragon: { emoji: '🐉', tip: '空から火の玉 → 地上であばれる、をくり返す。柱の上の回復の結晶をこわしてから挑もう。たおすとドラゴンの剣' }
     };
     const codexMobTypes = () => MOB_GROUPS.flatMap(([, types]) => types);
@@ -14311,6 +14677,16 @@
         thrownTridents,
         tridentAway,
         strikeLightning,
+        useTrident,
+        updateTridents,
+        impalingBonus,
+        enchantsFor,
+        updateMobs,
+        updatePhysics,
+        updateBossForm,
+        ITEMS,
+        MOB_DEFS,
+        get rematch() { return rematch; },
         renderCodexBosses: () => renderBossesTab()
       };
     }
