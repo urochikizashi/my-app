@@ -5334,9 +5334,60 @@
       return false;
     }
 
+    // 大グモの巣とファラオの王の間が無いワールド（置き場所が見つからなかった）には、ここで作る。
+    // そうしないと、そのワールドでは女王やファラオと戦えない
+    function ensureLairs() {
+      caveGuard = buildCaveGuard();
+      const playerNear = (cx, cz, half, y0, y1) => {
+        for (let x = cx - half; x <= cx + half; x += 8) {
+          for (let z = cz - half; z <= cz + half; z += 8) {
+            if (nearPlayerWork(x, 0, z, true)) return true;
+            for (let y = y0; y <= y1; y += 8) if (nearPlayerWork(x, y, z, false)) return true;
+          }
+        }
+        return false;
+      };
+      if (!bossLairs.some(l => l.key === 'spider_queen')) {
+        const plan = UNDERGROUND_PLAN.find(pl => pl.kind === 'nest');
+        for (let attempt = 0; attempt < 3000; attempt++) {
+          const cx = worldRandInt(-ARRAY_HALF + 20, ARRAY_HALF - 20);
+          const cz = worldRandInt(-ARRAY_HALF + 20, ARRAY_HALF - 20);
+          const fy = worldRandInt(plan.depth[0], plan.depth[1]);
+          if (!undergroundSpotFree(cx, fy, cz, plan.half, fy + plan.height)) continue;
+          if (playerNear(cx, cz, plan.half, fy - 2, fy + plan.height)) continue;
+          const site = { kind: plan.kind, x: cx, y: fy, z: cz, half: plan.half, boxes: [] };
+          plan.build(site);
+          undergroundSites.push(site);
+          break;
+        }
+      }
+      if (!bossLairs.some(l => l.key === 'mummy')) {
+        // 砂漠の平らな所にピラミッドを建てる（最初のピラミッドなので、地下が王の間になる）。砂漠が無ければ、どこか平らな所
+        for (let attempt = 0; attempt < 6000; attempt++) {
+          const cx = worldRandInt(-ARRAY_HALF + 16, ARRAY_HALF - 16);
+          const cz = worldRandInt(-ARRAY_HALF + 16, ARRAY_HALF - 16);
+          if (attempt < 4000 && biomeAt(cx, cz) !== 'desert') continue;
+          if (Math.hypot(cx, cz) < 30 || oceanFactor(cx, cz) > 0 || !flatEnough(cx, cz, 5)) continue;
+          if (structuresPlaced.some(st => Math.hypot(cx - st.x, cz - st.z) < 28)) continue;
+          const floorY = surfaceHeight(cx, cz);
+          let blocked = false;
+          for (let x = cx - 10; x <= cx + 10 && !blocked; x += 2) {
+            for (let z = cz - 10; z <= cz + 10 && !blocked; z += 2) {
+              for (let y = floorY - 10; y <= floorY + 8 && !blocked; y += 2) blocked = inGuardBox(x, y, z);
+            }
+          }
+          if (blocked || playerNear(cx, cz, 10, floorY - 10, floorY + 8)) continue;
+          buildPyramid(cx, floorY, cz);
+          structuresPlaced.push({ name: 'ピラミッド', x: cx, y: floorY, z: cz });
+          break;
+        }
+      }
+    }
+
     function generateCaverns() {
       const savedRng = worldRngState;
       worldRngState = (worldSeed * 2246822519 + 777) | 0;
+      ensureLairs();
       caveGuard = buildCaveGuard();
       // つなぐトンネルは、守る場所と水と、プレイヤーのさわった所をけずらない
       carveRule = (x, y, z) => !touchesWater(x, y, z) && !inGuardBox(x, y, z) && !nearPlayerWork(x, y, z, false);
@@ -5378,7 +5429,7 @@
       }
 
       const ravines = Math.max(2, Math.round(2 * WORLD_SCALE)) + 3;
-      for (let i = 0, attempt = 0; i < ravines && attempt < 400; attempt++) {
+      for (let i = 0, attempt = 0; i < ravines && attempt < 3000; attempt++) {
         const lim = ARRAY_HALF - 20;
         const x = worldRandInt(-lim, lim);
         const z = worldRandInt(-lim, lim);
@@ -7311,6 +7362,14 @@
     }
 
     function hitMob(mob, damage, point) {
+      if (mob.transformTimer > 0) {
+        spawnParticles(point, 0xffffff, 6, 2);
+        if (performance.now() - (hitMob.shieldNotice || 0) > 3000) {
+          hitMob.shieldNotice = performance.now();
+          showToast('💫 変身しているあいだは、ダメージが入らない！');
+        }
+        return;
+      }
       const core = hitsBossCore(mob);
       if (core) {
         damage *= 3; // 弱点は3倍
@@ -8010,7 +8069,9 @@
           hoverToward(mob, 2);
         }
 
-        if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
+        if (mob.def.boss && updateBossForm(mob, delta)) {
+          // 変身中は動かない
+        } else if (mob.def.ai === 'boss') updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
         else if (mob.def.ai === 'lairboss') updateLairBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter });
         // 赤い月の夜は、近くの村人をおそう
         if (bloodMoon.active && mob.bloodMoon && mob.def.ai === 'melee') raidVillagers(mob, delta, flatDist);
@@ -8115,9 +8176,11 @@
     // 体力バーに出す名前（ボスの種類・怒り・水でしびれている状態）
     function bossLabel(mob) {
       const emoji = mob.lair ? LAIRS[mob.lair.key].emoji : bossTierOf(mob).emoji;
-      const state = mob.wetTimer > 0 ? ' 💧よわっている' : mob.enraged ? '（怒り）' : '';
+      const state = mob.wetTimer > 0 ? ' 💧よわっている' : mob.enraged && !(mob.form > 1) ? '（怒り）' : '';
       const crystals = mob.lair && mob.lair.crystals ? `　💎 回復の結晶 ×${aliveCrystals(mob.lair).length}` : '';
-      return `${emoji} ${mob.awakened ? '⚡覚醒した' : ''}${mob.def.name}${state}${crystals}`;
+      const form = mob.form === 3 ? '【最終形態】' : mob.form === 2 ? '【第2形態】' : '';
+      const name = formName(mob) || mob.def.name;
+      return `${emoji} ${mob.awakened ? '⚡覚醒した' : ''}${form}${name}${mob.transformTimer > 0 ? ' 💫変身中' : state}${crystals}`;
     }
 
     function updateBossBar(mob) {
@@ -8190,13 +8253,7 @@
     // すみかのボスの動き。3体とも「追いかけて殴る」＋「種類ごとの必殺技」でできている
     function updateLairBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter }) {
       const p = mob.group.position;
-      const half = mob.maxHealth / 2;
-      if (!mob.enraged && mob.health <= half) {
-        mob.enraged = true;
-        mob.speed *= 1.3;
-        playSound('roar');
-        showToast(`${LAIRS[mob.lair.key].emoji} ${mob.def.name}が怒った！`);
-      }
+      // 体力が減ると変身して怒る（updateBossForm）
       // すみかから出ていかない（外に出たら、まん中へもどる）
       const lair = mob.lair;
       const outside = Math.abs(p.x - lair.x) > lair.half + 4 || Math.abs(p.z - lair.z) > lair.half + 4;
@@ -8223,10 +8280,34 @@
           mob.attackTimer = 1.4; // 速いぶん、殴る間はあける
           damagePlayer(melee(), target.clone());
         }
+        // 最終形態: 天井まで跳んで、プレイヤーの上に落ちてくる（着地で衝撃波）
+        if (mob.slamming) {
+          if (mob.onGround && mob.velocity.y <= 0 && mob.slamming < performance.now() - 400) {
+            mob.slamming = 0;
+            startShockwave(mob, Math.round(10 * power));
+            summonLairMinions(mob, 'spider', 2);
+          }
+        } else if (mob.form === 3 && !outside) {
+          mob.slamTimer = (mob.slamTimer ?? 3) - delta;
+          if (mob.slamTimer <= 0 && mob.onGround) {
+            mob.slamTimer = 9;
+            mob.slamming = performance.now();
+            mob.velocity.y = 15;
+            mob.velocity.x = target.x * Math.min(10, flatDist * 0.9);
+            mob.velocity.z = target.z * Math.min(10, flatDist * 0.9);
+            playSound('roar');
+          }
+        }
         if (mob.specialTimer <= 0 && !outside) {
           mob.specialTimer = mob.enraged ? 3 : 4.5;
           if (dist > 6 && dist < 20) {
-            spitWeb(mob, playerCenter); // 糸をはく
+            // 糸をはく（第 2 形態からは 5 方向に）
+            if (mob.form >= 2) {
+              const side = new THREE.Vector3(-target.z, 0, target.x);
+              [-3, -1.5, 0, 1.5, 3].forEach(offset => spitWeb(mob, playerCenter.clone().addScaledVector(side, offset)));
+            } else {
+              spitWeb(mob, playerCenter);
+            }
           } else if (mob.onGround) {
             mob.velocity.y = 9;          // 大ジャンプ
             mob.velocity.x = target.x * 9;
@@ -8260,6 +8341,30 @@
         if (mob.summonTimer <= 0) {
           mob.summonTimer = mob.enraged ? 12 : 18;
           summonLairMinions(mob, 'husk', 2);
+        }
+        // 第 2 形態から: 包帯をのばして引きよせる
+        if (mob.form >= 2 && !outside) {
+          mob.pullTimer = (mob.pullTimer ?? 3) - delta;
+          const hand = new THREE.Vector3(p.x, p.y + mob.height * 0.6, p.z);
+          if (mob.pullTimer <= 0 && dist > 5 && dist < 15 && hasLineOfSight(hand, playerCenter)) {
+            mob.pullTimer = mob.form === 3 ? 6 : 8;
+            flashLine(hand, playerCenter, 0xf4ecd0, 0.5);
+            const pull = new THREE.Vector3(p.x - camera.position.x, 0, p.z - camera.position.z).normalize();
+            player.velocity.x += pull.x * 16;
+            player.velocity.z += pull.z * 16;
+            player.velocity.y = Math.max(player.velocity.y, 5);
+            damagePlayer(2, pull.clone().negate());
+            showToast('🩹 包帯で引きよせられた！');
+          }
+        }
+        // 最終形態: 砂の竜巻が 2 つ、おいかけてくる
+        if (mob.form === 3 && !outside) {
+          mob.tornadoTimer = (mob.tornadoTimer ?? 2) - delta;
+          if (mob.tornadoTimer <= 0) {
+            mob.tornadoTimer = 11;
+            [-1, 1].forEach(s => spawnTornado(p.x + target.z * 3 * s, p.y, p.z - target.x * 3 * s, Math.round(5 * power)));
+            playSound('roar');
+          }
         }
       }
     }
@@ -8302,7 +8407,43 @@
         mob.moveZ = (dz / d) * v;
       };
 
-      if (mob.phase === 'air') {
+      // 最終形態: 流星群（どの形のときも）。赤い印の所に、空から火の玉がふってくる
+      if (mob.form === 3) {
+        mob.meteorTimer = (mob.meteorTimer ?? 2) - delta;
+        if (mob.meteorTimer <= 0) {
+          mob.meteorTimer = 8;
+          rainAttack(playerCenter, { count: 10, radius: 7, damage: Math.round(7 * power), color: mob.type === 'sky_dragon' ? 0xb06aff : 0xff7a1a, fire: true, delay: 1.5 });
+          playSound('fireball');
+        }
+      }
+
+      if (mob.phase === 'air' && mob.diving) {
+        // 第 2 形態から: 空から急降下して体当たり。地面に当たると衝撃波
+        const d = mob.diving;
+        d.time -= delta;
+        moveTo(d.x, d.z, mob.speed * 2.6);
+        mob.moveY = THREE.MathUtils.clamp(d.y - p.y, -1, 1) * 10;
+        if (!d.hit && dist < mob.radius + 2.2) {
+          d.hit = true;
+          damagePlayer(Math.round(12 * power), target.clone());
+          player.velocity.y = Math.max(player.velocity.y, 7);
+        }
+        if (p.y <= d.y + 0.6 || d.time <= 0) {
+          if (p.y <= d.y + 1.5) startShockwave(mob, Math.round(8 * power));
+          mob.diving = null;
+          mob.specialTimer = 1.5;
+        }
+        healFromCrystals(mob, delta);
+      } else if (mob.phase === 'air') {
+        if (mob.form >= 2) {
+          mob.diveTimer = (mob.diveTimer ?? 4) - delta;
+          if (mob.diveTimer <= 0) {
+            mob.diveTimer = mob.form === 3 ? 6 : 8;
+            mob.diving = { x: camera.position.x, z: camera.position.z, y: Math.max(groundY, camera.position.y - player.eye), time: 2.5, hit: false };
+            playSound('roar');
+            showToast(`🐉 ${mob.def.name}が急降下してくる！ 横に走ってよけよう`);
+          }
+        }
         // 広場のまわりを回りながら、火の玉を撃つ
         mob.orbit += delta * (mob.enraged ? 0.45 : 0.32);
         const radius = lair.half - 5;
@@ -8470,6 +8611,269 @@
       playSound('bow');
     }
 
+    /* --- Boss Forms (ボスの変身と、新しい技) --- */
+    // どのボスも、体力が 3 分の 2 になると「第 2 形態」、3 分の 1 で「最終形態」に変身する。
+    // 変身のあいだ（BOSS_TRANSFORM 秒）はダメージが入らず、その場でくるくる回る。
+    // 形態が上がるたびに、まわりを回る光の石がふえて、新しい技を使うようになる
+    const BOSS_TRANSFORM = 2.2;
+    const BOSS_FORMS = {
+      golem: { color: 0xffaa33, names: ['', '怒りのゴーレム', 'マグマコアの巨人'], says: ['', '突進してくる！ 横によけよう', '岩の雨がふる！ 地面の赤い印からはなれよう'] },
+      magma_golem: { color: 0xff5a1a, names: ['', '怒りのマグマゴーレム', '噴火する火山の巨人'], says: ['', '突進してくる！ 横によけよう', '火の雨がふる！ 赤い印からはなれよう'] },
+      shadow_golem: { color: 0x9a5aff, names: ['', '怒りのやみのゴーレム', '影をあやつる魔人'], says: ['', '突進してくる！ 横によけよう', '背中に瞬間移動してくる！ 黒い雨にも気をつけて'] },
+      spider_queen: { color: 0xff3a6a, names: ['', '怒りの女王', '毒の女帝'], says: ['', '糸を 5 方向にはいてくる！', '天井まで跳んで落ちてくる！ 着地の衝撃波はジャンプでよけよう'] },
+      mummy: { color: 0xffd700, names: ['', '怒りのファラオ', '黄金の太陽王'], says: ['', '包帯で引きよせてくる！', '砂の竜巻がおいかけてくる！'] },
+      nether_dragon: { color: 0x5ab0ff, names: ['', '怒りのドラゴン', '青い炎の竜王'], says: ['', '空から急降下してくる！', '流星がふってくる！ 赤い印からはなれよう'] },
+      sky_dragon: { color: 0xd06aff, names: ['', '怒りの天空竜', '星をくらう竜神'], says: ['', '空から急降下してくる！', '流星がふってくる！ 赤い印からはなれよう'] }
+    };
+    const formName = mob => (mob.form > 1 && BOSS_FORMS[mob.type] ? BOSS_FORMS[mob.type].names[mob.form - 1] : '');
+
+    // 毎フレーム呼ぶ。変身中なら true（そのあいだボスは技を使わない）
+    function updateBossForm(mob, delta) {
+      if (!BOSS_FORMS[mob.type]) return false;
+      if (!mob.form) mob.form = 1;
+      if (mob.orbiters) {
+        mob.orbiters.rotation.y += delta * (mob.form === 3 ? 3 : 2);
+        mob.orbiters.children.forEach((stone, i) => { stone.position.y = Math.sin(performance.now() * 0.004 + i) * 0.4; });
+      }
+      if (mob.transformTimer > 0) {
+        mob.transformTimer -= delta;
+        mob.health = Math.max(mob.health, mob.formFloor); // 変身中はダメージが入らない
+        mob.group.rotation.y += delta * 6;
+        mob.group.scale.setScalar(mob.formScale * (1 + Math.sin(mob.transformTimer * 18) * 0.05));
+        mob.moveY = 0;
+        const p = mob.group.position;
+        if (Math.random() < delta * 25) {
+          spawnParticles(new THREE.Vector3(p.x, p.y + mob.height * Math.random(), p.z), BOSS_FORMS[mob.type].color, 3, 5);
+        }
+        if (mob.transformTimer <= 0) {
+          mob.group.scale.setScalar(mob.formScale);
+          spawnParticles(new THREE.Vector3(p.x, p.y + mob.height * 0.5, p.z), BOSS_FORMS[mob.type].color, 50, 10);
+          playSound('roar');
+        }
+        updateBossBar(mob);
+        return true;
+      }
+      const ratio = mob.health / mob.maxHealth;
+      const next = mob.form === 1 && ratio <= 0.66 ? 2 : mob.form === 2 && ratio <= 0.33 ? 3 : 0;
+      if (!next) return false;
+      enterBossForm(mob, next);
+      return true;
+    }
+
+    function enterBossForm(mob, form) {
+      const conf = BOSS_FORMS[mob.type];
+      mob.form = form;
+      mob.transformTimer = BOSS_TRANSFORM;
+      mob.formFloor = mob.health;
+      mob.windup = 0;
+      if (mob.arms) mob.arms.forEach(arm => { arm.rotation.x = 0; });
+      mob.charge = null;
+      mob.diving = null;
+      mob.formScale = mob.group.scale.x * (form === 3 ? 1.12 : 1.06);
+      if (form === 2) {
+        // これまでの「怒り」と同じ（速くなる・色が変わる・技の間かくが短くなる）
+        mob.enraged = true;
+        if (mob.def.ai === 'boss') {
+          const tier = bossTierOf(mob);
+          mob.speed = tier.enragedSpeed * (mob.awakened ? 1.2 : 1);
+          mob.tint = new THREE.Color(...tier.tint);
+        } else {
+          mob.speed *= 1.3;
+          mob.tint = new THREE.Color(1.2, 0.85, 0.85);
+        }
+      } else {
+        mob.speed *= 1.15;
+        mob.tint = new THREE.Color(conf.color).multiplyScalar(0.5).add(new THREE.Color(0.75, 0.75, 0.75));
+      }
+      if (mob.awakened) mob.tint.multiply(new THREE.Color(1.15, 1.05, 0.6));
+      setMobColor(mob, mob.tint);
+      // まわりを回る光の石（第 2 形態で 3 こ、最終形態で 6 こ）
+      if (!mob.orbiters) {
+        mob.orbiters = new THREE.Group();
+        mob.orbiters.position.y = mob.def.height * 0.55;
+        mob.group.add(mob.orbiters);
+      }
+      mob.orbiters.clear();
+      const count = form === 3 ? 6 : 3;
+      const stoneMat = new THREE.MeshBasicMaterial({ color: conf.color });
+      const ring = mob.def.radius + 1.0;
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2;
+        const stone = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), stoneMat);
+        stone.position.set(Math.cos(a) * ring, 0, Math.sin(a) * ring);
+        stone.rotation.set(0.6, 0.6, 0);
+        stone.userData.noTint = true;
+        mob.orbiters.add(stone);
+      }
+      // 最終形態: 体に光るひびが入る（ゴーレムとミイラ）、ミイラは金の冠
+      if (form === 3 && (mob.def.ai === 'boss' || mob.type === 'mummy')) {
+        const crackMat = new THREE.MeshBasicMaterial({ color: conf.color });
+        const h = mob.def.height;
+        const z = mob.def.radius * 0.9;
+        [[0, 0.55, 0.3], [-0.25, 0.48, -0.4], [0.22, 0.62, 0.5]].forEach(([x, y, rot]) => {
+          [z, -z].forEach(side => {
+            const crack = addBox(mob.group, [0.1, h * 0.18, 0.06], crackMat, [x * mob.def.radius * 2, h * y, side]);
+            crack.rotation.z = rot;
+            crack.userData.noTint = true;
+          });
+        });
+        if (mob.type === 'mummy') {
+          const crown = addBox(mob.group, [0.7, 0.25, 0.7], new THREE.MeshBasicMaterial({ color: 0xffd700 }), [0, h + 0.05, 0]);
+          crown.userData.noTint = true;
+        }
+      }
+      const label = form === 2 ? '第 2 形態' : '最終形態';
+      showToast(`💥 ${mob.def.name}が${label}「${conf.names[form - 1]}」に変身した！ ${conf.says[form - 1]}`);
+      playSound('roar');
+      playSound('explosion');
+      const p = mob.group.position;
+      spawnParticles(new THREE.Vector3(p.x, p.y + mob.height * 0.5, p.z), conf.color, 40, 8);
+      if (mob.def.boss) updateBossBar(mob);
+    }
+
+    // --- 新しい技の道具 ---
+    // 空から落ちてくるもの（岩・火の玉・流星）。先に地面に赤い印が出て、少しあとに落ちてくる
+    const hazards = [];
+    const hazardMat = new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+    const hazardGeo = new THREE.RingGeometry(0.35, 0.75, 20);
+
+    function rainAttack(center, { count, radius, damage, color, fire = false, delay = 1.3 }) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = i === 0 ? 0 : 1.5 + Math.random() * radius; // 1 つは、いま立っている所に
+        const x = Math.round(center.x + Math.cos(a) * r);
+        const z = Math.round(center.z + Math.sin(a) * r);
+        let y = Math.round(center.y) + 2;
+        while (y > center.y - 6 && !isSolid(x, y - 1, z)) y--; // 足もとの地面
+        if (isSolid(x, y, z)) continue;
+        let top = y;
+        while (top < y + 9 && !isSolid(x, top + 1, z)) top++; // 天井の下から落とす
+        const marker = new THREE.Mesh(hazardGeo, hazardMat);
+        marker.rotation.x = -Math.PI / 2;
+        marker.position.set(x, y - 0.45, z);
+        scene.add(marker);
+        hazards.push({ x, y, z, top, timer: delay + i * 0.07, marker, damage, color, fire });
+      }
+    }
+
+    function updateHazards(delta) {
+      for (let i = hazards.length - 1; i >= 0; i--) {
+        const h = hazards[i];
+        h.timer -= delta;
+        h.marker.scale.setScalar(1 + Math.sin(h.timer * 14) * 0.15);
+        if (h.timer > 0) continue;
+        scene.remove(h.marker);
+        hazards.splice(i, 1);
+        const mesh = new THREE.Mesh(rockGeo, rockMaterial(h.color));
+        mesh.position.set(h.x, h.top + 0.2, h.z);
+        scene.add(mesh);
+        rocks.push({ mesh, vel: new THREE.Vector3(0, -8, 0), life: 3, damage: h.damage, color: h.color, fire: h.fire });
+      }
+    }
+
+    // ファラオの砂の竜巻。ゆっくり追いかけてきて、当たると打ち上げられる
+    const tornadoes = [];
+    const tornadoMat = new THREE.MeshLambertMaterial({ color: 0xd8c890, transparent: true, opacity: 0.8 });
+
+    function spawnTornado(x, y, z, damage) {
+      const group = new THREE.Group();
+      [[0.5, 0], [0.75, 0.8], [1.0, 1.6], [1.25, 2.4]].forEach(([w, h]) => {
+        const part = new THREE.Mesh(new THREE.BoxGeometry(w, 0.8, w), tornadoMat);
+        part.position.y = h + 0.4;
+        group.add(part);
+      });
+      group.position.set(x, y, z);
+      scene.add(group);
+      tornadoes.push({ group, life: 8, damage, cooldown: 0 });
+    }
+
+    function updateTornadoes(delta) {
+      const feetY = camera.position.y - player.eye;
+      for (let i = tornadoes.length - 1; i >= 0; i--) {
+        const t = tornadoes[i];
+        t.life -= delta;
+        t.cooldown -= delta;
+        const p = t.group.position;
+        t.group.children.forEach((part, k) => { part.rotation.y += delta * (6 + k * 2); });
+        const dx = camera.position.x - p.x;
+        const dz = camera.position.z - p.z;
+        const d = Math.hypot(dx, dz) || 1;
+        const nx = p.x + (dx / d) * 3 * delta;
+        const nz = p.z + (dz / d) * 3 * delta;
+        if (!isSolid(nx, p.y + 0.5, nz)) { p.x = nx; p.z = nz; }
+        if (Math.random() < delta * 8) spawnParticles(new THREE.Vector3(p.x, p.y + 0.3, p.z), 0xd8c890, 2, 2);
+        if (d < 1.1 && feetY < p.y + 3 && feetY > p.y - 1.5 && t.cooldown <= 0) {
+          t.cooldown = 1.2;
+          damagePlayer(t.damage, new THREE.Vector3(dx, 0, dz).normalize());
+          player.velocity.y = 9; // 打ち上げられる
+        }
+        if (t.life <= 0) {
+          scene.remove(t.group);
+          tornadoes.splice(i, 1);
+        }
+      }
+    }
+
+    // ボスがいなくなったら、技の残りを片づける
+    function clearBossHazards() {
+      hazards.forEach(h => scene.remove(h.marker));
+      hazards.length = 0;
+      tornadoes.forEach(t => scene.remove(t.group));
+      tornadoes.length = 0;
+    }
+
+    // 線を少しのあいだ見せる（ファラオの包帯）
+    function flashLine(from, to, color, seconds) {
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from, to]), new THREE.LineBasicMaterial({ color }));
+      scene.add(line);
+      setTimeout(() => { scene.remove(line); line.geometry.dispose(); }, seconds * 1000);
+    }
+
+    // ゴーレムの突進: 一瞬かまえてから、まっすぐつっこんでくる（横によければ当たらない）
+    function updateGolemCharge(mob, delta, { dist, toPlayer, damage }) {
+      const c = mob.charge;
+      if (c.windup > 0) {
+        c.windup -= delta;
+        if (Math.random() < delta * 20) spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 1, 0)), BOSS_FORMS[mob.type].color, 2, 3);
+        return true;
+      }
+      c.time -= delta;
+      mob.moveX = c.dir.x * mob.speed * 3.6;
+      mob.moveZ = c.dir.z * mob.speed * 3.6;
+      walkAnimation(mob, 2.4);
+      if (!c.hit && dist < mob.radius + 1.4) {
+        c.hit = true;
+        damagePlayer(damage, c.dir.clone());
+        player.velocity.x += c.dir.x * 14;
+        player.velocity.z += c.dir.z * 14;
+        player.velocity.y = Math.max(player.velocity.y, 6);
+        playSound('slam');
+      }
+      if (c.time <= 0) mob.charge = null;
+      return true;
+    }
+
+    // やみのゴーレムの瞬間移動: プレイヤーの背中側にあらわれる（同じ部屋の中だけ）
+    function teleportBehindPlayer(mob) {
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      dir.y = 0;
+      dir.normalize();
+      const feetY = camera.position.y - player.eye;
+      const x = camera.position.x - dir.x * 3;
+      const z = camera.position.z - dir.z * 3;
+      const room = dungeonAt(mob.group.position.x, mob.group.position.y, mob.group.position.z);
+      if (room && dungeonAt(x, feetY, z) !== room) return false;
+      if (collidesBox(x, feetY, z, mob.radius, mob.height)) return false;
+      spawnParticles(mob.group.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 0x6a3aaa, 30, 5);
+      mob.group.position.set(x, feetY, z);
+      mob.velocity.set(0, 0, 0);
+      spawnParticles(new THREE.Vector3(x, feetY + 1.5, z), 0x6a3aaa, 30, 5);
+      playSound('ore');
+      showToast('👤 やみのゴーレムが背中に回りこんだ！');
+      return true;
+    }
+
     function updateBoss(mob, delta, { dist, flatDist, toPlayer, playerCenter }) {
       const tier = bossTierOf(mob);
       // 背中のコアはゆっくり光る（弱点が見つけやすいように）
@@ -8503,16 +8907,40 @@
       const pw = mob.awakenPower || 1;
       const quick = mob.awakened ? 0.75 : 1;
 
-      // 体力が半分を切ると怒って速くなる
-      if (!mob.enraged && mob.health < mob.maxHealth / 2) {
-        mob.enraged = true;
-        mob.speed = tier.enragedSpeed * (mob.awakened ? 1.2 : 1);
-        mob.tint = new THREE.Color(...tier.tint);
-        if (mob.awakened) mob.tint.multiply(new THREE.Color(1.15, 1.05, 0.6));
-        setMobColor(mob, mob.tint);
-        playSound('roar');
-        showToast(`${tier.emoji} ${mob.def.name}が怒った！`);
-        updateBossBar(mob);
+      // 体力が減ると変身して（updateBossForm）、怒って速くなる。形態ごとに技がふえる
+      // 第 2 形態から: 突進
+      if (mob.charge) {
+        updateGolemCharge(mob, delta, { dist, toPlayer, damage: Math.round(tier.waveDamage * 1.2 * pw) });
+        return;
+      }
+      if (mob.form >= 2 && !wet) {
+        mob.chargeTimer = (mob.chargeTimer ?? 4) - delta;
+        if (mob.chargeTimer <= 0 && flatDist > 5 && flatDist < 16 && mob.windup <= 0) {
+          mob.chargeTimer = (mob.form === 3 ? 6 : 8) * quick;
+          mob.charge = { windup: 0.8, time: 1.1, dir: toPlayer.clone(), hit: false };
+          playSound('roar');
+          return;
+        }
+      }
+      // 最終形態: 岩の雨（マグマは火の雨、やみは黒い雨）。やみのゴーレムは背中に瞬間移動
+      if (mob.form === 3 && !wet) {
+        mob.rainTimer = (mob.rainTimer ?? 2) - delta;
+        if (mob.rainTimer <= 0) {
+          mob.rainTimer = 9 * quick;
+          const fire = mob.type === 'magma_golem';
+          rainAttack(playerCenter, { count: fire ? 10 : 8, radius: 5, damage: Math.round(tier.rockDamage * pw), color: tier.rockColor || 0x7d7d7d, fire });
+          playSound('roar');
+        }
+        if (mob.type === 'shadow_golem') {
+          mob.blinkTimer = (mob.blinkTimer ?? 5) - delta;
+          if (mob.blinkTimer <= 0) {
+            mob.blinkTimer = 10 * quick;
+            if (teleportBehindPlayer(mob)) {
+              mob.windup = 0.6; // あらわれたら、すぐ地面たたき
+              return;
+            }
+          }
+        }
       }
 
       // 仲間を呼ぶボス（やみのゴーレムと、覚醒したゴーレム）
@@ -8616,6 +9044,8 @@
     function updateBossEffects(delta) {
       const feetY = camera.position.y - player.eye;
       if (boss) boss.fightSeconds = (boss.fightSeconds || 0) + delta;
+      updateHazards(delta);
+      updateTornadoes(delta);
 
       // 衝撃波: 輪が広がり、地面に立っているプレイヤーに当たる（ジャンプでよけられる）
       for (let i = shockwaves.length - 1; i >= 0; i--) {
@@ -8651,7 +9081,7 @@
             pos.y > feetY - 0.3 && pos.y < feetY + player.bodyHeight + 0.3;
           blocked = isSolid(pos.x, pos.y, pos.z);
         }
-        if (hitsPlayer) damagePlayer(r.damage, new THREE.Vector3(r.vel.x, 0, r.vel.z).normalize());
+        if (hitsPlayer) damagePlayer(r.damage, new THREE.Vector3(r.vel.x, 0, r.vel.z).normalize(), r.fire ? { fire: true } : undefined);
         if (hitsPlayer || blocked || r.life <= 0) {
           spawnParticles(pos.clone(), r.color, 10, 4);
           scene.remove(r.mesh);
@@ -8663,7 +9093,10 @@
         boss = null;
         bossBar.hidden = true;
       }
-      if (!boss) crystalBeams.visible = false;
+      if (!boss) {
+        crystalBeams.visible = false;
+        if (hazards.length || tornadoes.length) clearBossHazards();
+      }
     }
 
     function onLairBossDefeated(mob) {
@@ -13527,6 +13960,8 @@
         get dimensions() { return dimensions; },
         spawnGuardians: updateGuardianSpawning,
         spawnSeaLife: updateSeaLifeSpawning,
+        hazards,
+        tornadoes,
         caverns,
         ravines,
         isWaterAt,
