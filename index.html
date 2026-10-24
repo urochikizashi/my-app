@@ -2386,6 +2386,39 @@
     textures.flowerYellow = flowerTexture('#f4d42c', '#c88a1c');
     textures.flowerBlue = flowerTexture('#3c7ce8', '#f8f8f8');
 
+    // 海のブロック
+    textures.gravel = createPixelTexture(ctx => speckle(ctx, '#8a8480', ['#6e6864', '#a49e98', '#7a726c', '#b4aea8'], 110));
+    textures.seagrass = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      [[2, 9], [4, 13], [6, 7], [8, 14], [10, 10], [12, 12], [14, 8]].forEach(([x, h], i) => {
+        ctx.fillStyle = i % 2 ? '#3a9a5a' : '#2a7a4a';
+        ctx.fillRect(x, 16 - h, 1, h);
+        ctx.fillRect(x + (i % 2 ? 1 : -1), 18 - h, 1, 2);
+      });
+    });
+    textures.kelp = createPixelTexture(ctx => {
+      ctx.clearRect(0, 0, 16, 16);
+      for (let y = 0; y < 16; y++) {
+        const x = 7 + Math.round(Math.sin(y * 0.8) * 1.5);
+        ctx.fillStyle = '#3c7a2a';
+        ctx.fillRect(x, y, 2, 1);
+        if (y % 4 === 1) {
+          ctx.fillStyle = '#5a9a3a';
+          ctx.fillRect(y % 8 === 1 ? x + 2 : x - 3, y, 3, 2);
+        }
+      }
+    });
+    function coralTexture(base, light, dark) {
+      return createPixelTexture(ctx => {
+        speckle(ctx, base, [light, dark], 70);
+        ctx.fillStyle = light;
+        for (let i = 0; i < 6; i++) ctx.fillRect(rand(1, 13), rand(1, 13), 2, 2);
+      });
+    }
+    textures.coralPink = coralTexture('#e05a9a', '#f88ac0', '#b03a78');
+    textures.coralOrange = coralTexture('#e8862a', '#ffb05a', '#b8601a');
+    textures.coralPurple = coralTexture('#8a4ad8', '#b07af0', '#6a2ab0');
+
     /* --- Block Definitions & Texture Atlas --- */
     // 地形はチャンク（16×16列）ごとに「見えている面」だけをまとめて描く。
     // そのために全ブロックの絵を1枚の画像（アトラス）に並べ、面ごとにどの絵を使うかを決める
@@ -2401,7 +2434,8 @@
       'netherrack', 'glowstone', 'soulSand', 'portal', 'healCrystal',
       'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide',
       'brewTop', 'brewSide', 'emeraldOre', 'bellTop', 'bellSide', 'dirtPath', 'pathSide', 'bookshelf',
-      'endStone', 'skyBrick', 'frameTop', 'frameTopEye', 'frameSide', 'skyPortal', 'skyGateway', 'dragonEgg'
+      'endStone', 'skyBrick', 'frameTop', 'frameTopEye', 'frameSide', 'skyPortal', 'skyGateway', 'dragonEgg',
+      'gravel', 'seagrass', 'kelp', 'coralPink', 'coralOrange', 'coralPurple'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -2518,6 +2552,13 @@
       78: { name: '天空の祭壇のわく', tiles: [tile('frameTop'), tile('endStone'), tile('frameSide')], tier: 99, skyFrame: true, blastProof: true, map: '#3a6a5a' },
       79: { name: '目をはめた祭壇のわく', tiles: [tile('frameTopEye'), tile('endStone'), tile('frameSide')], tier: 99, skyFrame: true, blastProof: true, light: true, map: '#3ad8a0' },
       80: { name: 'ドラゴンのたまご', tiles: same('dragonEgg'), tier: 0, drop: 'dragon_egg', blastProof: true, map: '#2a1238' },
+      // 海のブロック。海草と昆布は水の中に生えている（waterlogged: まわりの水とつながっていて、こわすと水にもどる）
+      81: { name: '砂利', tiles: same('gravel'), tier: 0, drop: 'gravel', map: '#8a8480' },
+      82: { name: '海草', tiles: same('seagrass'), render: 'cross', seeThrough: true, solid: false, water: true, waterlogged: true, tier: 0, map: '#2f6fd6' },
+      83: { name: '昆布', tiles: same('kelp'), render: 'cross', seeThrough: true, solid: false, water: true, waterlogged: true, tier: 0, drop: 'kelp', map: '#2f6fd6' },
+      84: { name: 'ピンクのさんご', tiles: same('coralPink'), tier: 0, drop: 'coral_pink', map: '#e05a9a' },
+      85: { name: 'オレンジのさんご', tiles: same('coralOrange'), tier: 0, drop: 'coral_orange', map: '#e8862a' },
+      86: { name: 'むらさきのさんご', tiles: same('coralPurple'), tier: 0, drop: 'coral_purple', map: '#8a4ad8' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2573,6 +2614,10 @@
     const SKY_FRAME = 78;
     const SKY_FRAME_EYE = 79;
     const DRAGON_EGG = 80;
+    const GRAVEL = 81;
+    const SEAGRASS = 82;
+    const KELP = 83;
+    const CORALS = [84, 85, 86];
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -2719,14 +2764,20 @@
     const SAVE_VERSION = 6;
     const READABLE_SAVES = [5, 6];
     const savedGame = loadSave();
-    // ワールドの広さ。新しいワールドは 321×321。
-    // 前からあるセーブは作ったときの広さのまま（広さが変わると木や洞窟の場所が全部ずれるので）。
-    // worldSize が無いセーブは、161×161 だったころのもの
-    const NEW_WORLD_SIZE = 320;
-    const WORLD_SIZE = savedGame ? savedGame.worldSize || 160 : NEW_WORLD_SIZE;
-    const HALF_SIZE = WORLD_SIZE / 2;
-    // 161×161 を 1 としたときの広さ。洞窟や建物の数はこれに合わせて増やす
-    const WORLD_SCALE = WORLD_SIZE / 160;
+    // ワールドの広さ。まん中の「もとからの陸地」(CORE) と、そのまわりに足した「外の陸地と海」でできている。
+    // まん中は、新しいワールドは 321×321。前からあるセーブは作ったときの広さのまま
+    // （広さが変わると木や洞窟の場所が全部ずれるので）。worldSize が無いセーブは、161×161 だったころのもの。
+    // 外がわ (OUTER_WIDTH) は、まん中を前とまったく同じに作ってから足すので、前からのワールドにも海が増える
+    const NEW_CORE_SIZE = 320;
+    const CORE_SIZE = savedGame ? savedGame.worldSize || 160 : NEW_CORE_SIZE;
+    const CORE_HALF = CORE_SIZE / 2;
+    const OUTER_WIDTH = 96;           // 外の陸地と海の幅（片がわ）
+    const WORLD_SIZE = CORE_SIZE + OUTER_WIDTH * 2;
+    const ARRAY_HALF = WORLD_SIZE / 2; // 配列の番号やマップの位置に使う（いつも同じ）
+    // 今いる世界の端。表の世界は外の海まで。異世界・天空の島と、作っている途中のまん中は CORE_HALF
+    let HALF_SIZE = ARRAY_HALF;
+    // 161×161 を 1 としたときの広さ（まん中の部分）。洞窟や建物の数はこれに合わせて増やす
+    const WORLD_SCALE = CORE_SIZE / 160;
     const WORLD_AREA = WORLD_SCALE * WORLD_SCALE;
     const scaled = n => Math.round(n * WORLD_AREA);
     const BEDROCK_Y = -40;            // 最下層（岩盤）の高さ
@@ -2767,7 +2818,7 @@
 
     // 整数の座標を配列の番号に変換
     function cellIndex(x, y, z) {
-      return ((x + HALF_SIZE) * SIZE_Y + (y - BEDROCK_Y)) * SIZE_Z + (z + HALF_SIZE);
+      return ((x + ARRAY_HALF) * SIZE_Y + (y - BEDROCK_Y)) * SIZE_Z + (z + ARRAY_HALF);
     }
 
     function getBlock(x, y, z) {
@@ -2814,8 +2865,8 @@
     scene.add(terrainGroup);
 
     function chunkAt(x, z) {
-      const cx = Math.floor((Math.round(x) + HALF_SIZE) / CHUNK_SIZE);
-      const cz = Math.floor((Math.round(z) + HALF_SIZE) / CHUNK_SIZE);
+      const cx = Math.floor((Math.round(x) + ARRAY_HALF) / CHUNK_SIZE);
+      const cz = Math.floor((Math.round(z) + ARRAY_HALF) / CHUNK_SIZE);
       if (cx < 0 || cz < 0 || cx >= CHUNKS_PER_SIDE || cz >= CHUNKS_PER_SIDE) return null;
       return chunks[cx * CHUNKS_PER_SIDE + cz];
     }
@@ -2886,10 +2937,10 @@
       const glass = newFaceBuffer();
       const water = newFaceBuffer();
       const lava = newFaceBuffer();
-      const x0 = -HALF_SIZE + chunk.cx * CHUNK_SIZE;
-      const z0 = -HALF_SIZE + chunk.cz * CHUNK_SIZE;
-      const x1 = Math.min(HALF_SIZE, x0 + CHUNK_SIZE - 1);
-      const z1 = Math.min(HALF_SIZE, z0 + CHUNK_SIZE - 1);
+      const x0 = -ARRAY_HALF + chunk.cx * CHUNK_SIZE;
+      const z0 = -ARRAY_HALF + chunk.cz * CHUNK_SIZE;
+      const x1 = Math.min(ARRAY_HALF, x0 + CHUNK_SIZE - 1);
+      const z1 = Math.min(ARRAY_HALF, z0 + CHUNK_SIZE - 1);
 
       for (let x = x0; x <= x1; x++) {
         for (let z = z0; z <= z1; z++) {
@@ -2911,6 +2962,7 @@
               if (def.fluid && n !== 0 && BLOCKS[n].solid !== false) continue; // 水や溶岩はブロックに接した面を描かない
               if (n === id && def.seeThrough) continue;      // 葉と葉、ガラスとガラスの間は描かない
               if (def.fluid && BLOCKS[n] && BLOCKS[n].fluid === def.fluid) continue; // 同じ液体どうしの間も描かない
+              if (def.fluid === 'water' && BLOCKS[n] && BLOCKS[n].waterlogged) continue; // 水の中の海草のまわりも
               addFace(buf, x, y, z, face, def.tiles[face.side]);
             }
           }
@@ -2956,8 +3008,8 @@
           const chunk = {
             cx,
             cz,
-            centerX: -HALF_SIZE + cx * CHUNK_SIZE + CHUNK_SIZE / 2,
-            centerZ: -HALF_SIZE + cz * CHUNK_SIZE + CHUNK_SIZE / 2,
+            centerX: -ARRAY_HALF + cx * CHUNK_SIZE + CHUNK_SIZE / 2,
+            centerZ: -ARRAY_HALF + cz * CHUNK_SIZE + CHUNK_SIZE / 2,
             opaqueMesh: null,
             glassMesh: null,
             waterMesh: null,
@@ -3099,6 +3151,13 @@
       else markDirty(x, z);
       markMapDirty(x, z);
 
+      // 水の中の海草や昆布は、こわすとそこが水にもどる
+      if (BLOCKS[id].waterlogged) {
+        world[i] = WATER;
+        blockCount++;
+        blockChanges.set(blockKey(x, y, z), WATER);
+      }
+
       // 上に乗っていた草花や作物は、足場がなくなるので一緒に消える
       const above = inBounds(x, y + 1, z) ? world[cellIndex(x, y + 1, z)] : 0;
       if (above && BLOCKS[above].render === 'cross') removeBlock(x, y + 1, z, false);
@@ -3134,7 +3193,7 @@
     const isLavaBlock = id => id === LAVA || id === FLOW_LAVA;
     // その液体が入っていけるか（空気・草花。ほかの液体やかたいものには入れない）
     const canFloodInto = (id, def) =>
-      id === 0 || (!FLUIDS[id] && BLOCKS[id] && (BLOCKS[id].replaceable || BLOCKS[id].render === 'cross'));
+      id === 0 || (!FLUIDS[id] && BLOCKS[id] && !BLOCKS[id].waterlogged && (BLOCKS[id].replaceable || BLOCKS[id].render === 'cross'));
 
     // そのセルとまわりを「あとで調べる」リストに入れる
     function activateFluid(x, y, z) {
@@ -3257,6 +3316,7 @@
             const id = getBlock(x, y, z);
             if (id === 0 || id === BEDROCK || id === WOOD || id === LEAVES || id === WATER ||
                 id === SPRUCE_LOG || id === SPRUCE_LEAVES || id === CACTUS) continue;
+            if (carveRule && !carveRule(x, y, z)) continue; // 外の陸地の洞窟は、まん中と海の水をさける
             clearBlockData(x, y, z);
           }
         }
@@ -3353,7 +3413,10 @@
       forest: { name: '森', emoji: '🌲' },
       desert: { name: '砂漠', emoji: '🏜️' },
       snow: { name: '雪原', emoji: '❄️' },
-      mountain: { name: '山', emoji: '⛰️' }
+      mountain: { name: '山', emoji: '⛰️' },
+      // 外の海（まん中の陸地のまわりにだけある）
+      beach: { name: '浜辺', emoji: '🏖️' },
+      ocean: { name: '海', emoji: '🌊' }
     };
 
     // ゆっくり変わる「暑さ」「しめり気」「山の高さ」「湖のくぼみ」
@@ -3372,6 +3435,11 @@
 
     function biomeAt(x, z) {
       if (nearStart(x, z)) return 'plains';
+      if (outerDistance(x, z) > 0 && oceanFactor(x, z) > 0) {
+        const y = surfaceHeight(x, z);
+        if (y < WATER_LEVEL - 1) return 'ocean';
+        if (y <= WATER_LEVEL + 1) return 'beach';
+      }
       const b = biomeValues(x, z);
       if (b.mountain > 0.25) return 'mountain';
       if (b.temperature > 0.55) return 'desert';
@@ -3389,7 +3457,42 @@
       if (nearStart(x, z)) return Math.floor(4 + hills);
       const b = biomeValues(x, z);
       hills *= 1 - 0.5 * THREE.MathUtils.smoothstep(b.temperature, 0.45, 0.65); // 砂漠はなだらか
-      return Math.floor(4 + hills + 22 * b.mountain - 30 * b.lake);
+      const land = Math.floor(4 + hills + 22 * b.mountain - 30 * b.lake);
+      const sea = oceanFactor(x, z);
+      if (sea <= 0) return land;
+      // 海: 陸の高さから海の底へなめらかにつなぐ。ところどころに島
+      let y = THREE.MathUtils.lerp(land, seabedHeight(x, z), sea);
+      const island = Math.sin(x * 0.037 + 2.1 + biomeOffsetZ) * Math.cos(z * 0.033 - 0.8 + biomeOffsetX);
+      if (island > 0.6) {
+        const top = WATER_LEVEL + 1 + (island - 0.6) * 22 + hills * 0.4;
+        y = THREE.MathUtils.lerp(y, top, THREE.MathUtils.smoothstep(island, 0.6, 0.74) * sea);
+      }
+      return Math.floor(y);
+    }
+
+    /* --- Outer Lands & Ocean (外の陸地と海) --- */
+    // まん中の陸地（前からのワールド）の外がわに、続きの陸地と浜辺、そのさらに外に海がある。
+    // まん中の中では、どの関数も前とまったく同じ値を返す（前からのワールドがずれないように）
+    const COAST_DISTANCE = 46; // まん中の端から、どのくらい外で海になるか（だいたい）
+
+    // まん中の端から外へ何マスか（0 以下なら、まん中の中）
+    const outerDistance = (x, z) => Math.max(Math.abs(x), Math.abs(z)) - CORE_HALF;
+
+    // 0: 陸 〜 1: 海。海岸線はくねくねさせる
+    function oceanFactor(x, z) {
+      const t = outerDistance(x, z);
+      if (t <= 8) return 0;
+      const coast = COAST_DISTANCE + 9 * Math.sin(x * 0.045 + z * 0.02 + biomeOffsetX) +
+                    6 * Math.cos(z * 0.06 - x * 0.03 + biomeOffsetZ);
+      return THREE.MathUtils.smoothstep(t, coast - 4, coast + 18);
+    }
+
+    // 海の底の高さ。岸の近くは浅く（さんご礁）、沖に出るほど深い
+    function seabedHeight(x, z) {
+      const t = outerDistance(x, z);
+      const deep = THREE.MathUtils.smoothstep(t, COAST_DISTANCE + 10, COAST_DISTANCE + 44);
+      return THREE.MathUtils.lerp(-3, -19, deep) +
+        2.5 * Math.sin(x * 0.09 + biomeOffsetZ) * Math.cos(z * 0.08) + 1.5 * Math.sin((x + z) * 0.15);
     }
 
     // 深いほどレアな鉱石が出る
@@ -3453,6 +3556,8 @@
       terrainOffsetZ = (Math.floor(worldSeed / 10007) % 10007) * 1.91;
       biomeOffsetX = (worldSeed % 7919) * 2.3;
       biomeOffsetZ = (Math.floor(worldSeed / 7919) % 7919) * 1.7;
+      // まず、まん中を前とまったく同じ順番・同じ広さで作る（外がわは「ワールドの外」あつかい）
+      HALF_SIZE = CORE_HALF;
 
       for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
         for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) {
@@ -3517,7 +3622,10 @@
       generateUnderground(); // 前からあるワールドの地上がずれないように、建物の中ではあと
       generateVillages();    // 村とエメラルドは、さらにそのあと（地下の建物の場所もずれないように）
       placeEmeraldOre();
-      generateSkyAltar();    // 天空の祭壇は、いちばん最後
+      generateSkyAltar();    // 天空の祭壇は、まん中ではいちばん最後
+      // そのあとで、外の陸地と海を足す（乱数は別の順番を使うので、まん中には影響しない）
+      HALF_SIZE = ARRAY_HALF;
+      generateOuterLands();
     }
 
     // 深いところに溶岩の池を作る（まわりの石をくりぬいて、そこに溶岩をためる）
@@ -3716,6 +3824,11 @@
                 ['iron_sword', 0.2, 1, 1], ['shield', 0.15, 1, 1], ['coal', 0.5, 2, 6]],
       altar: [['diamond', 0.6, 1, 3], ['golden_apple', 0.5, 1, 2], ['ender_pearl', 0.5, 1, 3], ['star_shard', 0.4, 1, 2],
               ['iron', 0.7, 2, 6], ['bread', 0.6, 2, 4], ['obsidian', 0.4, 2, 5]],
+      // 海の沈没船
+      shipwreck: [['bread', 0.7, 2, 4], ['dried_kelp', 0.6, 3, 8], ['iron', 0.6, 2, 6], ['coal', 0.5, 3, 8], ['emerald', 0.4, 1, 3],
+                  ['potion_water', 0.45, 1, 2], ['bow', 0.2, 1, 1], ['arrow', 0.4, 4, 10], ['iron_sword', 0.15, 1, 1]],
+      shipwreckTreasure: [['gold', 0.9, 3, 9], ['emerald', 0.8, 2, 6], ['diamond', 0.5, 1, 3], ['golden_apple', 0.35, 1, 2],
+                          ['potion_water', 0.6, 1, 2], ['iron_armor', 0.15, 1, 1], ['diamond_pickaxe', 0.08, 1, 1]],
       skyTower: [['diamond', 0.9, 3, 7], ['emerald', 0.8, 4, 10], ['golden_apple', 0.7, 1, 3], ['ender_pearl', 0.6, 2, 5],
                  ['star_shard', 0.5, 1, 3], ['diamond_sword', 0.25, 1, 1], ['diamond_armor', 0.2, 1, 1], ['sky_bricks', 0.5, 6, 14]],
       spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
@@ -3998,7 +4111,9 @@
       village: { name: '村', emoji: '🏘️' },
       altar: { name: '天空の祭壇', emoji: '🧿' },
       // 天空の島
-      sky_tower: { name: '天空の塔', emoji: '🗼' }
+      sky_tower: { name: '天空の塔', emoji: '🗼' },
+      // 外の海
+      shipwreck: { name: '沈没船', emoji: '⚓' }
     };
     let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
     let spawners = [];         // { x, y, z, type, timer }
@@ -4263,6 +4378,7 @@
         potions: 0, enchants: 0, portalTrips: 0, nightsSlept: 0, babies: 0, ruinsFound: 0, maxLevel: 0, distance: 0,
         bloodMoonsSurvived: 0, bloodMoonBestKills: 0, // 赤い月
         trades: 0, villagesFound: 0, villagesDefended: 0, booksApplied: 0, // 村
+        oceanVisited: 0, shipwrecksFound: 0, // 外の海
         skyTrips: 0, gameCleared: 0, // 天空の島
         bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
         achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
@@ -4747,6 +4863,242 @@
       const site = { kind: 'altar', x: spot.cx, y: spot.fy, z: spot.cz, half: 10, boxes: [] };
       buildSkyAltar(site);
       undergroundSites.push(site);
+    }
+
+    /* --- Outer Lands & Ocean: Generation (外の陸地と海を作る) --- */
+    // まん中を作り終えてから呼ぶ。乱数は worldRngState を借りて返す（まん中の順番をこわさないため）。
+    // 外がわの列だけをうめるので、まん中のブロックは変えない
+    const outerSites = []; // 外に作ったもの（テスト用）
+
+    function generateOuterLands() {
+      const savedRng = worldRngState;
+      worldRngState = (worldSeed * 69069 + 424242) | 0;
+      for (let x = -ARRAY_HALF; x <= ARRAY_HALF; x++) {
+        for (let z = -ARRAY_HALF; z <= ARRAY_HALF; z++) {
+          if (outerDistance(x, z) > 0) generateOuterColumn(x, z);
+        }
+      }
+      generateOuterCaves();
+      generateOuterStructures();
+      generateShipwrecks();
+      worldRngState = savedRng;
+    }
+
+    // 海の底の下は、鉱石が少し多い（もぐって掘りに行くごほうび）
+    function seafloorBlock(y) {
+      const r = worldRandom();
+      if (y < -24 && r < 0.02) return DIAMOND_ORE;
+      if (y < -14 && r < 0.045) return GOLD_ORE;
+      if (y < -6 && r < 0.085) return IRON_ORE;
+      if (r < 0.13) return COAL_ORE;
+      if (y < -10 && r > 0.996) return EMERALD_ORE;
+      return STONE;
+    }
+
+    function generateOuterColumn(x, z) {
+      const surfaceY = surfaceHeight(x, z);
+      const biome = biomeAt(x, z);
+      const underwater = surfaceY < WATER_LEVEL;
+      const temp = biomeValues(x, z).temperature;
+
+      let top = GRASS;
+      let filler = DIRT;
+      if (underwater) {
+        // 深い所は、ところどころ砂利
+        const patch = Math.sin(x * 0.21 + z * 0.07) + Math.cos(z * 0.19 - x * 0.05);
+        top = surfaceY < -8 && patch > 0.4 ? GRAVEL : SAND;
+        filler = SAND;
+      } else if (biome === 'beach' || biome === 'desert') {
+        top = SAND;
+        filler = SAND;
+      } else if (biome === 'snow') {
+        top = SNOW_GRASS;
+      } else if (biome === 'mountain' && surfaceY >= 15) {
+        top = SNOW;
+        filler = STONE;
+      } else if (biome === 'mountain' && surfaceY >= 9) {
+        top = STONE;
+        filler = STONE;
+      }
+
+      setBlockData(x, BEDROCK_Y, z, BEDROCK);
+      for (let y = BEDROCK_Y + 1; y < surfaceY - 2; y++) {
+        setBlockData(x, y, z, underwater ? seafloorBlock(y) : undergroundBlock(y));
+      }
+      for (let y = surfaceY - 2; y < surfaceY; y++) setBlockData(x, y, z, filler);
+      setBlockData(x, surfaceY, z, top);
+
+      // 海の水。寒い海は、水面にところどころ氷がうかぶ
+      const frozen = temp < -0.55 && Math.sin(x * 0.17) * Math.cos(z * 0.15) + Math.sin((x - z) * 0.09) > -0.3;
+      for (let y = surfaceY + 1; y <= WATER_LEVEL; y++) {
+        setBlockData(x, y, z, frozen && y === WATER_LEVEL ? ICE : WATER);
+      }
+
+      const edge = ARRAY_HALF - Math.max(Math.abs(x), Math.abs(z));
+      if (edge <= 3 || outerDistance(x, z) <= 3) return; // ワールドの端と、まん中とのさかい目には生やさない
+      const r = worldRandom();
+      if (underwater) {
+        placeSeaLife(x, surfaceY, z, temp, r);
+        return;
+      }
+      if (biome === 'beach') return;
+      if (biome === 'forest' && r < 0.1) placeOakTree(x, surfaceY, z, worldRandInt(4, 6));
+      else if (biome === 'plains' && r < 0.02) placeOakTree(x, surfaceY, z, worldRandInt(3, 4));
+      else if (biome === 'snow' && r < 0.04) placeSpruceTree(x, surfaceY, z);
+      else if (biome === 'mountain' && surfaceY < 12 && r < 0.03) placeSpruceTree(x, surfaceY, z);
+      else if (biome === 'desert' && r < 0.012) placeCactus(x, surfaceY, z);
+      else if ((biome === 'plains' || biome === 'forest') && top === GRASS) {
+        const d = worldRandom();
+        if (d < 0.03) setBlockData(x, surfaceY + 1, z, FLOWERS[worldRandInt(0, 2)]);
+        else if (d < 0.15) setBlockData(x, surfaceY + 1, z, TALL_GRASS);
+      }
+    }
+
+    // 海の底: あたたかくて浅い海はさんご礁、それ以外は海草と昆布
+    function placeSeaLife(x, floorY, z, temp, r) {
+      const depth = WATER_LEVEL - floorY; // 水の深さ（マス）
+      const setPlant = (y, id) => {
+        if (getBlock(x, y, z) === WATER) forceBlock(x, y, z, id);
+      };
+      const reef = temp > 0.1 && depth >= 3 && depth <= 11 &&
+        Math.sin(x * 0.11 + 0.5) * Math.cos(z * 0.13) + 0.6 * Math.sin((x + z) * 0.05) > -0.1;
+      if (reef) {
+        if (r < 0.4) {
+          const color = CORALS[worldRandInt(0, CORALS.length - 1)];
+          const height = Math.min(depth - 2, worldRandInt(1, 3));
+          for (let dy = 1; dy <= height; dy++) setPlant(floorY + dy, color);
+        } else if (r < 0.6) {
+          setPlant(floorY + 1, SEAGRASS);
+        }
+        return;
+      }
+      if (r < 0.1) {
+        setPlant(floorY + 1, SEAGRASS);
+      } else if (r < 0.16 && depth >= 4) {
+        const height = worldRandInt(2, depth - 2); // 水面までは届かない
+        for (let dy = 1; dy <= height; dy++) setPlant(floorY + dy, KELP);
+      }
+    }
+
+    // 外の陸地の下の洞窟。まん中や海の水にはつき抜けないようにする
+    let carveRule = null; // carveSphere が「ここはけずってよいか」を聞く関数（ふだんは null）
+    const touchesWater = (x, y, z) => [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]
+      .some(([dx, dy, dz]) => { const id = getBlock(x + dx, y + dy, z + dz); return id !== 0 && !!BLOCKS[id].water; });
+
+    function generateOuterCaves() {
+      carveRule = (x, y, z) => outerDistance(x, z) > 0 && !touchesWater(x, y, z);
+      const randomOuterSpot = margin => {
+        for (let i = 0; i < 200; i++) {
+          const x = worldRandInt(-ARRAY_HALF + margin, ARRAY_HALF - margin);
+          const z = worldRandInt(-ARRAY_HALF + margin, ARRAY_HALF - margin);
+          if (outerDistance(x, z) > 6) return [x, z];
+        }
+        return [ARRAY_HALF - margin, 0];
+      };
+      const outerArea = WORLD_SIZE * WORLD_SIZE - CORE_SIZE * CORE_SIZE;
+      const count = Math.round(110 * outerArea / (160 * 160));
+      for (let i = 0; i < count; i++) {
+        const [x, z] = randomOuterSpot(4);
+        carveWorm(x, worldRandInt(BEDROCK_Y + 4, Math.min(-8, surfaceHeight(x, z) - 8)), z, worldRandInt(40, 80), false);
+      }
+      // 陸地から入れる入口
+      for (let i = 0; i < Math.round(count / 6); i++) {
+        const [x, z] = randomOuterSpot(6);
+        if (oceanFactor(x, z) > 0) continue;
+        carveWorm(x, surfaceHeight(x, z), z, worldRandInt(30, 55), true);
+      }
+      carveRule = null;
+    }
+
+    // 外の陸地にも、地形に合わせた建物を建てる（まん中と同じ種類）
+    function generateOuterStructures() {
+      const want = Math.max(4, Math.round(8 * WORLD_AREA));
+      let built = 0;
+      for (let attempt = 0; attempt < 2500 && built < want; attempt++) {
+        const cx = worldRandInt(-ARRAY_HALF + 12, ARRAY_HALF - 12);
+        const cz = worldRandInt(-ARRAY_HALF + 12, ARRAY_HALF - 12);
+        if (outerDistance(cx, cz) < 12 || oceanFactor(cx, cz) > 0) continue;
+        if (structuresPlaced.some(s => Math.hypot(cx - s.x, cz - s.z) < 28)) continue;
+        const list = STRUCTURE_TYPES[biomeAt(cx, cz)];
+        if (!list) continue;
+        const type = list[worldRandInt(0, list.length - 1)];
+        if (!flatEnough(cx, cz, type.half)) continue;
+        const floorY = surfaceHeight(cx, cz);
+        type.build(cx, floorY, cz);
+        structuresPlaced.push({ name: type.name, x: cx, y: floorY, z: cz, outer: true });
+        built++;
+      }
+    }
+
+    // 沈没船: 海の底に横たわる、こわれた木の船。船首と船尾に宝箱
+    function generateShipwrecks() {
+      const want = Math.max(4, Math.round(6 * WORLD_SCALE));
+      let built = 0;
+      for (let attempt = 0; attempt < 3000 && built < want; attempt++) {
+        const cx = worldRandInt(-ARRAY_HALF + 10, ARRAY_HALF - 10);
+        const cz = worldRandInt(-ARRAY_HALF + 10, ARRAY_HALF - 10);
+        const floorY = surfaceHeight(cx, cz);
+        if (floorY > -9 || oceanFactor(cx, cz) < 1) continue; // 船がすっぽり水につかる深さ
+        if (outerSites.some(s => Math.hypot(cx - s.x, cz - s.z) < 40)) continue;
+        const alongX = worldRandom() < 0.5;
+        // かたむいた所だと船が砂にうまってしまうので、平らな所だけ
+        const ends = alongX ? [[-6, 0], [6, 0], [0, -2], [0, 2]] : [[0, -6], [0, 6], [-2, 0], [2, 0]];
+        if (ends.some(([dx, dz]) => Math.abs(surfaceHeight(cx + dx, cz + dz) - floorY) > 1)) continue;
+        buildShipwreck(cx, floorY, cz, alongX);
+        built++;
+      }
+    }
+
+    // 水の中のセルを空ける（水面より下は水、上は空気）
+    const forceWet = (x, y, z) => forceBlock(x, y, z, y <= WATER_LEVEL ? WATER : 0);
+
+    function buildShipwreck(cx, floorY, cz, alongX) {
+      const cell = (l, w) => (alongX ? [cx + l, cz + w] : [cx + w, cz + l]);
+      const len = 6;
+      // 船の形: 両はしは細い。halfWidth(l) は、その場所の船の半分の幅
+      const halfWidth = l => (Math.abs(l) >= len ? 0 : Math.abs(l) >= len - 2 ? 1 : 2);
+      for (let l = -len - 1; l <= len + 1; l++) {
+        for (let w = -3; w <= 3; w++) {
+          const [x, z] = cell(l, w);
+          for (let dy = 1; dy <= 9; dy++) forceWet(x, floorY + dy, z); // 海草や昆布をどける
+        }
+      }
+      for (let l = -len; l <= len; l++) {
+        const hw = halfWidth(l);
+        for (let w = -hw; w <= hw; w++) {
+          const [x, z] = cell(l, w);
+          const broken = () => worldRandom() < 0.18; // ところどころこわれて穴があいている
+          forceBlock(x, floorY, z, PLANKS); // 船底（半分砂にうまっている）
+          const side = Math.abs(w) === hw;
+          for (let dy = 1; dy <= 2; dy++) {
+            if (side && !broken()) forceBlock(x, floorY + dy, z, PLANKS);
+          }
+          if (!broken() && Math.abs(l) < len - 1) forceBlock(x, floorY + 3, z, PLANKS); // 甲板
+        }
+      }
+      // 甲板のまん中から船の中へ下りる穴
+      const [hx, hz] = cell(0, 0);
+      forceWet(hx, floorY + 3, hz);
+      // マスト
+      const [mx, mz] = cell(2, 0);
+      for (let dy = 4; dy <= 8; dy++) forceBlock(mx, floorY + dy, mz, WOOD);
+      for (let w = -2; w <= 2; w++) {
+        const [sx, sz] = cell(2, w);
+        if (worldRandom() < 0.8) forceBlock(sx, floorY + 7, sz, SPRUCE_LOG);
+      }
+      // 宝箱: 船首は地図と宝、船尾は食べ物と道具
+      const [ax, az] = cell(len - 2, 0);
+      const [bx, bz] = cell(-len + 2, 0);
+      placeLootChest(ax, floorY + 1, az, LOOT.shipwreckTreasure);
+      placeLootChest(bx, floorY + 1, bz, LOOT.shipwreck);
+      const [x0, z0] = cell(-len, -2);
+      const [x1, z1] = cell(len, 2);
+      const site = {
+        kind: 'shipwreck', x: cx, y: floorY + 1, z: cz, half: len, outer: true,
+        boxes: [{ x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: floorY, y1: floorY + 4, z0: Math.min(z0, z1), z1: Math.max(z0, z1) }]
+      };
+      undergroundSites.push(site);
+      outerSites.push(site);
     }
 
     /* --- Build the World (ワールドを作る) --- */
@@ -8494,6 +8846,13 @@
       water_bottle: { name: '水のビン', kind: 'material', color: '#3c7ce8', emoji: '🫙', stack: 16 },
       // 村と交易
       emerald: { name: 'エメラルド', kind: 'material', color: '#2ad86a', emoji: '💚', particle: 0x2ad86a },
+      // 海のもの
+      gravel: { name: '砂利', kind: 'block', block: GRAVEL, color: '#8a8480', emoji: '🪨' },
+      coral_pink: { name: 'ピンクのさんご', kind: 'block', block: CORALS[0], color: '#e05a9a', emoji: '🪸' },
+      coral_orange: { name: 'オレンジのさんご', kind: 'block', block: CORALS[1], color: '#e8862a', emoji: '🪸' },
+      coral_purple: { name: 'むらさきのさんご', kind: 'block', block: CORALS[2], color: '#8a4ad8', emoji: '🪸' },
+      kelp: { name: '昆布', kind: 'material', color: '#3c7a2a', emoji: '🌿' },
+      dried_kelp: { name: '干し昆布', kind: 'food', heal: 3, color: '#2a4a1a', emoji: '🥬' },
       bookshelf: { name: '本棚', kind: 'block', block: BOOKSHELF, color: '#8a5a2a', emoji: '📚' },
       // エンチャントの本: 村の司書から買う。作業台のマスに道具といっしょに並べると、本の力が道具につく。
       // 力は item.ench に入る。道具と同じしくみで運べるように「残り 1 回」の道具あつかいにしている（hideUses で数は出さない）
@@ -9646,7 +10005,7 @@
     let storageChests = new Map(); // "x,y,z" -> 24枠
     applyStructureLoot(); // 生成した建物のチェストに中身を入れる（セーブがあればこのあと上書きされる）
     let furnaces = new Map();      // "x,y,z" -> { slots: [焼くもの, 燃料, できたもの], burn: 燃料の残り秒, progress: 焼けた秒 }
-    const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat', raw_meat: 'cooked_meat' };
+    const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat', raw_meat: 'cooked_meat', kelp: 'dried_kelp' };
     const FUEL_SECONDS = { coal: 32, charcoal: 32, wood: 8, planks: 4, stick: 2, blaze_rod: 96 }; // 1個焼くのに4秒
     const SMELT_TIME = 4;
 
@@ -10106,7 +10465,7 @@
     let explored = new Uint8Array(SIZE_X * SIZE_Z);
     let dungeonsFound = BOSS_TIERS.map(() => false); // 入口を見つけた部屋だけ、マップに印が出る
     let sitesFound = undergroundSites.map(() => false); // 中に入った地下の建物だけ、マップに印が出る
-    const isExplored = (x, z) => explored[(z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)] === 1;
+    const isExplored = (x, z) => explored[(z + ARRAY_HALF) * SIZE_X + (x + ARRAY_HALF)] === 1;
 
     /* --- Dimensions (表の世界と異世界) --- */
     // ワールドは「大きな箱1つ」でできている。異世界へ行くときは、
@@ -10168,6 +10527,8 @@
       if (fresh) dimensions[index] = makeDimension();
       applyDimension(dimensions[index]);
       currentDim = index;
+      // 外の海があるのは表の世界だけ。異世界と天空の島は、まん中の広さのまま
+      HALF_SIZE = index === OVERWORLD ? ARRAY_HALF : CORE_HALF;
 
       if (fresh && index !== OVERWORLD) {
         if (index === NETHER) generateNether();
@@ -11009,7 +11370,9 @@
       const x = Math.round(camera.position.x);
       const z = Math.round(camera.position.z);
       const fresh = switchDimension(to);
-      const spot = portalLandingSpot(x, z);
+      // 外の海のあたりから異世界へ行くと、異世界（まん中の広さ）からはみ出すので、端の少し内がわに出る
+      const limit = HALF_SIZE - 8;
+      const spot = portalLandingSpot(THREE.MathUtils.clamp(x, -limit, limit), THREE.MathUtils.clamp(z, -limit, limit));
       camera.position.set(spot.x, spot.y + player.eye, spot.z);
       player.velocity.set(0, 0, 0);
       player.fallFrom = spot.y;
@@ -11071,7 +11434,7 @@
       for (let x = cx - EXPLORE_RADIUS; x <= cx + EXPLORE_RADIUS; x++) {
         for (let z = cz - EXPLORE_RADIUS; z <= cz + EXPLORE_RADIUS; z++) {
           if (!isInsideWorld(x, z) || (x - cx) ** 2 + (z - cz) ** 2 > EXPLORE_RADIUS ** 2) continue;
-          const i = (z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE);
+          const i = (z + ARRAY_HALF) * SIZE_X + (x + ARRAY_HALF);
           if (!explored[i]) {
             explored[i] = 1;
             markMapDirty(x, z);
@@ -11093,7 +11456,7 @@
           feetY >= b.y0 - 0.5 && feetY <= b.y1 + 0.5);
         if (!inside) return;
         sitesFound[i] = true;
-        bumpStat(site.kind === 'village' ? 'villagesFound' : 'ruinsFound');
+        bumpStat(site.kind === 'village' ? 'villagesFound' : site.kind === 'shipwreck' ? 'shipwrecksFound' : 'ruinsFound');
         const kind = SITE_KINDS[site.kind];
         showToast(`${kind.emoji} ${kind.name}を見つけた！ マップに印がついた`);
         playSound('ore');
@@ -11111,13 +11474,23 @@
       return btoa(text);
     }
 
+    // 外の海を足す前のセーブは、まん中の広さ（CORE_SIZE + 1 四方）で書かれている。
+    // 長さから、どちらの広さで書いたかを見分けて、今の配列の同じ場所に入れる
     function decodeExplored(encoded, map = explored) {
       if (!encoded) return;
       try {
         const text = atob(encoded);
+        const bits = [SIZE_X, CORE_SIZE + 1].find(side => Math.ceil(side * side / 8) === text.length) || SIZE_X;
+        const offset = (SIZE_X - bits) / 2;
         for (let i = 0; i < text.length; i++) {
           const byte = text.charCodeAt(i);
-          for (let b = 0; b < 8 && i * 8 + b < map.length; b++) map[i * 8 + b] = (byte >> b) & 1;
+          for (let b = 0; b < 8; b++) {
+            const n = i * 8 + b;
+            if (n >= bits * bits) break;
+            const row = Math.floor(n / bits) + offset;
+            const col = (n % bits) + offset;
+            map[row * SIZE_X + col] = (byte >> b) & 1;
+          }
         }
       } catch (e) {
         // 読めないときは、まだどこにも行っていないことにする
@@ -11132,7 +11505,7 @@
 
     // その列の一番上のブロックの色。高い場所ほど明るく、低い場所ほど暗くする
     function paintMapColumn(x, z) {
-      const i = ((z + HALF_SIZE) * SIZE_X + (x + HALF_SIZE)) * 4;
+      const i = ((z + ARRAY_HALF) * SIZE_X + (x + ARRAY_HALF)) * 4;
       if (!isExplored(x, z)) {
         mapImage.data[i] = 18;
         mapImage.data[i + 1] = 18;
@@ -11155,8 +11528,8 @@
     }
 
     function buildMapImage() {
-      for (let x = -HALF_SIZE; x <= HALF_SIZE; x++) {
-        for (let z = -HALF_SIZE; z <= HALF_SIZE; z++) paintMapColumn(x, z);
+      for (let x = -ARRAY_HALF; x <= ARRAY_HALF; x++) {
+        for (let z = -ARRAY_HALF; z <= ARRAY_HALF; z++) paintMapColumn(x, z);
       }
       mapCtx.putImageData(mapImage, 0, 0);
     }
@@ -11223,7 +11596,7 @@
       minimapCtx.imageSmoothingEnabled = false;
       minimapCtx.fillStyle = '#000';
       minimapCtx.fillRect(0, 0, size, size);
-      minimapCtx.drawImage(mapCanvas, px - MINIMAP_RADIUS + HALF_SIZE, pz - MINIMAP_RADIUS + HALF_SIZE, span, span, 0, 0, size, size);
+      minimapCtx.drawImage(mapCanvas, px - MINIMAP_RADIUS + ARRAY_HALF, pz - MINIMAP_RADIUS + ARRAY_HALF, span, span, 0, 0, size, size);
 
       const toMini = (wx, wz) => [(wx - px + MINIMAP_RADIUS + 0.5) * scale, (wz - pz + MINIMAP_RADIUS + 0.5) * scale];
       const edge = v => THREE.MathUtils.clamp(v, 9, size - 9); // 範囲の外にあるものは端に表示
@@ -11254,7 +11627,7 @@
       const scale = size / SIZE_X;
       worldMapCtx.imageSmoothingEnabled = false;
       worldMapCtx.drawImage(mapCanvas, 0, 0, size, size);
-      const toMap = (wx, wz) => [(wx + HALF_SIZE + 0.5) * scale, (wz + HALF_SIZE + 0.5) * scale];
+      const toMap = (wx, wz) => [(wx + ARRAY_HALF + 0.5) * scale, (wz + ARRAY_HALF + 0.5) * scale];
       const [hx, hy] = toMap(0, 0);
       const home = currentDim === OVERWORLD;
       if (home) drawEmoji(worldMapCtx, '🏠', hx, hy, 24);
@@ -11429,8 +11802,9 @@
       if (inLava) speedFactor *= 0.3; // 溶岩の中はどろどろで進めない
 
       // 息: 顔（カメラの位置）が水につかっているあいだだけ減る
-      const headUnderwater = isWaterBlock(getBlock(
-        Math.round(camera.position.x), Math.round(camera.position.y), Math.round(camera.position.z)));
+      // 海草や昆布の中も水の中（waterlogged）
+      const headBlock = getBlock(Math.round(camera.position.x), Math.round(camera.position.y), Math.round(camera.position.z));
+      const headUnderwater = headBlock !== 0 && !!BLOCKS[headBlock].water;
       if (headUnderwater && effectLevel('water') > 0) {
         player.air = player.maxAir; // 水中呼吸のポーション: 息が減らない
         player.drownTimer = 0;
@@ -11488,6 +11862,9 @@
       const limit = HALF_SIZE + 0.5 - player.radius;
       camera.position.x = THREE.MathUtils.clamp(camera.position.x, -limit, limit);
       camera.position.z = THREE.MathUtils.clamp(camera.position.z, -limit, limit);
+      const atEdge = Math.max(Math.abs(camera.position.x), Math.abs(camera.position.z)) >= limit - 0.01;
+      if (atEdge && !player.edgeWarned) showToast('🌊 ここが世界の果て。これより先へは進めない');
+      player.edgeWarned = atEdge;
 
       // 重力 & 垂直移動（速く落ちても床をすり抜けないように、小さく分けて動かす）
       if (onLadder) {
@@ -11657,7 +12034,7 @@
         scene.background.copy(UNDERWATER_COLOR);
         scene.fog.color.copy(UNDERWATER_COLOR);
         scene.fog.near = 0.5;
-        scene.fog.far = 14;
+        scene.fog.far = effectLevel('night') > 0 ? 36 : 20; // 海の中を見わたせるように少し遠くまで
       } else {
         scene.fog.near = FOG_NEAR;
         scene.fog.far = FOG_FAR;
@@ -11666,6 +12043,11 @@
       depthDisplay.textContent = `深さ: ${depth}m (最深記録: ${deepestDepth}m)`;
       const biome = BIOME_INFO[biomeAt(Math.round(camera.position.x), Math.round(camera.position.z))];
       biomeDisplay.textContent = `${biome.emoji} ${biome.name}`;
+      if (currentDim === OVERWORLD && biome === BIOME_INFO.ocean && !stats.oceanVisited) {
+        stats.oceanVisited = 1;
+        showToast('🌊 海に出た！ 海の底には沈没船やさんご礁があるかも');
+        checkAchievements();
+      }
       const isDay = timeOfDay < NIGHT_START;
       const secondsLeft = ((isDay ? NIGHT_START : 1) - timeOfDay) * DAY_CYCLE_SECONDS;
       if (bloodMoon.active) {
@@ -11805,6 +12187,9 @@
       { id: 'trade_50', emoji: '🛒', name: 'おとくいさま', desc: '村人と 50 回交換する', check: () => (stats.trades || 0) >= 50 },
       { id: 'book', emoji: '📕', name: 'まほうの本', desc: 'エンチャントの本の力を道具につける', check: () => (stats.booksApplied || 0) >= 1 },
       { id: 'village_hero', emoji: '🛡️', name: '村の英雄', desc: '赤い月の夜に村を守りぬく', check: () => (stats.villagesDefended || 0) >= 1 },
+      { id: 'ocean', emoji: '🌊', name: '大海原へ', desc: '外の海に出る', check: () => !!stats.oceanVisited },
+      { id: 'shipwreck', emoji: '⚓', name: '海のトレジャーハンター', desc: '沈没船を見つける', check: () => (stats.shipwrecksFound || 0) >= 1 },
+      { id: 'coral', emoji: '🪸', name: 'さんご礁', desc: 'さんごを手に入れる', check: () => CORALS.some(id => seenItems.has(BLOCKS[id].drop)) },
       { id: 'sky_eye', emoji: '🧿', name: '天空の目', desc: '天空の目を作る', check: () => seenItems.has('sky_eye') },
       { id: 'sky', emoji: '🌌', name: '天空の島へ', desc: '天空のゲートをくぐる', check: () => (stats.skyTrips || 0) >= 1 },
       { id: 'boss_sky', emoji: '🐲', name: 'ゲームクリア！', desc: '最後のドラゴン（天空のドラゴン）をたおす', check: () => !!lairsDefeated.sky_dragon },
@@ -12215,7 +12600,7 @@
       const data = {
         version: SAVE_VERSION,
         seed: worldSeed,
-        worldSize: WORLD_SIZE,
+        worldSize: CORE_SIZE, // まん中の広さ（外の海はいつも同じ幅で足す）
         dimension: currentDim,
         // 表の世界は、版 5 と同じ場所に書く（前からのセーブと同じ形）
         changes: Object.fromEntries(over.blockChanges),
@@ -12356,6 +12741,11 @@
         addBlock,
         removeBlock,
         surfaceHeight,
+        ARRAY_HALF,
+        CORE_HALF,
+        oceanFactor,
+        outerSites,
+        get halfSize() { return HALF_SIZE; },
         structures: structuresPlaced,
         findGroundY,
         collidesBox,
