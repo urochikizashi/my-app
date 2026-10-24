@@ -2208,6 +2208,14 @@
       ctx.fillRect(11, 6, 2, 2);
       ctx.fillRect(6, 10, 4, 2);
     });
+    textures.drownedFace = createPixelTexture(ctx => {
+      speckle(ctx, '#5a9a8a', ['#4a8a7a', '#6aaa9a', '#3a7a6a'], 50);
+      ctx.fillStyle = '#9af0ff'; // 光る目
+      ctx.fillRect(3, 6, 3, 2);
+      ctx.fillRect(10, 6, 3, 2);
+      ctx.fillStyle = '#1a3a32';
+      ctx.fillRect(6, 11, 4, 2);
+    });
     textures.strayFace = createPixelTexture(ctx => {
       speckle(ctx, '#cfe0e8', ['#bcd0da', '#e2eef4'], 40);
       ctx.fillStyle = '#1a2a33';
@@ -2418,6 +2426,37 @@
     textures.coralPink = coralTexture('#e05a9a', '#f88ac0', '#b03a78');
     textures.coralOrange = coralTexture('#e8862a', '#ffb05a', '#b8601a');
     textures.coralPurple = coralTexture('#8a4ad8', '#b07af0', '#6a2ab0');
+    // 海底神殿のブロック
+    textures.prismarine = createPixelTexture(ctx => speckle(ctx, '#5aa898', ['#4a9888', '#6ab8a8', '#3a8a7a', '#7ac8b0'], 90));
+    textures.prismarineBricks = createPixelTexture(ctx => {
+      speckle(ctx, '#62b0a0', ['#58a494', '#70beae'], 40);
+      ctx.fillStyle = '#3a7a6c';
+      [0, 8].forEach(y => ctx.fillRect(0, y, 16, 1));
+      ctx.fillRect(0, 0, 1, 8);
+      ctx.fillRect(8, 0, 1, 8);
+      ctx.fillRect(4, 8, 1, 8);
+      ctx.fillRect(12, 8, 1, 8);
+    });
+    textures.darkPrismarine = createPixelTexture(ctx => {
+      speckle(ctx, '#2a5a4a', ['#244e40', '#326656'], 40);
+      ctx.fillStyle = '#4a8a74';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 0, 1, 16);
+      ctx.fillRect(3, 3, 10, 1);
+      ctx.fillRect(3, 12, 10, 1);
+      ctx.fillRect(3, 3, 1, 10);
+      ctx.fillRect(12, 3, 1, 10);
+    });
+    textures.seaLantern = createPixelTexture(ctx => {
+      speckle(ctx, '#d8f4ee', ['#ffffff', '#b8e4dc'], 50);
+      ctx.fillStyle = '#9ad0c4';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 15, 16, 1);
+      ctx.fillRect(0, 0, 1, 16);
+      ctx.fillRect(15, 0, 1, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(5, 5, 6, 6);
+    });
 
     /* --- Block Definitions & Texture Atlas --- */
     // 地形はチャンク（16×16列）ごとに「見えている面」だけをまとめて描く。
@@ -2435,7 +2474,8 @@
       'netherBrick', 'blackstone', 'gildedBlackstone', 'enchantTop', 'enchantSide',
       'brewTop', 'brewSide', 'emeraldOre', 'bellTop', 'bellSide', 'dirtPath', 'pathSide', 'bookshelf',
       'endStone', 'skyBrick', 'frameTop', 'frameTopEye', 'frameSide', 'skyPortal', 'skyGateway', 'dragonEgg',
-      'gravel', 'seagrass', 'kelp', 'coralPink', 'coralOrange', 'coralPurple'
+      'gravel', 'seagrass', 'kelp', 'coralPink', 'coralOrange', 'coralPurple',
+      'prismarine', 'prismarineBricks', 'darkPrismarine', 'seaLantern'
     ];
     const ATLAS_COLS = 8;
     const ATLAS_ROWS = Math.ceil(ATLAS_TILES.length / ATLAS_COLS);
@@ -2559,6 +2599,11 @@
       84: { name: 'ピンクのさんご', tiles: same('coralPink'), tier: 0, drop: 'coral_pink', map: '#e05a9a' },
       85: { name: 'オレンジのさんご', tiles: same('coralOrange'), tier: 0, drop: 'coral_orange', map: '#e8862a' },
       86: { name: 'むらさきのさんご', tiles: same('coralPurple'), tier: 0, drop: 'coral_purple', map: '#8a4ad8' },
+      // 海底神殿
+      87: { name: 'プリズマリン', tiles: same('prismarine'), tier: 1, drop: 'prismarine', map: '#5aa898' },
+      88: { name: 'プリズマリンレンガ', tiles: same('prismarineBricks'), tier: 1, drop: 'prismarine_bricks', map: '#62b0a0' },
+      89: { name: 'ダークプリズマリン', tiles: same('darkPrismarine'), tier: 1, drop: 'dark_prismarine', map: '#2a5a4a' },
+      90: { name: 'シーランタン', tiles: same('seaLantern'), tier: 0, drop: 'sea_lantern', light: true, map: '#d8f4ee' },
       63: { name: '異世界のゲート', tiles: same('portal'), tier: 99, seeThrough: true, solid: false, light: true, portal: true, render: 'glass', map: '#9a4aff' }
     };
     const GRASS = 1;
@@ -2618,6 +2663,10 @@
     const SEAGRASS = 82;
     const KELP = 83;
     const CORALS = [84, 85, 86];
+    const PRISMARINE = 87;
+    const PRISMARINE_BRICKS = 88;
+    const DARK_PRISMARINE = 89;
+    const SEA_LANTERN = 90;
     const STONE_BRICKS = 23;
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
@@ -3490,9 +3539,10 @@
     // 海の底の高さ。岸の近くは浅く（さんご礁）、沖に出るほど深い
     function seabedHeight(x, z) {
       const t = outerDistance(x, z);
-      const deep = THREE.MathUtils.smoothstep(t, COAST_DISTANCE + 10, COAST_DISTANCE + 44);
-      return THREE.MathUtils.lerp(-3, -19, deep) +
-        2.5 * Math.sin(x * 0.09 + biomeOffsetZ) * Math.cos(z * 0.08) + 1.5 * Math.sin((x + z) * 0.15);
+      const deep = THREE.MathUtils.smoothstep(t, COAST_DISTANCE + 6, COAST_DISTANCE + 30);
+      // 沖の深い所は、わりと平ら（海底神殿が建てられるように）
+      const bumps = 2.5 * Math.sin(x * 0.09 + biomeOffsetZ) * Math.cos(z * 0.08) + 1.5 * Math.sin((x + z) * 0.15);
+      return THREE.MathUtils.lerp(-3, -20, deep) + bumps * (1 - 0.6 * deep);
     }
 
     // 深いほどレアな鉱石が出る
@@ -3829,6 +3879,11 @@
                   ['potion_water', 0.45, 1, 2], ['bow', 0.2, 1, 1], ['arrow', 0.4, 4, 10], ['iron_sword', 0.15, 1, 1]],
       shipwreckTreasure: [['gold', 0.9, 3, 9], ['emerald', 0.8, 2, 6], ['diamond', 0.5, 1, 3], ['golden_apple', 0.35, 1, 2],
                           ['potion_water', 0.6, 1, 2], ['iron_armor', 0.15, 1, 1], ['diamond_pickaxe', 0.08, 1, 1]],
+      // 海底神殿
+      monument: [['prismarine_shard', 0.9, 3, 8], ['gold', 0.7, 2, 6], ['emerald', 0.6, 2, 5], ['cooked_fish', 0.6, 2, 5],
+                 ['potion_water', 0.6, 1, 2], ['diamond', 0.35, 1, 2], ['sea_lantern', 0.4, 1, 3]],
+      monumentTreasure: [['trident', 1, 1, 1], ['heart_of_sea', 1, 1, 1], ['diamond', 0.9, 2, 5], ['gold', 0.9, 4, 10],
+                         ['emerald', 0.8, 3, 8], ['golden_apple', 0.5, 1, 2]],
       skyTower: [['diamond', 0.9, 3, 7], ['emerald', 0.8, 4, 10], ['golden_apple', 0.7, 1, 3], ['ender_pearl', 0.6, 2, 5],
                  ['star_shard', 0.5, 1, 3], ['diamond_sword', 0.25, 1, 1], ['diamond_armor', 0.2, 1, 1], ['sky_bricks', 0.5, 6, 14]],
       spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
@@ -4113,7 +4168,8 @@
       // 天空の島
       sky_tower: { name: '天空の塔', emoji: '🗼' },
       // 外の海
-      shipwreck: { name: '沈没船', emoji: '⚓' }
+      shipwreck: { name: '沈没船', emoji: '⚓' },
+      monument: { name: '海底神殿', emoji: '🔱' }
     };
     let undergroundSites = []; // { kind, x, y, z, half, boxes: [{x0,x1,y0,y1,z0,z1}], spawner? } boxes に入ると見つけたことになる
     let spawners = [];         // { x, y, z, type, timer }
@@ -4378,7 +4434,7 @@
         potions: 0, enchants: 0, portalTrips: 0, nightsSlept: 0, babies: 0, ruinsFound: 0, maxLevel: 0, distance: 0,
         bloodMoonsSurvived: 0, bloodMoonBestKills: 0, // 赤い月
         trades: 0, villagesFound: 0, villagesDefended: 0, booksApplied: 0, // 村
-        oceanVisited: 0, shipwrecksFound: 0, // 外の海
+        oceanVisited: 0, shipwrecksFound: 0, monumentsFound: 0, // 外の海
         skyTrips: 0, gameCleared: 0, // 天空の島
         bossRecords: {},   // 敵の種類 -> { fight: 戦った秒数(いちばん速い), at: 最初にたおしたときの遊んだ秒数, times: たおした回数, last: 前回の秒数 }
         achievements: {}   // 実績の id -> 手に入れたときの遊んだ秒数
@@ -4881,6 +4937,7 @@
       generateOuterCaves();
       generateOuterStructures();
       generateShipwrecks();
+      generateMonuments();
       worldRngState = savedRng;
     }
 
@@ -5047,6 +5104,97 @@
         buildShipwreck(cx, floorY, cz, alongX);
         built++;
       }
+    }
+
+    // 海底神殿: 深い海の底の、プリズマリンの大きな神殿。中は水。まん中の部屋に宝箱（三叉の槍と海のハート）。
+    // 中に入ると海の番人がやってくる
+    const MONUMENT_HALF = 11;
+    function generateMonuments() {
+      const want = Math.max(1, Math.round(WORLD_SCALE));
+      let built = 0;
+      for (let attempt = 0; attempt < 4000 && built < want; attempt++) {
+        const cx = worldRandInt(-ARRAY_HALF + 16, ARRAY_HALF - 16);
+        const cz = worldRandInt(-ARRAY_HALF + 16, ARRAY_HALF - 16);
+        if (oceanFactor(cx, cz) < 1 || outerSites.some(s => Math.hypot(cx - s.x, cz - s.z) < 40)) continue;
+        const h = MONUMENT_HALF;
+        let lowest = Infinity;
+        let highest = -Infinity;
+        for (let dx = -h; dx <= h; dx += h) {
+          for (let dz = -h; dz <= h; dz += h) {
+            const y = surfaceHeight(cx + dx, cz + dz);
+            lowest = Math.min(lowest, y);
+            highest = Math.max(highest, y);
+          }
+        }
+        // 海の底はゆるい坂なので、低い方に合わせて建て、高い方はけずる（下の buildMonument）
+        if (lowest > -14 || highest > -6 || highest - lowest > 11 || oceanFactor(cx + h, cz + h) < 1 || oceanFactor(cx - h, cz - h) < 1) continue;
+        buildMonument(cx, lowest, cz);
+        built++;
+      }
+    }
+
+    function buildMonument(cx, fy, cz) {
+      const h = MONUMENT_HALF;
+      // 土台と、中を水にする。まわり 4 マスも、なだらかにけずって入口がうまらないようにする
+      for (let dx = -h - 4; dx <= h + 4; dx++) {
+        for (let dz = -h - 4; dz <= h + 4; dz++) {
+          const out = Math.max(Math.abs(dx), Math.abs(dz)) - h; // 1〜4 は神殿の外のまわり
+          if (out <= 0) for (let y = fy - 3; y <= fy; y++) forceBlock(cx + dx, y, cz + dz, PRISMARINE);
+          for (let dy = Math.max(1, out * 2); dy <= 14; dy++) {
+            const id = getBlock(cx + dx, fy + dy, cz + dz);
+            if (out <= 0 || (id !== WATER && id !== 0)) forceWet(cx + dx, fy + dy, cz + dz);
+          }
+        }
+      }
+      // 3 段の建物: 1 段目（大広間）・2 段目（宝の部屋）・3 段目（てっぺんの灯り）
+      const tiers = [
+        { half: h, y0: fy + 1, y1: fy + 5, wall: PRISMARINE_BRICKS, roof: PRISMARINE },
+        { half: 6, y0: fy + 6, y1: fy + 10, wall: PRISMARINE_BRICKS, roof: DARK_PRISMARINE },
+        { half: 2, y0: fy + 11, y1: fy + 12, wall: DARK_PRISMARINE, roof: DARK_PRISMARINE }
+      ];
+      tiers.forEach(({ half, y0, y1, wall, roof }) => {
+        for (let dx = -half; dx <= half; dx++) {
+          for (let dz = -half; dz <= half; dz++) {
+            const edge = Math.abs(dx) === half || Math.abs(dz) === half;
+            if (edge) for (let y = y0; y <= y1; y++) forceBlock(cx + dx, y, cz + dz, wall);
+            forceBlock(cx + dx, y1 + 1, cz + dz, roof);
+          }
+        }
+      });
+      forceBlock(cx, fy + 14, cz, SEA_LANTERN); // てっぺんの灯り
+      // 大広間: 四すみの柱にシーランタン、壁の中ほどにも灯り
+      for (const [px, pz] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) {
+        for (let y = fy + 1; y <= fy + 5; y++) forceBlock(cx + px, y, cz + pz, y === fy + 3 ? SEA_LANTERN : DARK_PRISMARINE);
+      }
+      for (let i = -h + 3; i <= h - 3; i += 4) {
+        for (const [x, z] of [[cx + i, cz - h], [cx + i, cz + h], [cx - h, cz + i], [cx + h, cz + i]]) forceBlock(x, fy + 3, z, SEA_LANTERN);
+      }
+      // 入口: 4 つの面のまん中（3×3 の穴）
+      for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        for (let w = -1; w <= 1; w++) {
+          for (let y = fy + 1; y <= fy + 3; y++) {
+            const [x, z] = sideCell(cx, cz, sx, sz, h, w);
+            forceWet(x, y, z);
+          }
+        }
+      }
+      // 2 段目（宝の部屋）へは、大広間の天井の穴から上がる
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) forceWet(cx + dx + 3, fy + 6, cz + dz);
+      }
+      // 宝箱: 宝の部屋のまん中に 1 つ（必ず三叉の槍と海のハート）、大広間のすみに 2 つ
+      placeLootChest(cx, fy + 7, cz, LOOT.monumentTreasure);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) if (dx || dz) forceBlock(cx + dx, fy + 6, cz + dz, SEA_LANTERN); // 宝箱の台
+      }
+      placeLootChest(cx - h + 2, fy + 1, cz - h + 2, LOOT.monument);
+      placeLootChest(cx + h - 2, fy + 1, cz + h - 2, LOOT.monument);
+      const site = {
+        kind: 'monument', x: cx, y: fy + 1, z: cz, half: h, outer: true,
+        boxes: [{ x0: cx - h, x1: cx + h, y0: fy, y1: fy + 13, z0: cz - h, z1: cz + h }]
+      };
+      undergroundSites.push(site);
+      outerSites.push(site);
     }
 
     // 水の中のセルを空ける（水面より下は水、上は空気）
@@ -5680,6 +5828,87 @@
       return { group, head, legs: [legL, legR], arms: [armL, armR] };
     }
 
+    // --- 海の生き物 ---
+    // 魚: 色はいろいろ（あたたかい海の魚のように）。尾びれを左右にふって泳ぐ
+    const FISH_COLORS = [[0xf08a2a, 0xffffff], [0x3a8ae8, 0xf8e84a], [0xe84a8a, 0x5ae0d8], [0x8ab0c8, 0x5a7a8a], [0xf8d84a, 0x2a2a2a]];
+    function buildFish() {
+      const group = new THREE.Group();
+      const [body, stripe] = FISH_COLORS[Math.floor(Math.random() * FISH_COLORS.length)];
+      const bodyMat = new THREE.MeshLambertMaterial({ color: body });
+      const head = addBox(group, [0.16, 0.26, 0.42], bodyMat, [0, 0.2, 0.05]);
+      addBox(group, [0.17, 0.12, 0.08], new THREE.MeshLambertMaterial({ color: stripe }), [0, 0.2, 0.05]); // しま
+      addBox(group, [0.04, 0.12, 0.14], bodyMat, [0, 0.38, 0]); // 背びれ
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      addBox(group, [0.18, 0.05, 0.05], eyeMat, [0, 0.24, 0.2]);
+      const tail = new THREE.Group();
+      tail.position.set(0, 0.2, -0.16);
+      addBox(tail, [0.04, 0.24, 0.16], bodyMat, [0, 0, -0.08]);
+      group.add(tail);
+      return { group, head, legs: [], tail };
+    }
+
+    // イカ: 黒っぽい体と 8 本の足。足をゆらして泳ぐ
+    function buildSquid() {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2a3a5a });
+      const head = addBox(group, [0.6, 0.7, 0.6], bodyMat, [0, 0.75, 0]);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xe8f0ff });
+      addBox(group, [0.62, 0.1, 0.12], eyeMat, [0, 0.62, 0.12]);
+      const legs = [];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const leg = new THREE.Group();
+        leg.position.set(Math.sin(a) * 0.2, 0.4, Math.cos(a) * 0.2);
+        addBox(leg, [0.08, 0.45, 0.08], bodyMat, [0, -0.22, 0]);
+        group.add(leg);
+        legs.push(leg);
+      }
+      return { group, head, legs: [], tentacles: legs };
+    }
+
+    // ドラウンド: 海でおぼれたゾンビ。水の中をすいすい泳いでおそってくる
+    function buildDrowned() {
+      const model = buildZombie();
+      const colors = [0x5a9a8a, 0x5a9a8a, 0x2a5a4a, 0x5a9a8a, null, 0x2a5a4a];
+      model.head.material.forEach((m, i) => {
+        if (i === 4) m.map = textures.drownedFace;
+        else m.color.setHex(colors[i]);
+      });
+      model.group.children.forEach(child => {
+        if (child === model.head) return;
+        const hex = child.material.color.getHex();
+        if (hex === 0x248f8f) child.material.color.setHex(0x4a6a8a); // ぼろぼろの服
+        else if (hex === 0x497c36) child.material.color.setHex(0x5a9a8a); // うで
+        else if (hex === 0x26337a) child.material.color.setHex(0x2a4a5a); // ズボン
+      });
+      addBox(model.group, [0.1, 0.3, 0.1], new THREE.MeshLambertMaterial({ color: 0x3a7a2a }), [0.12, 1.25, 0.15]); // からまった海草
+      return model;
+    }
+
+    // 海の番人: 一つ目のトゲトゲの魚。目からビームを出す（ためているあいだ、ビームが見える）
+    function buildSeaGuardian() {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0x5aa898 });
+      const finMat = new THREE.MeshLambertMaterial({ color: 0xe88a4a });
+      const head = addBox(group, [0.9, 0.8, 0.9], bodyMat, [0, 0.45, 0]);
+      const eye = addBox(group, [0.3, 0.3, 0.08], new THREE.MeshBasicMaterial({ color: 0xffe080 }), [0, 0.5, 0.46]);
+      eye.userData.noTint = true;
+      addBox(group, [0.12, 0.12, 0.04], new THREE.MeshBasicMaterial({ color: 0x3a2a10 }), [0, 0.5, 0.51]).userData.noTint = true;
+      // トゲ（ビームをためると のびる）
+      const spikes = [];
+      [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, -1], [0.7, 0.7, 0], [-0.7, 0.7, 0], [0.7, -0.7, 0], [-0.7, -0.7, 0]].forEach(([x, y, z]) => {
+        const spike = addBox(group, [0.1, 0.1, 0.1], finMat, [x * 0.5, 0.45 + y * 0.45, z * 0.5]);
+        spike.userData.dir = [x, y, z];
+        spikes.push(spike);
+      });
+      const tail = new THREE.Group();
+      tail.position.set(0, 0.45, -0.45);
+      addBox(tail, [0.3, 0.3, 0.4], bodyMat, [0, 0, -0.2]);
+      addBox(tail, [0.08, 0.4, 0.3], finMat, [0, 0, -0.5]);
+      group.add(tail);
+      return { group, head, legs: [], tail, spikes };
+    }
+
     // --- 3体の新しいボス ---
     // 大グモの女王: クモをうんと大きくして、光る卵ののうをしょっている
     function buildSpiderQueen() {
@@ -5887,6 +6116,11 @@
       sky_dragon: { name: '天空のドラゴン', ai: 'lairboss', dragon: true, bossPower: 1.3, health: 2600, speed: 5.6, radius: 1.9, height: 3.9, sight: 64, damage: 18, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildSkyDragon },
       // 天空の島の敵。なぐるまでは おそってこない（neutral）。なぐられるとワープすることがある（teleports）
       enderman: { name: 'エンダーマン', ai: 'melee', neutral: true, teleports: true, health: 40, speed: 3.0, radius: 0.3, height: 2.9, sight: 22, damage: 7, noBurn: true, drop: 'ender_pearl', build: buildEnderman },
+      // 海の生き物。swims: 水の中では重力を受けずに泳ぐ。seaLife: 動物の数には入れない
+      fish: { name: '魚', emoji: '🐟', ai: 'swim', passive: true, seaLife: true, swims: true, noBurn: true, health: 4, speed: 2.4, radius: 0.2, height: 0.4, sight: 8, drop: 'raw_fish', build: buildFish },
+      squid: { name: 'イカ', emoji: '🦑', ai: 'swim', passive: true, seaLife: true, swims: true, noBurn: true, health: 10, speed: 1.5, radius: 0.35, height: 1.0, sight: 8, drop: 'ink_sac', dropCount: [1, 3], build: buildSquid },
+      drowned: { name: 'ドラウンド', ai: 'melee', swims: true, noBurn: true, health: 22, speed: 2.6, radius: 0.3, height: 1.8, sight: 22, damage: 4, drop: 'rotten_meat', build: buildDrowned },
+      sea_guardian: { name: '海の番人', ai: 'beam', swims: true, ignoresTorch: true, noBurn: true, health: 30, speed: 2.2, radius: 0.5, height: 0.95, sight: 18, damage: 6, drop: 'prismarine_shard', dropCount: [1, 3], build: buildSeaGuardian },
       bat: { name: 'コウモリ', emoji: '🦇', ai: 'bat', passive: true, flying: true, noBurn: true, health: 6, speed: 3.4, radius: 0.22, height: 0.5, sight: 10, build: buildBat },
       golem: { name: 'ゴーレム', ai: 'boss', health: 300, speed: 1.8, radius: 0.8, height: 3.5, sight: 30, damage: 8, boss: true, noBurn: true, build: buildGolem },
       magma_golem: { name: 'マグマゴーレム', ai: 'boss', health: 450, speed: 2.0, radius: 0.85, height: 3.5, sight: 34, damage: 11, boss: true, noBurn: true, build: size => buildGolem(size, GOLEM_SKINS.magma) },
@@ -6075,7 +6309,7 @@
       if (animalSpawnTimer > 0) return;
       animalSpawnTimer = 4 + Math.random() * 4;
       // コウモリと村人は passive だが動物ではないので、動物の数には入れない
-      const animalCount = mobs.reduce((n, m) => n + (m.def.passive && m.type !== 'bat' && !m.def.villager ? 1 : 0), 0);
+      const animalCount = mobs.reduce((n, m) => n + (m.def.passive && m.type !== 'bat' && !m.def.villager && !m.def.seaLife ? 1 : 0), 0);
       if (animalCount >= ANIMAL_LIMIT || currentDepth >= 5) return;
       for (let attempt = 0; attempt < 12; attempt++) {
         const angle = Math.random() * Math.PI * 2;
@@ -6222,8 +6456,9 @@
       if (collidesBox(x, y, z, def.radius, def.height)) return null;
       // 松明のそばには敵は出ない（動物と、遺跡を守る番人、赤い月の群れは出る）
       if (!ignoreTorch && !def.passive && !def.ignoresTorch && isNearTorch(x, y, z, 8)) return null;
-      // 液体の中には出さない（溶岩の上で立ち往生しないように）
-      if (FLUIDS[getBlock(Math.round(x), Math.round(y + 0.5), Math.round(z))]) return null;
+      // 液体の中には出さない（溶岩の上で立ち往生しないように）。泳ぐ生き物は水の中に出す
+      const inFluid = FLUIDS[getBlock(Math.round(x), Math.round(y + 0.5), Math.round(z))];
+      if (def.swims ? !isWaterAt(x, y + def.height * 0.5, z) : inFluid) return null;
       const mob = createMob(type, x, y, z);
       applyMobStrength(mob);
       spawnParticles(new THREE.Vector3(x, y + 0.8, z), 0x9933ff, 16, 3);
@@ -6239,7 +6474,14 @@
         const z = Math.round(camera.position.z + Math.sin(angle) * r);
         if (!isInsideWorld(x, z)) continue;
         const groundY = findGroundY(x, z);
-        if (isWaterBlock(getBlock(x, groundY + 0.5, z))) continue; // 湖の底には出さない
+        if (isWaterAt(x, groundY + 0.5, z)) {
+          // 海の底には、ドラウンドが出る（湖など浅い水には出さない）
+          if (WATER_LEVEL - groundY < 4 || biomeAt(x, z) !== 'ocean') continue;
+          const mob = spawnMobAt('drowned', x, groundY, z, bloodMoon.active);
+          if (mob && bloodMoon.active) empowerBloodMoonMob(mob);
+          if (mob) return true;
+          continue;
+        }
         const type = pickWeighted(SURFACE_MOBS);
         const mob = spawnMobAt((BIOME_VARIANTS[biomeAt(x, z)] || {})[type] || type, x, groundY, z, bloodMoon.active);
         if (mob) {
@@ -6311,8 +6553,12 @@
       }
     }
 
-    // 遺跡の番人: 古代遺跡の中に入っているあいだだけ、1か所につき2体まで
-    const GUARDIANS_PER_SITE = 2;
+    // 遺跡の番人: 古代遺跡の中に入っているあいだだけ、1か所につき2体まで。
+    // 海底神殿には海の番人が 3 体まで
+    const GUARDED_SITES = {
+      ruins: { type: 'guardian', max: 2, toast: '🗿 遺跡の番人が目を覚ました！' },
+      monument: { type: 'sea_guardian', max: 3, toast: '🔱 海の番人がやってきた！' }
+    };
     let guardianSpawnTimer = 2;
 
     function updateGuardianSpawning(delta) {
@@ -6323,11 +6569,12 @@
       const pz = camera.position.z;
       const feetY = camera.position.y - player.eye;
       undergroundSites.forEach(site => {
-        if (site.kind !== 'ruins') return;
+        const guard = GUARDED_SITES[site.kind];
+        if (!guard) return;
         const inside = site.boxes.some(b => px >= b.x0 - 5 && px <= b.x1 + 5 && pz >= b.z0 - 5 && pz <= b.z1 + 5 &&
           feetY >= b.y0 - 3 && feetY <= b.y1 + 3);
         if (!inside) return;
-        if (mobs.reduce((n, m) => n + (m.site === site ? 1 : 0), 0) >= GUARDIANS_PER_SITE) return;
+        if (mobs.reduce((n, m) => n + (m.site === site ? 1 : 0), 0) >= guard.max) return;
         const feetCell = Math.floor(feetY + 0.5);
         for (let attempt = 0; attempt < 16; attempt++) {
           const x = Math.round(px + rand(-9, 9));
@@ -6335,11 +6582,11 @@
           if (!isInsideWorld(x, z) || Math.hypot(x - px, z - pz) < 4) continue;
           for (let y = feetCell + 3; y >= feetCell - 4; y--) {
             if (isSolid(x, y - 1, z) && !isSolid(x, y, z) && !isSolid(x, y + 1, z) && !isSolid(x, y + 2, z)) {
-              const mob = spawnMobAt('guardian', x, y - 0.5, z);
+              const mob = spawnMobAt(guard.type, x, y - 0.5, z);
               if (mob) {
                 mob.site = site;
                 mob.aggro = true; // 宝を守っているので、すぐにおそってくる
-                showToast('🗿 遺跡の番人が目を覚ました！');
+                showToast(guard.toast);
                 return;
               }
               break;
@@ -6349,7 +6596,38 @@
       });
     }
 
+    // 海の生き物: 水の深い所（3 マス以上）に、魚のむれとイカ。敵の数・動物の数とは別に数える
+    const SEA_LIFE_LIMIT = 8;
+    let seaLifeTimer = 2;
+
+    function updateSeaLifeSpawning(delta) {
+      seaLifeTimer -= delta;
+      if (seaLifeTimer > 0) return;
+      seaLifeTimer = 3 + Math.random() * 3;
+      if (currentDim !== OVERWORLD || currentDepth >= 8) return;
+      if (mobs.reduce((n, m) => n + (m.def.seaLife ? 1 : 0), 0) >= SEA_LIFE_LIMIT) return;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 8 + Math.random() * 18;
+        const x = Math.round(camera.position.x + Math.cos(angle) * r);
+        const z = Math.round(camera.position.z + Math.sin(angle) * r);
+        if (!isInsideWorld(x, z)) continue;
+        const floor = Math.round(findGroundY(x, z) - 0.5);
+        const depth = WATER_LEVEL - floor;
+        if (depth < 3 || getBlock(x, WATER_LEVEL, z) !== WATER) continue;
+        const type = depth >= 6 && Math.random() < 0.3 ? 'squid' : 'fish';
+        const y = floor + 1 + Math.floor(Math.random() * (depth - 2));
+        const mob = spawnMobAt(type, x, y, z);
+        if (!mob) continue;
+        if (type === 'fish') {
+          for (let i = 1; i < rand(2, 4); i++) spawnMobAt('fish', x + rand(-1, 1), y, z + rand(-1, 1)); // むれで泳ぐ
+        }
+        return;
+      }
+    }
+
     function updateSpawning(delta) {
+      updateSeaLifeSpawning(delta);
       updateAnimalSpawning(delta);
       updateBatSpawning(delta);
       updateGuardianSpawning(delta);
@@ -6597,6 +6875,11 @@
 
     /* --- Enemies: Physics (壁にめり込まない動き) --- */
     const MOB_GRAVITY = 22;
+    // そこが水の中か（海草や昆布の中も水）
+    function isWaterAt(x, y, z) {
+      const id = getBlock(Math.round(x), Math.round(y), Math.round(z));
+      return id !== 0 && !!BLOCKS[id].water;
+    }
 
     function moveMob(mob, delta) {
       const p = mob.group.position;
@@ -6607,8 +6890,11 @@
       // ブロックに埋まっていたら（上にブロックを置かれた等）上に押し出す
       if (collidesBox(p.x, p.y, p.z, r, h)) p.y = Math.floor(p.y + 0.5) + 0.5 + 1;
 
-      // コウモリは空を飛ぶ。重力を受けず、自分で上下する（下の moveY）
-      if (mob.def.flying) v.y *= Math.max(0, 1 - 5 * delta); // ノックバックだけ残して、すぐおさまる
+      // コウモリは空を飛ぶ。重力を受けず、自分で上下する（下の moveY）。
+      // 泳ぐ生き物（swims）は、水の中にいるあいだだけ同じように動く
+      mob.swimming = !!mob.def.swims && isWaterAt(p.x, p.y + mob.height * 0.5, p.z);
+      const hovering = mob.def.flying || mob.swimming;
+      if (hovering) v.y *= Math.max(0, 1 - 5 * delta); // ノックバックだけ残して、すぐおさまる
       else v.y -= MOB_GRAVITY * delta;
       let blocked = false;
 
@@ -6624,7 +6910,7 @@
         else { blocked = true; v.z = 0; }
       }
 
-      const ny = p.y + (v.y + (mob.def.flying ? mob.moveY || 0 : 0)) * delta;
+      const ny = p.y + (v.y + (hovering ? mob.moveY || 0 : 0)) * delta;
       if (!collidesBox(p.x, ny, p.z, r, h)) {
         p.y = ny;
         mob.onGround = false;
@@ -6637,8 +6923,8 @@
         v.y = 0;
       }
 
-      // 壁に当たったら、地面にいればジャンプ。クモは壁を登る（飛ぶ敵はよけるだけ）
-      if (blocked && !mob.def.flying) {
+      // 壁に当たったら、地面にいればジャンプ。クモは壁を登る（飛ぶ敵・泳いでいる敵はよけるだけ）
+      if (blocked && !hovering) {
         if (mob.def.climbs) v.y = Math.max(v.y, 3.5);
         else if (mob.onGround && mob.def.ai !== 'slime') v.y = 7.2;
       }
@@ -6898,6 +7184,10 @@
         giveOrDrop(id, 1);
         showToast(`🧪 ウィッチが${ITEMS[id].name}を落とした！`);
       }
+      if (mob.type === 'drowned' && Math.random() < 0.03) {
+        giveOrDrop('trident', 1);
+        showToast('🔱 ドラウンドが三叉の槍を落とした！');
+      }
       if (mob.type === 'guardian' && Math.random() < 0.2) {
         giveOrDrop('diamond', 1);
         showToast('💎 番人がダイヤを落とした！');
@@ -7064,7 +7354,7 @@
     }
 
     // 気づくまでの動きを、自分の AI の中で決めている敵（それ以外は wanderAround でうろうろ）
-    const SELF_IDLE_AI = ['slime', 'bat', 'passive', 'blaze', 'ghast'];
+    const SELF_IDLE_AI = ['slime', 'bat', 'passive', 'blaze', 'ghast', 'swim', 'beam'];
     const NOTICE_RANGE = 14; // 間に壁が無ければ、この近さで気づく
     const HEAR_RANGE = 4;    // すぐそばなら、壁ごしでも気づく
 
@@ -7110,6 +7400,90 @@
       mob.moveZ = Math.cos(mob.wanderAngle) * speed;
       mob.group.rotation.y = mob.wanderAngle;
       if (mob.legs) walkAnimation(mob, speed / 3);
+    }
+
+    // 魚とイカ: 水の中をのんびり泳ぐ。なぐられると逃げる。水から出ると、ぴちぴち はねる
+    function updateSwimmer(mob, delta, toPlayer, flatDist) {
+      const p = mob.group.position;
+      const t = performance.now() * 0.001;
+      if (mob.tail) mob.tail.rotation.y = Math.sin(t * 12 + mob.flapTimer) * 0.6;
+      if (mob.tentacles) mob.tentacles.forEach((leg, i) => { leg.rotation.x = Math.sin(t * 4 + i) * 0.35; leg.rotation.z = Math.cos(t * 4 + i) * 0.35; });
+      if (!mob.swimming) {
+        if (mob.onGround && Math.random() < delta * 2) mob.velocity.y = 4; // 陸の上では はねるだけ
+        return;
+      }
+      mob.wanderTimer -= delta;
+      if (mob.wanderTimer <= 0) {
+        mob.wanderTimer = 1.5 + Math.random() * 3;
+        mob.wanderAngle = Math.random() * Math.PI * 2;
+        mob.flyTargetY = p.y + (Math.random() - 0.5) * 3;
+      }
+      if (mob.fleeTimer > 0) {
+        mob.fleeTimer -= delta;
+        mob.wanderAngle = Math.atan2(-toPlayer.x, -toPlayer.z);
+      }
+      const speed = mob.speed * (mob.fleeTimer > 0 ? 2 : 0.7);
+      let angle = mob.wanderAngle;
+      // 前が水でなければ（陸や岩）、向きを変える
+      if (!isWaterAt(p.x + Math.sin(angle) * 1.2, p.y + mob.height * 0.5, p.z + Math.cos(angle) * 1.2)) {
+        mob.wanderAngle = angle = angle + Math.PI * (0.5 + Math.random());
+      }
+      mob.moveX = Math.sin(angle) * speed;
+      mob.moveZ = Math.cos(angle) * speed;
+      mob.group.rotation.y = angle;
+      // 水面の上には出ない。底にはぶつからない
+      if (!isWaterAt(p.x, p.y + mob.height + 0.3, p.z)) mob.flyTargetY = Math.min(mob.flyTargetY, p.y - 0.5);
+      if (isSolid(p.x, p.y - 0.6, p.z)) mob.flyTargetY = Math.max(mob.flyTargetY, p.y + 0.8);
+      mob.moveY = THREE.MathUtils.clamp(mob.flyTargetY - p.y, -1, 1) * 1.2;
+    }
+
+    // 海の番人: 間合いを取りながら泳ぎ、目から 2 秒ためたビームを撃つ。
+    // ためているあいだは細い線が見えるので、物かげにかくれればよけられる
+    const BEAM_CHARGE = 2.0;
+    function updateBeamer(mob, delta, { sees, dist, flatDist, toPlayer, playerFeet, playerCenter, walkToward }) {
+      const p = mob.group.position;
+      if (mob.tail) mob.tail.rotation.y = Math.sin(performance.now() * 0.006) * 0.5;
+      if (!sees) {
+        mob.beamCharge = 0;
+        if (mob.beamLine) mob.beamLine.visible = false;
+        if (mob.swimming) updateSwimmer(mob, delta, toPlayer, flatDist);
+        return;
+      }
+      if (flatDist > 9) walkToward(0.8);
+      else if (flatDist < 4) walkToward(-0.8);
+      if (mob.swimming) mob.moveY = THREE.MathUtils.clamp(playerFeet + 0.6 - p.y, -1, 1) * mob.speed;
+      const eye = new THREE.Vector3(p.x, p.y + 0.5 * mob.baseScale, p.z);
+      const canSee = dist < 15 && hasLineOfSight(eye, playerCenter);
+      if (canSee && mob.attackCooldown <= 0) mob.beamCharge = (mob.beamCharge || 0) + delta;
+      else mob.beamCharge = Math.max(0, (mob.beamCharge || 0) - delta * 2);
+      const charge = Math.min(1, (mob.beamCharge || 0) / BEAM_CHARGE);
+      // トゲがのびる
+      if (mob.spikes) mob.spikes.forEach(spike => {
+        const [x, y, z] = spike.userData.dir;
+        const out = 0.5 + charge * 0.25;
+        spike.position.set(x * out, 0.45 + y * (out - 0.05), z * out);
+      });
+      // ビームの線（mob の子どもにして、いっしょに動く・消える）
+      if (!mob.beamLine) {
+        mob.beamLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+          new THREE.LineBasicMaterial({ color: 0xb06aff }));
+        mob.beamLine.userData.noTint = true;
+        mob.group.add(mob.beamLine);
+      }
+      mob.beamLine.visible = charge > 0.05;
+      if (mob.beamLine.visible) {
+        const from = mob.group.worldToLocal(eye.clone());
+        const to = mob.group.worldToLocal(playerCenter.clone());
+        mob.beamLine.geometry.setFromPoints([from, to]);
+        mob.beamLine.material.color.setHex(charge > 0.75 ? 0xffe060 : 0xb06aff);
+      }
+      if (charge >= 1) {
+        mob.beamCharge = 0;
+        mob.attackCooldown = 2.5;
+        mob.beamLine.visible = false;
+        damagePlayer(Math.round(mob.def.damage * mob.power), toPlayer.clone());
+        spawnParticles(playerCenter.clone(), 0xb06aff, 10, 2);
+      }
     }
 
     function updateMobs(delta) {
@@ -7161,6 +7535,7 @@
 
         mob.moveX = 0;
         mob.moveZ = 0;
+        if (mob.def.swims) mob.moveY = 0;
         // 気づいていない敵は、プレイヤーが見えていないのと同じ
         const sees = dist < mob.def.sight && (mob.def.boss || mob.aggro);
         const idle = !mob.def.passive && !mob.def.boss && !mob.aggro;
@@ -7213,6 +7588,8 @@
         } else if (mob.def.ai === 'melee') {
           const reach = mob.radius + 1.0;
           if (sees && flatDist > reach) walkToward(1);
+          // ドラウンドは、水の中ならプレイヤーの高さへ泳いでいく
+          if (sees && mob.swimming) mob.moveY = THREE.MathUtils.clamp(playerFeet + 0.3 - p.y, -1, 1) * mob.speed;
           if (dist < reach + 0.4 && mob.attackCooldown <= 0) {
             mob.attackCooldown = mob.type === 'spider' ? 1.0 : 1.3;
             damagePlayer(meleeDamage(), toPlayer.clone());
@@ -7254,6 +7631,10 @@
           } else {
             wanderAround(mob, delta, 1);
           }
+        } else if (mob.def.ai === 'swim') {
+          updateSwimmer(mob, delta, toPlayer, flatDist);
+        } else if (mob.def.ai === 'beam') {
+          updateBeamer(mob, delta, { sees, dist, flatDist, toPlayer, playerFeet, playerCenter, walkToward });
         } else if (mob.def.ai === 'villager') {
           updateVillager(mob, delta, { flatDist, toPlayer });
         } else if (mob.def.ai === 'slime') {
@@ -8531,7 +8912,15 @@
       }
       // 特別な効果のある食べ物（マグマクリーム・ガストの涙）
       if (item.effect) {
-        if (item.effect === 'fireResist') {
+        if (item.effect === 'sea') {
+          // 海の加護: 水中呼吸と暗視がいっぺんにつく
+          ['water', 'night'].forEach(effect => {
+            const now = player.effects[effect];
+            if (!now || now.time < item.seconds) player.effects[effect] = { time: item.seconds, level: 1 };
+          });
+          updateEffectDisplay();
+          showToast(`🌊 海の加護！ ${item.seconds / 60}分のあいだ、水の中で息ができて、遠くまで見える`);
+        } else if (item.effect === 'fireResist') {
           player.fireResistTimer = item.seconds;
           player.burnTimer = 0;
           showToast(`🧯 体が火に強くなった！（${item.seconds}秒のあいだ、溶岩や火の玉が平気）`);
@@ -8853,6 +9242,17 @@
       coral_purple: { name: 'むらさきのさんご', kind: 'block', block: CORALS[2], color: '#8a4ad8', emoji: '🪸' },
       kelp: { name: '昆布', kind: 'material', color: '#3c7a2a', emoji: '🌿' },
       dried_kelp: { name: '干し昆布', kind: 'food', heal: 3, color: '#2a4a1a', emoji: '🥬' },
+      raw_fish: { name: '生の魚', kind: 'food', heal: 2, color: '#8ab0c8', emoji: '🐟' },
+      cooked_fish: { name: '焼き魚', kind: 'food', heal: 7, color: '#c8904a', emoji: '🍣' },
+      ink_sac: { name: 'イカスミ', kind: 'material', color: '#1a1a24', emoji: '🖤' },
+      prismarine_shard: { name: 'プリズマリンのかけら', kind: 'material', color: '#6ab8a8', emoji: '🔷' },
+      prismarine: { name: 'プリズマリン', kind: 'block', block: PRISMARINE, color: '#5aa898', emoji: '🟦' },
+      prismarine_bricks: { name: 'プリズマリンレンガ', kind: 'block', block: PRISMARINE_BRICKS, color: '#62b0a0', emoji: '🟦' },
+      dark_prismarine: { name: 'ダークプリズマリン', kind: 'block', block: DARK_PRISMARINE, color: '#2a5a4a', emoji: '🟩' },
+      sea_lantern: { name: 'シーランタン', kind: 'block', block: SEA_LANTERN, color: '#d8f4ee', emoji: '💠' },
+      // 海底神殿の宝。三叉の槍は水の中だと 1.5 倍の力（aquatic）。海のハートは食べると 10 分「海の加護」
+      trident: { name: '三叉の槍', kind: 'sword', damage: 14, aquatic: true, color: '#3ac8b8', emoji: '🔱', stack: 1, durability: 600 },
+      heart_of_sea: { name: '海のハート', kind: 'food', effect: 'sea', seconds: 600, color: '#2a6ae8', emoji: '💙' },
       bookshelf: { name: '本棚', kind: 'block', block: BOOKSHELF, color: '#8a5a2a', emoji: '📚' },
       // エンチャントの本: 村の司書から買う。作業台のマスに道具といっしょに並べると、本の力が道具につく。
       // 力は item.ench に入る。道具と同じしくみで運べるように「残り 1 回」の道具あつかいにしている（hideUses で数は出さない）
@@ -9169,7 +9569,8 @@
     function heldAttackDamage() {
       const def = heldItemDef();
       const base = def && def.damage ? def.damage : FIST_DAMAGE;
-      const damage = base + enchLevel(inventory[selectedSlot], 'sharpness') * 3;
+      let damage = base + enchLevel(inventory[selectedSlot], 'sharpness') * 3;
+      if (def && def.aquatic && player.headUnderwater) damage *= 1.5; // 三叉の槍は水の中で強い
       return Math.round(damage * (1 + effectLevel('strength') * 0.3)); // 力のポーション: 1つにつき +30%
     }
 
@@ -9223,6 +9624,11 @@
       shapeless('green_dye', 2, ['cactus']),
       shapeless('white_dye', 2, ['snow']),
       shapeless('black_dye', 2, ['coal']),
+      shapeless('black_dye', 2, ['ink_sac']),
+      shaped('prismarine', 1, ['SS', 'SS'], { S: 'prismarine_shard' }),
+      shaped('prismarine_bricks', 4, ['PP', 'PP'], { P: 'prismarine' }),
+      shaped('dark_prismarine', 1, ['SSS', 'SIS', 'SSS'], { S: 'prismarine_shard', I: 'ink_sac' }),
+      shaped('sea_lantern', 1, ['.S.', 'SLS', '.S.'], { S: 'prismarine_shard', L: 'lamp' }),
       ...COLOR_LIST.map(c => shaped(`${c.key}_block`, 8, ['SSS', 'SDS', 'SSS'], { S: 'stone', D: `${c.key}_dye` }))
     ];
     const optionsOf = spec => (Array.isArray(spec) ? spec : [spec]);
@@ -10005,7 +10411,7 @@
     let storageChests = new Map(); // "x,y,z" -> 24枠
     applyStructureLoot(); // 生成した建物のチェストに中身を入れる（セーブがあればこのあと上書きされる）
     let furnaces = new Map();      // "x,y,z" -> { slots: [焼くもの, 燃料, できたもの], burn: 燃料の残り秒, progress: 焼けた秒 }
-    const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat', raw_meat: 'cooked_meat', kelp: 'dried_kelp' };
+    const SMELTING = { sand: 'glass', wood: 'charcoal', rotten_meat: 'cooked_meat', raw_meat: 'cooked_meat', kelp: 'dried_kelp', raw_fish: 'cooked_fish' };
     const FUEL_SECONDS = { coal: 32, charcoal: 32, wood: 8, planks: 4, stick: 2, blaze_rod: 96 }; // 1個焼くのに4秒
     const SMELT_TIME = 4;
 
@@ -11456,7 +11862,7 @@
           feetY >= b.y0 - 0.5 && feetY <= b.y1 + 0.5);
         if (!inside) return;
         sitesFound[i] = true;
-        bumpStat(site.kind === 'village' ? 'villagesFound' : site.kind === 'shipwreck' ? 'shipwrecksFound' : 'ruinsFound');
+        bumpStat({ village: 'villagesFound', shipwreck: 'shipwrecksFound', monument: 'monumentsFound' }[site.kind] || 'ruinsFound');
         const kind = SITE_KINDS[site.kind];
         showToast(`${kind.emoji} ${kind.name}を見つけた！ マップに印がついた`);
         playSound('ore');
@@ -12189,6 +12595,9 @@
       { id: 'village_hero', emoji: '🛡️', name: '村の英雄', desc: '赤い月の夜に村を守りぬく', check: () => (stats.villagesDefended || 0) >= 1 },
       { id: 'ocean', emoji: '🌊', name: '大海原へ', desc: '外の海に出る', check: () => !!stats.oceanVisited },
       { id: 'shipwreck', emoji: '⚓', name: '海のトレジャーハンター', desc: '沈没船を見つける', check: () => (stats.shipwrecksFound || 0) >= 1 },
+      { id: 'monument', emoji: '🔱', name: '海の底の神殿', desc: '海底神殿を見つける', check: () => (stats.monumentsFound || 0) >= 1 },
+      { id: 'trident', emoji: '🔱', name: '海の王の槍', desc: '三叉の槍を手に入れる', check: () => seenItems.has('trident') },
+      { id: 'fish', emoji: '🐟', name: 'おさかな天国', desc: '魚をつかまえる', check: () => seenItems.has('raw_fish') },
       { id: 'coral', emoji: '🪸', name: 'さんご礁', desc: 'さんごを手に入れる', check: () => CORALS.some(id => seenItems.has(BLOCKS[id].drop)) },
       { id: 'sky_eye', emoji: '🧿', name: '天空の目', desc: '天空の目を作る', check: () => seenItems.has('sky_eye') },
       { id: 'sky', emoji: '🌌', name: '天空の島へ', desc: '天空のゲートをくぐる', check: () => (stats.skyTrips || 0) >= 1 },
@@ -12300,7 +12709,8 @@
       ['🔥 異世界の敵', ['zombie_piglin', 'wither_skeleton', 'magma_cube', 'blaze', 'ghast']],
       ['🐾 動物', ['pig', 'cow', 'chicken']],
       ['🏘️ 村の人', ['villager']],
-      ['🌌 天空の島の敵', ['enderman']]
+      ['🌌 天空の島の敵', ['enderman']],
+      ['🌊 海の生き物', ['fish', 'squid', 'drowned', 'sea_guardian']]
     ];
     const MOB_INFO = {
       zombie: { emoji: '🧟', where: '夜の地上', tip: '両手をのばして追いかけてきてパンチする。朝になると燃える。腐った肉を落とす' },
@@ -12312,6 +12722,10 @@
       witch: { emoji: '🧙', where: '夜の地上', tip: '毒のビンを投げる（毒は体力 1 で止まる）。たまに金のりんごやポーションを落とす' },
       slime: { emoji: '🟢', where: '地下', tip: 'ぴょんぴょん跳ねる。大きいのをたおすと小さいのに分裂する。スライムボールを落とす' },
       bat: { emoji: '🦇', where: '地下', tip: '飛びまわるだけで、おそってこない' },
+      fish: { emoji: '🐟', where: '海や湖', tip: 'むれで泳いでいる。生の魚を落とす（かまどで焼くと焼き魚）' },
+      squid: { emoji: '🦑', where: '深い海', tip: 'おそってこない。イカスミ（黒の染料・ダークプリズマリンの材料）を落とす' },
+      drowned: { emoji: '🧟', where: '夜の海の底', tip: '水の中をすいすい泳いでおそってくる。ごくまれに三叉の槍を落とす' },
+      sea_guardian: { emoji: '🐡', where: '海底神殿', tip: '目から 2 秒ためたビームを撃つ。線が見えたら柱のかげにかくれよう。プリズマリンのかけらを落とす' },
       guardian: { emoji: '🗿', where: '古代遺跡の中', tip: '宝を守っている。松明でも止まらない。金と、たまにダイヤを落とす' },
       zombie_piglin: { emoji: '🐗', where: '異世界', tip: '火に強い。金を落とす' },
       wither_skeleton: { emoji: '🖤', where: '異世界', tip: 'なぐられると「しおれ」の呪いで体力が減り続ける。石炭を落とす' },
@@ -12849,6 +13263,8 @@
         get currentDim() { return currentDim; },
         get dimensions() { return dimensions; },
         spawnGuardians: updateGuardianSpawning,
+        spawnSeaLife: updateSeaLifeSpawning,
+        isWaterAt,
         spawnSurfaceMob,
         spawnUndergroundMob,
         spawnMob(type, x, y, z, size = 1) {
