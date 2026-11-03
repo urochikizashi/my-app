@@ -738,6 +738,13 @@
       gap: 12px;
       margin-bottom: 8px;
     }
+    #enchant-book-slot {
+      border-color: #9a5ad0;
+    }
+    .enchant-book-option {
+      background: rgba(110, 50, 160, 0.85) !important;
+      border-color: #c890ff !important;
+    }
     #enchant-list {
       display: flex;
       flex-direction: column;
@@ -1087,6 +1094,7 @@
             <div id="enchant-ui" hidden>
               <div class="enchant-row">
                 <div id="enchant-slot" class="slot"></div>
+                <div id="enchant-book-slot" class="slot" title="エンチャントの本をのせる枠"></div>
                 <div id="enchant-info"></div>
               </div>
               <div id="enchant-list"></div>
@@ -10973,7 +10981,7 @@
       }
       if (!accepts(cursor.id)) return;
       if (!item) {
-        if (button === 2) {
+        if (button === 2 && cursor.count > 1) {
           slots[index] = { id: cursor.id, count: 1 };
           cursor.count--;
           if (cursor.count <= 0) cursor = null;
@@ -11169,9 +11177,12 @@
       }).join('');
     }
 
-    // エンチャント台: 道具を1つのせる枠と、つけられる力のボタン
+    // エンチャント台: 道具を1つのせる枠と、つけられる力のボタン。
+    // となりの枠にエンチャントの本をのせると、本の力を道具にうつせる（クラフトのマスに並べるのと同じ。経験値はいらない）
     const enchantSlot = [null];
+    const enchantBookSlot = [null];
     const enchantSlotEl = document.getElementById('enchant-slot');
+    const enchantBookSlotEl = document.getElementById('enchant-book-slot');
     const enchantList = document.getElementById('enchant-list');
     const enchantInfo = document.getElementById('enchant-info');
     enchantSlotEl.innerHTML = makeSlotElement().innerHTML;
@@ -11180,12 +11191,36 @@
       clickStorageSlot(enchantSlot, 0, e.button, id => enchantsFor(id).length > 0);
       renderInventory();
     });
+    enchantBookSlotEl.innerHTML = makeSlotElement().innerHTML;
+    enchantBookSlotEl.addEventListener('mousedown', (e) => {
+      if (!openContainer || openContainer.type !== 'enchant') return;
+      clickStorageSlot(enchantBookSlot, 0, e.button, id => id === 'enchanted_book');
+      renderInventory();
+    });
 
     function renderEnchantList() {
       const item = enchantSlot[0];
+      const book = enchantBookSlot[0];
       enchantInfo.innerHTML = `⭐ 今の経験値レベル: <b>Lv ${xpLevel}</b><br>` +
-        (item ? `${ITEMS[item.id].name}${enchText(item) ? `（✨${enchText(item)}）` : ''}` : '← 剣・ツルハシ・よろい・弓などを のせよう');
+        (item ? `${ITEMS[item.id].name}${enchText(item) ? `（✨${enchText(item)}）` : ''}` : '← 剣・ツルハシ・よろい・弓などを のせよう') +
+        `<br>📕 ${book ? `本「${enchText(book)}」` : '紫の枠に エンチャントの本を のせると、本の力をうつせる'}`;
       enchantList.innerHTML = '';
+      if (book && item) {
+        const apply = findBookApply([item, book]);
+        const button = document.createElement('button');
+        button.className = 'enchant-option enchant-book-option';
+        if (apply) {
+          button.textContent = `📕 本の力をつける → ✨${enchText({ ench: apply.ench })}（経験値はいらない。本はなくなる）`;
+          button.addEventListener('mousedown', (ev) => {
+            ev.stopPropagation();
+            applyBookAtTable();
+          });
+        } else {
+          button.textContent = `📕 この本の力は ${ITEMS[item.id].name}には つけられない`;
+          button.disabled = true;
+        }
+        enchantList.appendChild(button);
+      }
       if (!item) return;
       enchantsFor(item.id).filter(key => !ENCHANTS[key].special).forEach(key => {
         const e = ENCHANTS[key];
@@ -11220,6 +11255,19 @@
       updateXpUI();
       playSound('levelup');
       showToast(`✨ ${ITEMS[item.id].name}に「${ENCHANTS[key].name} ${next}」をつけた！`);
+      renderInventory();
+    }
+
+    function applyBookAtTable() {
+      const item = enchantSlot[0];
+      const book = enchantBookSlot[0];
+      const apply = item && book && findBookApply([item, book]);
+      if (!apply) return;
+      item.ench = apply.ench;
+      enchantBookSlot[0] = null;
+      bumpStat('booksApplied');
+      playSound('levelup');
+      showToast(`📕 ${ITEMS[item.id].name}に「${enchText(item)}」の力がついた！`);
       renderInventory();
     }
 
@@ -11289,7 +11337,8 @@
       playSound('chest');
       const v = openContainer && openContainer.villager;
       if (v) spawnParticles(v.group.position.clone().add(new THREE.Vector3(0, 2, 0)), 0x2ad86a, 10, 2);
-      showToast(`🤝 交換した！ ${itemLabel(getId, getCount * done, trade.ench)}`);
+      showToast(`🤝 交換した！ ${itemLabel(getId, getCount * done, trade.ench)}` +
+        (getId === 'enchanted_book' ? '（エンチャント台の紫の枠か、クラフトのマスで道具と並べると力がつく）' : ''));
       renderInventory();
       return done;
     }
@@ -11381,6 +11430,7 @@
       }
       if (openContainer && openContainer.type === 'enchant') {
         fillSlot(enchantSlotEl, enchantSlot[0]);
+        fillSlot(enchantBookSlotEl, enchantBookSlot[0]);
         renderEnchantList();
       }
       if (openContainer && openContainer.type === 'trade') renderTradeList();
@@ -11441,6 +11491,8 @@
       returnGridToInventory();
       if (enchantSlot[0]) giveItemBack(enchantSlot[0]); // エンチャント台にのせたままの道具をもどす
       enchantSlot[0] = null;
+      if (enchantBookSlot[0]) giveItemBack(enchantBookSlot[0]);
+      enchantBookSlot[0] = null;
       if (cursor) giveItemBack(cursor);
       cursor = null;
       openContainer = null;
@@ -14571,6 +14623,8 @@
         get xpLevel() { return xpLevel; },
         set xpLevel(v) { xpLevel = v; updateXpUI(); },
         enchantSlot,
+        enchantBookSlot,
+        applyBookAtTable,
         applyEnchant,
         heldAttackDamage,
         armorProtection,

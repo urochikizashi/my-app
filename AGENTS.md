@@ -108,7 +108,7 @@ Three.js を使った、ブラウザで動く 3D ボクセルゲーム(マイン
   村人は `MOB_DEFS.villager`(`ai: 'villager'`・`passive`・`villager: true`)。**保存しない**。`updateVillages` が近く(56 マス)に来たときに `villageState[i].pop` 人だけ家の前に出す。
   交換は `openTrade` → `openContainer.type === 'trade'`(`tradesOf` / `renderTradeList` / `doTrade`)。品物は `VILLAGER_JOBS`、司書の本は `BOOK_OFFERS`。
   エンチャントの本 `enchanted_book` は「残り 1 回の道具」あつかい(`durability: 1, hideUses: true`)。こうすると `ench` が道具と同じ道を通って消えない。
-  本＋道具をマスに並べると `findBookApply`(`findRepair` の中)。
+  本＋道具をマスに並べると `findBookApply`(`findRepair` の中)。エンチャント台の紫の枠 `enchantBookSlot` に本をのせても同じ(`applyBookAtTable`。中身は `findBookApply`)。
   赤い月の夜は `raidVillagers` で敵が村人をおそう(`hurtVillager` → `onVillagerLost`)。村のそばにいた秒数は `bloodMoon.defend[村]`。
   朝の `settleVillagesAfterBloodMoon` で、守った村はお礼・見つけたのに守らなかった村は 1 人へる。ふつうの朝は `recoverVillages` で 1 人もどる。セーブは `villages`(人数の配列)。
 - **天空の島(3 つ目の世界 `SKY`)**。`dimensions[SKY]`。地形は `generateSky`(はじめて行ったとき。乱数は `worldRngState` を借りて返す)。
@@ -414,6 +414,7 @@ push する前に中身を一度確認してください。
 
 | 2026-10-24 | 「三叉の槍を投げたい」「槍だけのエンチャントや特性」「海底神殿をもっと複雑に、ボスも」との要望。投げる槍(忠誠・激流・召雷・水生特効、持つと速く泳げる)、神殿の回り通路・小部屋・地下の迷路・大広間、ボス「長老の番人」を追加。神殿の中は `worldRandom` を使わずに作ったので、前からのワールドのほかの場所は変わらない(古い版と同じシードで全部くらべて確かめた)。セーブの版は 6 のまま |
 | 2026-10-24 | 2026-10-24 の作業の記録(外の海・海の生き物と海底神殿・大洞窟・ボスの変身・三叉の槍・神殿の迷路と長老の番人)をイシュー #1 に追記 |
+| 2026-11-03 | 「村人の本を後から道具につけたい」との要望。前からクラフトのマスでつけられたが気づきにくかったので、エンチャント台に本の枠(紫)を足し、本を買ったときに使い方を出すようにした。ついでに、チェストなどの枠に道具を右クリックで置くと残り回数とエンチャントが消える不具合を直した(`clickStorageSlot`)。「女王グモと天空の城はある？」との質問には、新しいワールド 3 つと既存のテストで、大グモの女王・天空の塔・天空のドラゴンができることを確かめた(天空の「城」は無く、いちばん大きい浮き島の「塔」) |
 
 この経緯が、上の「絶対に守ること」の理由です。
 **倉庫(GitHub)に入れたものだけが残り、机(Codespace)の上のものは机ごと消えます。**
