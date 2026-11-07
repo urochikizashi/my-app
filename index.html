@@ -12824,11 +12824,76 @@
       cloudSeaLayer(-34, 0.25, 1, cloudSeaTexture(11, 1, '#6f5fae', '#4f4088')),   // 下: 海のように一面の雲
       cloudSeaLayer(-27, 0.7, 0.9, cloudSeaTexture(29, 0.38, '#d6caf8', '#a696dc'))    // 上: ところどころの白い雲
     ];
+    // 地平線の雲の山: 島の上に立つと、足もとの雲は地面のかげにかくれてしまう。
+    // だからカメラのまわりをぐるっと囲む輪にも雲をかいて、どこに立っていても遠くに雲の海が見えるようにする
+    const CLOUD_HORIZON_BELOW = 50;  // 輪の下のはし（カメラから何マス下か）
+    const CLOUD_HORIZON_ABOVE = 24;  // 輪の上のはし（カメラから何マス上か）
+    const cloudSeaHorizon = (() => {
+      const w = 1024;
+      const n = 64;
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = n;
+      const ctx = canvas.getContext('2d');
+      let state = 73;
+      const random = () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 4294967296;
+      };
+      // 1 周でつながる、でこぼこの線（値は 0〜1）
+      const ridge = () => {
+        const parts = [[16, 1], [48, 0.5], [128, 0.25]].map(([cells, weight]) => ({ cells, weight, grid: Array.from({ length: cells }, random) }));
+        return x => {
+          let sum = 0;
+          parts.forEach(({ cells, weight, grid }) => {
+            const g = x / w * cells;
+            const i = Math.floor(g);
+            const t = g - i;
+            const s = t * t * (3 - 2 * t);
+            sum += (grid[i % cells] * (1 - s) + grid[(i + 1) % cells] * s) * weight;
+          });
+          return sum / 1.75;
+        };
+      };
+      const back = ridge();
+      const front = ridge();
+      const horizonRow = n * CLOUD_HORIZON_BELOW / (CLOUD_HORIZON_BELOW + CLOUD_HORIZON_ABOVE);
+      for (let x = 0; x < w; x++) {
+        // 奥の雲は高くて暗い。手前の雲は低くて明るく、てっぺんが光る
+        const backTop = Math.round(horizonRow + 4 + back(x) * 26);
+        const frontTop = Math.round(horizonRow + front(x) * 16);
+        ctx.fillStyle = '#4f4088';
+        ctx.fillRect(x, n - backTop, 1, backTop);
+        ctx.fillStyle = '#6f5fae';
+        ctx.fillRect(x, n - frontTop, 1, frontTop);
+        ctx.fillStyle = '#d6caf8';
+        ctx.fillRect(x, n - frontTop, 1, 2);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(CLOUD_SEA_RADIUS, CLOUD_SEA_RADIUS, CLOUD_HORIZON_BELOW + CLOUD_HORIZON_ABOVE, 64, 1, true),
+        new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, fog: false, side: THREE.BackSide })
+      );
+      mesh.renderOrder = -2; // 足もとの雲より先に描く（足もとの雲のうすいはしが、この上に重なる）
+      mesh.visible = false;
+      scene.add(mesh);
+      return mesh;
+    })();
     let cloudSeaDrift = 0;
 
     function updateCloudSea(delta) {
       const show = inSky();
       cloudSeaDrift += delta;
+      // 雲より下に落ちたら、地平線の雲は見えない
+      cloudSeaHorizon.visible = show && camera.position.y > cloudSeaLayers[1].position.y;
+      if (cloudSeaHorizon.visible) {
+        cloudSeaHorizon.position.set(camera.position.x, camera.position.y + (CLOUD_HORIZON_ABOVE - CLOUD_HORIZON_BELOW) / 2, camera.position.z);
+        cloudSeaHorizon.material.map.offset.x = cloudSeaDrift * 0.0004;
+      }
       cloudSeaLayers.forEach(mesh => {
         mesh.visible = show;
         if (!show) return;
@@ -15075,6 +15140,7 @@
         findCastleSpot,
         travelToSky,
         cloudSeaLayers,
+        cloudSeaHorizon,
         travelHomeFromSky,
         placeSkyEye,
         throwSkyEye,
