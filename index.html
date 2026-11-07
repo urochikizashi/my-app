@@ -12733,6 +12733,113 @@
       }
     }
 
+    // 雲の海: 島のずっと下に広がる雲（見た目だけ。当たり判定もセーブも無い）。
+    // 2 枚の板がカメラの真下についてきて、絵だけをカメラの位置ぶんずらすので、雲はその場に止まって見える。
+    // 遠くは alphaMap でうすくして、夜空にとけこませる。落ちると雲をつきぬけて、その下で助からなくなる
+    const CLOUD_SEA_RADIUS = 185;  // カメラの見える距離（200）より少し内がわ
+    const CLOUD_SEA_TILE = 96;     // 雲の絵 1 枚ぶんのマス数
+    const CLOUD_SEA_FADE = (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+      g.addColorStop(0, '#fff');
+      g.addColorStop(0.55, '#fff');
+      g.addColorStop(1, '#000');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 256, 256);
+      return new THREE.CanvasTexture(canvas);
+    })();
+
+    // 上と下・左と右がつながる、四角いドットの雲の絵。cover は雲がしめる割合（0〜1）
+    function cloudSeaTexture(seed, cover, light, dark) {
+      const n = 64;
+      let state = seed;
+      const random = () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 4294967296;
+      };
+      // 荒い乱数のます目をなめらかにつないで、細かさのちがう 3 枚を重ねる（ます目のはしは反対がわとつなぐ）
+      const heights = new Float32Array(n * n);
+      [[4, 1], [8, 0.55], [16, 0.3]].forEach(([cells, weight]) => {
+        const grid = Array.from({ length: cells * cells }, random);
+        const smooth = t => t * t * (3 - 2 * t);
+        for (let x = 0; x < n; x++) {
+          for (let y = 0; y < n; y++) {
+            const gx = x / n * cells;
+            const gy = y / n * cells;
+            const x0 = Math.floor(gx);
+            const y0 = Math.floor(gy);
+            const x1 = (x0 + 1) % cells;
+            const y1 = (y0 + 1) % cells;
+            const tx = smooth(gx - x0);
+            const ty = smooth(gy - y0);
+            const top = grid[y0 * cells + x0] * (1 - tx) + grid[y0 * cells + x1] * tx;
+            const bottom = grid[y1 * cells + x0] * (1 - tx) + grid[y1 * cells + x1] * tx;
+            heights[y * n + x] += (top * (1 - ty) + bottom * ty) * weight;
+          }
+        }
+      });
+      // 高い順にならべて、上から cover ぶんを雲にする（そのさらに上は明るい色）
+      const sorted = [...heights].sort((a, b) => b - a);
+      const edge = sorted[Math.floor(n * n * cover) - 1];
+      const bright = sorted[Math.floor(n * n * cover * 0.45)];
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = n;
+      const ctx = canvas.getContext('2d');
+      for (let x = 0; x < n; x++) {
+        for (let y = 0; y < n; y++) {
+          const v = heights[y * n + x];
+          if (v < edge) continue;
+          ctx.fillStyle = v >= bright ? light : dark;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.magFilter = THREE.NearestFilter;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.repeat.set(CLOUD_SEA_RADIUS * 2 / CLOUD_SEA_TILE, CLOUD_SEA_RADIUS * 2 / CLOUD_SEA_TILE);
+      return texture;
+    }
+
+    // y: 高さ / speed: 雲が流れる速さ（マス/秒）
+    function cloudSeaLayer(y, speed, opacity, texture) {
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(CLOUD_SEA_RADIUS * 2, CLOUD_SEA_RADIUS * 2).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({
+          map: texture, alphaMap: CLOUD_SEA_FADE, transparent: true, opacity,
+          depthWrite: false, fog: false, side: THREE.DoubleSide
+        })
+      );
+      mesh.position.y = y;
+      mesh.renderOrder = -1; // 噴水の水など、ほかの半とうめいより先に描く
+      mesh.visible = false;
+      mesh.userData.speed = speed;
+      scene.add(mesh);
+      return mesh;
+    }
+
+    const cloudSeaLayers = [
+      cloudSeaLayer(-34, 0.25, 1, cloudSeaTexture(11, 1, '#6f5fae', '#4f4088')),   // 下: 海のように一面の雲
+      cloudSeaLayer(-27, 0.7, 0.9, cloudSeaTexture(29, 0.38, '#d6caf8', '#a696dc'))    // 上: ところどころの白い雲
+    ];
+    let cloudSeaDrift = 0;
+
+    function updateCloudSea(delta) {
+      const show = inSky();
+      cloudSeaDrift += delta;
+      cloudSeaLayers.forEach(mesh => {
+        mesh.visible = show;
+        if (!show) return;
+        mesh.position.x = camera.position.x;
+        mesh.position.z = camera.position.z;
+        const map = mesh.material.map;
+        map.offset.x = (camera.position.x - cloudSeaDrift * mesh.userData.speed) / CLOUD_SEA_TILE;
+        map.offset.y = -camera.position.z / CLOUD_SEA_TILE;
+      });
+    }
+
     function generateSky() {
       const savedRng = worldRngState;
       worldRngState = (worldSeed * 40503 + 98765) | 0;
@@ -14009,6 +14116,8 @@
       daylight = daylightAt(timeOfDay);
       updateBloodMoon();
 
+      updateCloudSea(delta);
+
       const feetY = camera.position.y - player.eye;
       // 天空の島: いつも うす暗いむらさきの空。昼夜は関係ない（敵は「地下」と同じ出かたをさせるので、深さは 10 にしておく）
       if (inSky()) {
@@ -14965,6 +15074,7 @@
         get skyCastle() { return skyCastle; },
         findCastleSpot,
         travelToSky,
+        cloudSeaLayers,
         travelHomeFromSky,
         placeSkyEye,
         throwSkyEye,
