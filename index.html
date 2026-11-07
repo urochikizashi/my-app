@@ -1948,6 +1948,19 @@
       ctx.fillRect(11, 8, 1, 2);
     });
 
+    // 天空の騎士のかぶと: 白いかぶとに、細いのぞき穴（中が青く光る）
+    textures.knightFace = createPixelTexture(ctx => {
+      speckle(ctx, '#e8e8f0', ['#d8d8e4', '#f8f8ff'], 30);
+      ctx.fillStyle = '#20203a';
+      ctx.fillRect(2, 6, 12, 2);
+      ctx.fillStyle = '#6ad8ff';
+      ctx.fillRect(4, 6, 2, 2);
+      ctx.fillRect(10, 6, 2, 2);
+      ctx.fillStyle = '#c8a830'; // 金のふち
+      ctx.fillRect(7, 1, 2, 5);
+      ctx.fillRect(7, 9, 2, 5);
+    });
+
     // 異世界の敵の顔
     textures.piglinFace = createPixelTexture(ctx => {
       speckle(ctx, '#e0a0a0', ['#d08888', '#7aa05a', '#6a9050'], 40); // ところどころ くさって緑
@@ -2716,6 +2729,12 @@
     const CHEST = 24; // ダンジョンの宝箱
     const COBWEB = 25;
     const PLANKS = 26;
+    // 色つきブロックとランプ（建物に使う）
+    const RED_BLOCK = 27;
+    const YELLOW_BLOCK = 28;
+    const BLUE_BLOCK = 29;
+    const WHITE_BLOCK = 31;
+    const LAMP = 36;
     const LADDER = 33;
     const DOOR_CLOSED = 34;
     const DOOR_OPEN = 35;
@@ -3930,6 +3949,8 @@
                  ['potion_water', 0.6, 1, 2], ['diamond', 0.35, 1, 2], ['sea_lantern', 0.4, 1, 3]],
       monumentTreasure: [['trident', 1, 1, 1], ['heart_of_sea', 1, 1, 1], ['diamond', 0.9, 2, 5], ['gold', 0.9, 4, 10],
                          ['emerald', 0.8, 3, 8], ['golden_apple', 0.5, 1, 2]],
+      skyCastle: [['diamond', 0.8, 2, 6], ['emerald', 0.8, 4, 10], ['golden_apple', 0.6, 1, 2], ['star_shard', 0.6, 1, 2],
+                  ['ender_pearl', 0.6, 2, 6], ['bread', 0.6, 3, 6], ['diamond_sword', 0.2, 1, 1], ['diamond_armor', 0.15, 1, 1]],
       skyTower: [['diamond', 0.9, 3, 7], ['emerald', 0.8, 4, 10], ['golden_apple', 0.7, 1, 3], ['ender_pearl', 0.6, 2, 5],
                  ['star_shard', 0.5, 1, 3], ['diamond_sword', 0.25, 1, 1], ['diamond_armor', 0.2, 1, 1], ['sky_bricks', 0.5, 6, 14]],
       spawner: [['iron', 0.6, 2, 5], ['gold', 0.35, 1, 3], ['string', 0.5, 1, 4], ['bread', 0.5, 1, 2], ['arrow', 0.5, 3, 8],
@@ -4213,6 +4234,7 @@
       altar: { name: '天空の祭壇', emoji: '🧿' },
       // 天空の島
       sky_tower: { name: '天空の塔', emoji: '🗼' },
+      sky_castle: { name: '天空の城', emoji: '🏰' },
       // 外の海
       shipwreck: { name: '沈没船', emoji: '⚓' },
       monument: { name: '海底神殿', emoji: '🔱' },
@@ -6484,6 +6506,25 @@
     }
 
     // エンダーマン: 手足がとても長い、まっ黒な敵。なぐるまでは おそってこない。なぐられるとワープして逃げることがある
+    // 天空の騎士: 白と金のよろいに、青いマント。手に天空の剣
+    function buildSkyKnight() {
+      const group = new THREE.Group();
+      const armor = new THREE.MeshLambertMaterial({ color: 0xe8e8f0 });
+      const gold = new THREE.MeshLambertMaterial({ color: 0xc8a830 });
+      const cape = new THREE.MeshLambertMaterial({ color: 0x2c5cc8 });
+      const head = addBox(group, [0.52, 0.52, 0.52], faceMaterials({ color: 0xe8e8f0 }, textures.knightFace), [0, 1.62, 0]);
+      addBox(group, [0.12, 0.3, 0.3], cape, [0, 2.0, -0.05]); // かぶとの羽かざり
+      addBox(group, [0.56, 0.7, 0.32], armor, [0, 1.02, 0]);
+      addBox(group, [0.58, 0.1, 0.34], gold, [0, 0.72, 0]); // ベルト
+      addBox(group, [0.54, 0.95, 0.06], cape, [0, 0.95, -0.2]);
+      const armL = addBox(group, [0.2, 0.7, 0.2], armor, [-0.38, 1.02, 0]);
+      const armR = addBox(group, [0.2, 0.7, 0.2], armor, [0.38, 1.02, 0]);
+      addBox(armR, [0.06, 0.08, 0.9], new THREE.MeshLambertMaterial({ color: 0x9ae8ff }), [0, -0.3, 0.4]); // 剣
+      const legL = addBox(group, [0.22, 0.68, 0.24], gold, [-0.13, 0.34, 0]);
+      const legR = addBox(group, [0.22, 0.68, 0.24], gold, [0.13, 0.34, 0]);
+      return { group, head, legs: [legL, legR], arms: [armL, armR] };
+    }
+
     function buildEnderman() {
       const group = new THREE.Group();
       const mat = new THREE.MeshLambertMaterial({ color: 0x141414 });
@@ -6634,6 +6675,7 @@
       // 最後のドラゴン（天空の島）。動きは異世界のドラゴンと同じで、ずっと強い（bossPower で攻撃が強くなる）
       sky_dragon: { name: '天空のドラゴン', ai: 'lairboss', dragon: true, bossPower: 1.3, health: 2600, speed: 5.6, radius: 1.9, height: 3.9, sight: 64, damage: 18, fireImmune: true, boss: true, noBurn: true, flying: true, build: buildSkyDragon },
       // 天空の島の敵。なぐるまでは おそってこない（neutral）。なぐられるとワープすることがある（teleports）
+      sky_knight: { name: '天空の騎士', ai: 'melee', ignoresTorch: true, health: 48, speed: 2.7, radius: 0.35, height: 2.1, sight: 20, damage: 6, noBurn: true, drop: 'emerald', dropCount: [1, 2], build: buildSkyKnight },
       enderman: { name: 'エンダーマン', ai: 'melee', neutral: true, teleports: true, health: 40, speed: 3.0, radius: 0.3, height: 2.9, sight: 22, damage: 7, noBurn: true, drop: 'ender_pearl', build: buildEnderman },
       // 海の生き物。swims: 水の中では重力を受けずに泳ぐ。seaLife: 動物の数には入れない
       fish: { name: '魚', emoji: '🐟', ai: 'swim', passive: true, seaLife: true, swims: true, noBurn: true, health: 4, speed: 2.4, radius: 0.2, height: 0.4, sight: 8, drop: 'raw_fish', build: buildFish },
@@ -7076,7 +7118,8 @@
     // 海底神殿には海の番人が 3 体まで
     const GUARDED_SITES = {
       ruins: { type: 'guardian', max: 2, toast: '🗿 遺跡の番人が目を覚ました！' },
-      monument: { type: 'sea_guardian', max: 3, toast: '🔱 海の番人がやってきた！' }
+      monument: { type: 'sea_guardian', max: 3, toast: '🔱 海の番人がやってきた！' },
+      sky_castle: { type: 'sky_knight', max: 4, toast: '🏰 天空の騎士が城を守りにきた！' }
     };
     let guardianSpawnTimer = 2;
 
@@ -9493,7 +9536,7 @@
       openSkyExit();
       bumpStat('gameCleared');
       setTimeout(() => pushAchievementToast('🎉 ゲームクリア！ 最後のドラゴンをたおした！'), 1500);
-      setTimeout(() => showToast('🌀 まん中の柱のまわりに、表の世界への帰りのゲートが開いた。島のはしには、塔の島への門も'), 3500);
+      setTimeout(() => showToast('🌀 まん中の柱のまわりに、表の世界への帰りのゲートが開いた。島のはしには、塔の島と天空の城への門も'), 3500);
       setTimeout(() => showToast('⚡ 遠くで、前にたおしたボスたちが「覚醒」してよみがえった…！ 部屋やすみかに行ってみよう'), 9000);
     }
 
@@ -12719,6 +12762,7 @@
         else if (worldRandom() < 0.5) placeLootChest(o.x, o.y + 1, o.z, LOOT.altar);
       });
       buildSkyArena(big);
+      buildSkyCastle(); // いちばん最後（前からのワールドの島がずれないように）
 
       // チェストの中身を入れる（天空の島の storageChests は今ここにある）
       structureLoot.splice(lootFrom).forEach(({ key, items }) => {
@@ -12759,6 +12803,211 @@
         kind: 'sky_tower', x: cx, y: fy, z: cz, half: island.r,
         boxes: [{ x0: cx - island.r, x1: cx + island.r, y0: fy - 4, y1: fy + height + 2, z0: cz - island.r, z1: cz + island.r }]
       });
+    }
+
+    // 天空の城: 外の島とは別の、大きな浮き島に建つお城。ドラゴンをたおすと、まん中の島から門で行ける。
+    // 生成の いちばん最後に足すので、前からのワールドの島や塔は動かない（城だけが増える）。
+    // 2 重の城壁・すみの 4 つの塔・中庭の噴水・3 階建ての天守（大広間 → 図書室 → 玉座の間）。天空の騎士が守っている
+    const CASTLE_ISLAND_R = 19;
+    const CASTLE_WALL = 11;  // 城壁の外がわ（まん中からのマス）
+    const CASTLE_KEEP = 5;   // 天守の外がわ
+    let skyCastle = null;    // { x, y, z, fwd: [fx, fz] }（y は島の地面の高さ。fwd は門の向き）
+
+    // 城を置く場所: まん中の島・ほかの島からはなれた所。どうしても無ければ、ほかの島より高く浮かせて重ならないようにする
+    function findCastleSpot() {
+      const r = CASTLE_ISLAND_R;
+      const lim = HALF_SIZE - r - 3;
+      const castleDepth = 2 + Math.round(r * 0.45);
+      let best = null;
+      for (let x = -lim; x <= lim; x += 3) {
+        for (let z = -lim; z <= lim; z += 3) {
+          const fromCenter = Math.hypot(x, z) - (SKY_ISLAND_R * 1.2 + r + 8);
+          if (fromCenter < 0) continue;
+          let gap = fromCenter;
+          let high = false;
+          for (const o of skyIslands) {
+            const d = Math.hypot(o.x - x, o.z - z) - (o.r * 1.2 + r + 6);
+            if (d >= 0) { gap = Math.min(gap, d); continue; }
+            // 重なるなら、上下にずらせるか（塔のある島はだめ）
+            if (o.tower || o.y + 2 >= 18 - castleDepth - 1) { gap = -1; break; }
+            high = true;
+          }
+          if (gap < 0) continue;
+          // 近すぎず遠すぎず（まん中から見える距離）、高く浮かせなくてすむ所がいい
+          const score = gap - Math.max(0, Math.hypot(x, z) - 110) * 2 - (high ? 50 : 0);
+          if (!best || score > best.score) best = { x, z, y: high ? 18 : 12, score };
+        }
+      }
+      if (!best) {
+        const a = Math.PI * 0.75;
+        best = { x: Math.round(Math.cos(a) * lim * 0.9), z: Math.round(Math.sin(a) * lim * 0.9), y: 18 };
+      }
+      return best;
+    }
+
+    function buildSkyCastle() {
+      const spot = findCastleSpot();
+      const { x: cx, z: cz, y: fy } = spot;
+      skyIsland(cx, cz, CASTLE_ISLAND_R, fy, null);
+      // 門は、まん中の島のほうを向ける（いちばん近い向きの 4 方向のどれか）
+      const fwd = Math.abs(cx) >= Math.abs(cz) ? [-Math.sign(cx) || 1, 0] : [0, -Math.sign(cz) || 1];
+      const right = [fwd[1], -fwd[0]];
+      // u: 左右、v: 前（門のほう）。城の中のマスは、この 2 つで書く
+      const at = (u, v) => [cx + right[0] * u + fwd[0] * v, cz + right[1] * u + fwd[1] * v];
+      const put = (u, dy, v, id) => { const [x, z] = at(u, v); forceBlock(x, fy + dy, z, id); };
+      const W = CASTLE_WALL;
+      const K = CASTLE_KEEP;
+
+      // 中庭の地面（白い石の道を十字に）
+      for (let u = -W; u <= W; u++) {
+        for (let v = -W; v <= W; v++) {
+          put(u, 0, v, (Math.abs(u) <= 1 || Math.abs(v) <= 1) ? WHITE_BLOCK : END_STONE);
+          for (let dy = 1; dy <= 20; dy++) put(u, dy, v, 0);
+        }
+      }
+      // 城壁: 2 マスの厚さ、高さ 6。上は歩ける通路で、外がわにギザギザ（狭間）
+      for (let u = -W; u <= W; u++) {
+        for (let v = -W; v <= W; v++) {
+          const ring = Math.max(Math.abs(u), Math.abs(v));
+          if (ring < W - 1) continue;
+          for (let dy = 1; dy <= 6; dy++) put(u, dy, v, SKY_BRICKS);
+          if (ring === W && (u + v) % 2 === 0) put(u, 7, v, SKY_BRICKS);
+        }
+      }
+      // 正門（3 マス幅・高さ 4）。上に旗の色の青いブロック
+      for (let u = -1; u <= 1; u++) {
+        for (let v = W - 1; v <= W; v++) {
+          for (let dy = 1; dy <= 4; dy++) put(u, dy, v, 0);
+        }
+        put(u, 5, W, BLUE_BLOCK);
+      }
+      put(-2, 3, W, GLOWSTONE);
+      put(2, 3, W, GLOWSTONE);
+      // すみの塔: 5×5、高さ 13。中にはしご。中庭がわに入口、上にギザギザと光る石
+      for (const [su, sv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        const tu = su * W;
+        const tv = sv * W;
+        for (let du = -2; du <= 2; du++) {
+          for (let dv = -2; dv <= 2; dv++) {
+            const edge = Math.abs(du) === 2 || Math.abs(dv) === 2;
+            for (let dy = 1; dy <= 13; dy++) {
+              const window = edge && dy % 4 === 3 && (du === 0 || dv === 0);
+              put(tu + du, dy, tv + dv, edge ? (window ? GLASS : SKY_BRICKS) : 0);
+            }
+            put(tu + du, 6, tv + dv, edge ? SKY_BRICKS : PLANKS); // 城壁の高さの床
+            put(tu + du, 13, tv + dv, SKY_BRICKS);
+            if (edge && (du + dv) % 2 === 0) put(tu + du, 14, tv + dv, SKY_BRICKS);
+          }
+        }
+        // 入口（城壁を 1 マスけずって中庭につなぐ）と、城壁の上の通路へ出る口
+        for (let dy = 1; dy <= 2; dy++) {
+          put(tu - su * 2, dy, tv - sv, 0);
+          put(tu - su * 3, dy, tv - sv, 0);
+        }
+        put(tu - su * 2, 7, tv, 0);
+        put(tu - su * 2, 8, tv, 0);
+        put(tu, 7, tv - sv * 2, 0);
+        put(tu, 8, tv - sv * 2, 0);
+        for (let dy = 1; dy <= 13; dy++) put(tu + su, dy, tv + sv, LADDER);
+        put(tu - su, 14, tv - sv, GLOWSTONE);
+      }
+      // 中庭の噴水（門と天守のあいだ）
+      for (let du = -1; du <= 1; du++) {
+        for (let dv = -1; dv <= 1; dv++) put(du, 0, 8 + dv, (du || dv) ? SKY_BRICKS : WATER);
+      }
+      // 天守: 11×11。3 階建て（床は 0・5・10、屋根は 15）
+      for (let u = -K; u <= K; u++) {
+        for (let v = -K; v <= K; v++) {
+          const edge = Math.abs(u) === K || Math.abs(v) === K;
+          const corner = Math.abs(u) === K && Math.abs(v) === K;
+          for (let dy = 1; dy <= 14; dy++) {
+            if (!edge) { put(u, dy, v, 0); continue; }
+            const window = !corner && dy % 5 === 3 && Math.abs(u) !== 1 && Math.abs(v) !== 1 && (u + v) % 2 === 0;
+            put(u, dy, v, corner ? WHITE_BLOCK : window ? GLASS : SKY_BRICKS);
+          }
+          put(u, 0, v, SKY_BRICKS);
+          if (!edge) {
+            put(u, 5, v, PLANKS);
+            put(u, 10, v, PLANKS);
+          }
+          put(u, 15, v, SKY_BRICKS);
+          if (edge && (u + v) % 2 === 0) put(u, 16, v, SKY_BRICKS);
+        }
+      }
+      // 青い とんがり屋根と、てっぺんの旗
+      for (let layer = 0; layer < 4; layer++) {
+        const r = 3 - layer;
+        for (let u = -r; u <= r; u++) {
+          for (let v = -r; v <= r; v++) put(u, 16 + layer, v, BLUE_BLOCK);
+        }
+      }
+      put(0, 20, 0, GLOWSTONE);
+      // 天守の入口（門のほう）
+      for (let u = -1; u <= 1; u++) {
+        for (let dy = 1; dy <= 3; dy++) put(u, dy, K, 0);
+      }
+      // 1 階: 大広間。入口から奥へ赤いじゅうたん、両がわに柱とランプ
+      for (let v = -K + 1; v <= K - 1; v++) put(0, 0, v, RED_BLOCK);
+      for (const u of [-3, 3]) {
+        for (const v of [-2, 2]) {
+          for (let dy = 1; dy <= 4; dy++) put(u, dy, v, WHITE_BLOCK);
+        }
+      }
+      put(-3, 4, 0, LAMP);
+      put(3, 4, 0, LAMP);
+      const [hx, hz] = at(-4, -4);
+      placeLootChest(hx, fy + 1, hz, LOOT.skyCastle);
+      // 2 階: 図書室。かべぎわに本棚、まん中にエンチャント台
+      for (let u = -K + 1; u <= K - 1; u++) {
+        for (const v of [-K + 1, K - 1]) {
+          if (Math.abs(u) <= 1 && v > 0) continue;
+          for (let dy = 6; dy <= 7; dy++) put(u, dy, v, BOOKSHELF);
+        }
+      }
+      for (let v = -K + 2; v <= K - 2; v++) {
+        for (let dy = 6; dy <= 7; dy++) put(-K + 1, dy, v, BOOKSHELF);
+      }
+      put(0, 6, 0, ENCHANT_TABLE);
+      put(0, 9, 0, LAMP);
+      const [lx, lz] = at(2, -K + 2);
+      placeLootChest(lx, fy + 6, lz, LOOT.skyCastle);
+      // 3 階: 玉座の間。黄色い玉座と、うしろの宝箱（中身は決まっている）
+      for (let v = -K + 1; v <= K - 1; v++) put(0, 10, v, RED_BLOCK);
+      put(0, 11, -K + 2, YELLOW_BLOCK);
+      put(-1, 11, -K + 1, YELLOW_BLOCK);
+      put(1, 11, -K + 1, YELLOW_BLOCK);
+      put(0, 11, -K + 1, YELLOW_BLOCK);
+      put(0, 12, -K + 1, YELLOW_BLOCK);
+      put(-3, 14, 0, LAMP);
+      put(3, 14, 0, LAMP);
+      // 上の階へのはしご（右おくのすみ。床に穴をあけて通す）
+      for (let dy = 1; dy <= 14; dy++) put(K - 1, dy, -(K - 1), LADDER);
+      const [tx, tz] = at(-2, -K + 1);
+      placeFixedChest(tx, fy + 11, tz, [
+        { id: 'diamond', count: 12 }, { id: 'star_shard', count: 4 }, { id: 'golden_apple', count: 4 },
+        { id: 'emerald', count: 16 }, { id: 'enchanted_book', count: 1, ench: { protection: 4, unbreaking: 3 } },
+        { id: 'enchanted_book', count: 1, ench: { sharpness: 5, looting: 3 } }, { id: 'sky_bricks', count: 32 }
+      ]);
+
+      skyCastle = { x: cx, y: fy, z: cz, fwd };
+      const wallR = W + 2;
+      undergroundSites.push({
+        kind: 'sky_castle', x: cx, y: fy, z: cz, half: wallR,
+        boxes: [{ x0: cx - wallR, x1: cx + wallR, y0: fy - 2, y1: fy + 21, z0: cz - wallR, z1: cz + wallR }]
+      });
+
+      // まん中の島から城への門（ドラゴンをたおすと開く）。塔への門と重ならないように、少しずらす
+      let angle = Math.atan2(cz, cx);
+      const gateAt = a => [Math.round(Math.cos(a) * (SKY_ISLAND_R - 3)), Math.round(Math.sin(a) * (SKY_ISLAND_R - 3))];
+      let [gx, gz] = gateAt(angle);
+      for (let n = 0; n < 8 && skyGateways.some(g => Math.hypot(g.x - gx, g.z - gz) < 5); n++) {
+        angle += 0.15;
+        [gx, gz] = gateAt(angle);
+      }
+      const [ox, oz] = at(0, W + 5);   // 城の門の前に立つ所
+      const [px, pz] = at(0, W + 7);   // 城の島の門
+      skyGateways.push({ x: gx, y: SKY_TOP + 1, z: gz, to: { x: ox, y: fy + 1, z: oz } });
+      skyGateways.push({ x: px, y: fy + 1, z: pz, to: { x: Math.round(gx - Math.cos(angle) * 2), y: SKY_TOP + 1, z: Math.round(gz - Math.sin(angle) * 2) } });
     }
 
     // まん中の島: 最後のドラゴンの広場
@@ -12829,6 +13078,13 @@
     // 来たときの台を作りなおして、そこに立つ（こわしていても落ちないように）
     function travelToSky() {
       const fresh = switchDimension(SKY);
+      // 前にドラゴンをたおしたワールドでも、あとから足した門（天空の城への門）を開けておく
+      if (lairsDefeated.sky_dragon) {
+        skyGateways.forEach(g => {
+          if (getBlock(g.x, g.y, g.z) !== SKY_GATEWAY) replaceBlock(g.x, g.y, g.z, SKY_GATEWAY);
+          if (getBlock(g.x, g.y + 1, g.z) !== SKY_GATEWAY) replaceBlock(g.x, g.y + 1, g.z, SKY_GATEWAY);
+        });
+      }
       const a = skyArrival;
       for (let dx = -2; dx <= 2; dx++) {
         for (let dz = -2; dz <= 2; dz++) {
@@ -14090,7 +14346,7 @@
       ['🔥 異世界の敵', ['zombie_piglin', 'wither_skeleton', 'magma_cube', 'blaze', 'ghast']],
       ['🐾 動物', ['pig', 'cow', 'chicken']],
       ['🏘️ 村の人', ['villager']],
-      ['🌌 天空の島の敵', ['enderman']],
+      ['🌌 天空の島の敵', ['enderman', 'sky_knight']],
       ['🌊 海の生き物', ['fish', 'squid', 'drowned', 'sea_guardian']]
     ];
     const MOB_INFO = {
@@ -14116,6 +14372,7 @@
       pig: { emoji: '🐷', where: '明るい草原', tip: '生肉を落とす（かまどで焼ける）。小麦を持つとついてくる' },
       cow: { emoji: '🐮', where: '明るい草原', tip: '生肉をたくさん落とす。小麦をあげた 2 匹から赤ちゃんが生まれる' },
       chicken: { emoji: '🐔', where: '明るい草原', tip: '羽根（矢の材料）を落とす' },
+      sky_knight: { emoji: '🛡️', where: '天空の城の中', tip: '城を守る白いよろいの騎士。松明でも止まらず、見つけるとすぐにおそってくる。エメラルドを落とす' },
       enderman: { emoji: '🕴️', where: '天空の島', tip: 'とても背が高い。なぐるまでは おそってこないが、なぐると強い。ワープして逃げることがある。エンダーパール（投げるとワープできる）を落とす' },
       sky_dragon: { emoji: '🐲', tip: '最後のドラゴン。異世界のドラゴンと同じく「空から火の玉 → 地上であばれる」。柱 10 本の回復の結晶を先にこわそう。怒るとエンダーマンを呼ぶ。たおすと天空の剣と、帰りのゲート' },
       villager: { emoji: '🧑‍🌾', where: '草原の村', tip: '右クリックで交換できる。農家・司書・鍛冶屋・聖職者・矢師がいて、服の色でわかる。赤い月の夜は敵にねらわれるので守ってあげよう' },
@@ -14705,6 +14962,8 @@
         get skyExit() { return skyExit; },
         get skyIslands() { return skyIslands; },
         get skyGateways() { return skyGateways; },
+        get skyCastle() { return skyCastle; },
+        findCastleSpot,
         travelToSky,
         travelHomeFromSky,
         placeSkyEye,
